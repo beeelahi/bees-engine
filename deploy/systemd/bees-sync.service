@@ -1,0 +1,17 @@
+[Unit]
+Description=Bee's Dashboard engine run (sync, analytics, exports, publish, bots, alerts)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=bees
+WorkingDirectory=/home/bees/BinanceData
+ExecStart=/usr/bin/python3 /home/bees/BinanceData/bin/binance_sync.py
+Nice=5
+TimeoutStartSec=3h
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/bees/BinanceData

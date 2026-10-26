@@ -1,0 +1,17 @@
+[Unit]
+Description=Bee's market-making bot (MEXC); idles unless ~/BinanceData/mm.json has "enabled": true
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bees
+WorkingDirectory=/home/bees/BinanceData
+ExecStart=/usr/bin/python3 /home/bees/BinanceData/bin/mm_bot.py
+Restart=on-failure
+RestartSec=30
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/bees/BinanceData

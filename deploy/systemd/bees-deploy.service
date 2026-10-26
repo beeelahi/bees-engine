@@ -1,0 +1,11 @@
+[Unit]
+Description=Bee's Dashboard continuous deployment (pull main, verify CI, test, switch)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=bees
+WorkingDirectory=/home/bees
+ExecStart=/bin/bash -c "if [ -x /home/bees/BinanceData/deploy/pull_deploy.sh ]; then exec /home/bees/BinanceData/deploy/pull_deploy.sh; else exec /bin/bash /home/bees/app/deploy/pull_deploy.sh; fi"
+TimeoutStartSec=20min

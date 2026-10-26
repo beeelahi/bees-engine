@@ -1,0 +1,37 @@
+#cloud-config
+# Bee's engine server (Hetzner, Ubuntu 24.04). Paste into "Cloud config" when creating the server, then run
+# deploy/install_server.sh as user bees (see docs/OPERATIONS.md).
+# Creates user "bees" (SSH key only, no password), locks root SSH, firewall: SSH only, automatic security updates.
+users:
+  - name: bees
+    groups: [sudo]
+    shell: /bin/bash
+    lock_passwd: true
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    ssh_authorized_keys: []          # Hetzner injects the SSH key you select; it is copied to this user below
+package_update: true
+package_upgrade: true
+packages: [python3, git, curl, sqlite3, rsync, ufw, fail2ban, unattended-upgrades]
+write_files:
+  - path: /etc/ssh/sshd_config.d/00-bees.conf
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PubkeyAuthentication yes
+      AllowUsers bees
+      MaxAuthTries 3
+      X11Forwarding no
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+runcmd:
+  - mkdir -p /home/bees/.ssh && cp /root/.ssh/authorized_keys /home/bees/.ssh/authorized_keys
+  - chown -R bees:bees /home/bees/.ssh && chmod 700 /home/bees/.ssh && chmod 600 /home/bees/.ssh/authorized_keys
+  - mkdir -p /home/bees/BinanceData && chown bees:bees /home/bees/BinanceData && chmod 700 /home/bees/BinanceData
+  - ufw default deny incoming && ufw default allow outgoing && ufw allow 22/tcp && ufw --force enable
+  - systemctl enable --now fail2ban
+  - systemctl daemon-reload
+  - systemctl restart ssh
+  # services are installed by deploy/install_server.sh (from the repository), not here
