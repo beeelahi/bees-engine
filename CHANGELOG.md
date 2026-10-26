@@ -5,6 +5,9 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- Automatic Bee's Shortlist (`auto_picks.py`): once per daily close the engine opens picks by the shortlist rules
+  (bull score 7+, a proven bullish signal) and closes them on a stop hit, a proven bearish signal or delisting.
+  Every open and close goes into a SHA-256-chained ledger; the head hash is published with the list.
 - Bee's Shortlist picks live in the repository (`picks/picks.json`): every pick and close is a public, timestamped
   commit, added only through `tools/pick.py` with entry and stop taken from published data.
 - `carry_study.py`: funding-rate carry study on the full funding history, runnable on the server (`carry-study`).

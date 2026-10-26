@@ -793,6 +793,12 @@ def main():
                 light_publish = True
     except Exception as e:
         log.exception(f"4h candles skipped: {e}")
+    try:                                       # Bee's Shortlist: automatic picks, once per new daily close
+        import auto_picks
+        auto_picks.run(con, os.path.join(ROOT, "web_export"), log.info)
+    except Exception as e:
+        log.warning(f"Automatic picks skipped: {e}")
+        problems.append("automatic picks skipped")
     try:                                       # Bee's Shortlist, public read-only copy: republish when it changes
         import public_sl
         if public_sl.sync(log.info):
