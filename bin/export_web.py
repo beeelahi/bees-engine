@@ -67,7 +67,7 @@ KEY_NEED_VOLUME = {"new_ath", "new_1y_high", "new_1y_low", "price_x_dc55", "sque
 KEY_MIN_HISTORY = 365      # days of continuous history on the pair (evidence from crypto history must apply)
 KEY_EXCLUDE = {"PAXG", "XAUT", "WBTC", "WBETH", "BETH", "BNSOL", "WSTETH", "STETH"}   # pegged / wrapped assets
 KEY_REPEAT_DAYS = 10       # the same signal on the same pair within this many days is shown once
-ALWAYS = {"bot_buy": 400, "bot_sell": 400, "bot_partial": 380, "bot_signal": 350, "btc_regime": 500}
+ALWAYS = {"bot_buy": 400, "bot_sell": 400, "bot_partial": 380, "bot_signal": 350, "btc_regime": 500, "chan_call": 300}
 SIGNAL_KINDS = set().union(*analytics.HIGHLIGHT_KINDS.values())
 
 
@@ -481,6 +481,20 @@ def run(con=None):
               FROM latest l LEFT JOIN supply s ON s.token = l.token WHERE l.in_universe=1 ORDER BY l.symbol"""))
     else:
         write(os.path.join(OUT, "screener.json"), table(con, "SELECT * FROM latest WHERE in_universe=1 ORDER BY symbol"))
+    try:                                         # parallel channels, daily + 4h (research add-on, never blocks the export)
+        import chan
+        channels = chan.run(con)
+    except Exception as e:
+        print("export_web: channels skipped:", repr(e))
+        channels = {"rows": [], "stats": {}, "labels": {}, "rules": {}}
+    calls = {"rows": [], "rules": {}}
+    try:                                         # channel calls: a channel entry + proven signals that agree
+        import chan_calls
+        calls = chan_calls.build(con, channels["rows"], table(con, "SELECT * FROM signal_stats"), last)
+        n_new = chan_calls.log(con, calls, datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+        print(f"export_web: {len(calls['rows'])} channel calls, {n_new} new")
+    except Exception as e:
+        print("export_web: channel calls skipped:", repr(e))
     hl = key_highlights(con)
     hl["ideas"] = trade_ideas(con)
     try:
@@ -489,12 +503,8 @@ def run(con=None):
     except Exception as e:                       # a research add-on must never block the export
         print("export_web: setups skipped:", repr(e))
         hl["setups"] = {"rows": [], "stats": {}, "kinds": {}, "rules": {}}
-    try:                                         # parallel channels, daily + 4h (research add-on, never blocks the export)
-        import chan
-        hl["channels"] = chan.run(con)
-    except Exception as e:
-        print("export_web: channels skipped:", repr(e))
-        hl["channels"] = {"rows": [], "stats": {}, "labels": {}, "rules": {}}
+    hl["channels"] = channels
+    hl["channel_calls"] = calls
     write(os.path.join(OUT, "highlights.json"), hl)
     try:                                         # futures context: funding, open interest, long/short (public data)
         import derivatives

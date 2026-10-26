@@ -5,6 +5,9 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- Channel calls (`chan_calls.py`): a daily channel entry confirmed by proven signals in the same direction and the
+  bull score, graded A/B with stops and targets from the channel lines. Shown in the Watchlist (Channel setups) and
+  Highlights; each new call is posted to the highlights feed and to Telegram.
 - Channel detector v2: every clean parallel channel up to 7 years back (up to 3 per coin), anchored on real swing
   points from the first touch, with midline tracking (reclaim, retest, loss), bottom bounces and top rejections.
   Charts draw every channel extended left and right; each row shows its status's measured record vs the market.

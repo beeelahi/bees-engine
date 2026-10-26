@@ -357,6 +357,13 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Setup</th><th>Side</th><th title="Median result 30 days after the setup (entry next open, no stop), before 2022">30d median ≤2021</th><th>Win ≤2021</th><th title="Same, from 2022 on">30d median 2022+</th><th>Win 2022+</th><th>Cases</th><th id="setupRegHead" title="Same setup, only on days with today's market regime (all years)">Today's regime</th></tr></thead><tbody id="setupStats"></tbody></table></div>
       <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Setup</th><th>Chart</th><th>Close</th><th title="Where the setup is wrong: beyond the swing high/low (+/- 0.5 ATR), or 1.5 ATR under a breakout">Invalidation</th><th title="Entry at the next open, out at the invalidation level if touched, else marked at the latest close (closed after 30 days). No fees.">So far</th><th>Liquidity</th></tr></thead><tbody id="setupBody"></tbody></table></div>
     </div>
+    <div class="card" id="callsCardH">
+      <div class="card-head"><h2>Channel calls</h2><span class="note" id="callsNoteH"></span></div>
+      <p class="note" style="margin:0 0 12px" id="callsIntroH"></p>
+      <div class="tbl-wrap" style="max-height: 50vh; margin-bottom:12px"><table><thead><tr><th>Grade</th><th>Pair</th><th>Side</th><th>Channel status</th><th>Channel</th><th title="Proven signals in the same direction: daily in the last 3 days or the latest weekly candle">Agreeing signals</th><th title="0-10 confluence of trend and momentum (daily)">Bull score</th><th>Close</th><th title="Longs: 10% of the channel width under the bottom line. Shorts: back above the line that was lost, +10% of the width">Stop / invalid</th><th>Target 1</th><th>Target 2</th><th title="Reward to target 1 ÷ risk to the stop">R:R</th><th title="Since 2022: this channel status's median 30-day result vs the average coin, and how often it beat the market">History vs market</th><th>Liquidity</th></tr></thead><tbody id="callsBodyH"></tbody></table></div>
+      <div class="card-head" style="margin-top:4px"><h2 style="font-size:1rem">Posted to highlights</h2><span class="note">each new call, when it happened (last 90 days)</span></div>
+      <div class="hl-list" id="hlCalls"></div>
+    </div>
     <div class="card" id="chanCard">
       <div class="card-head"><h2>Channels</h2>
         <div style="display:flex; gap:8px; flex-wrap:wrap">
@@ -408,6 +415,13 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
   </section>
 
   <section class="view" id="v-watchlist" hidden>
+    <div class="card" id="callsCardW">
+      <div class="card-head"><h2>Channel setups</h2>
+        <div class="seg" id="callSide"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="long" aria-pressed="false">Long</button><button type="button" data-v="short" aria-pressed="false">Short / caution</button></div>
+      </div>
+      <p class="note" style="margin:0 0 12px" id="callsIntroW"></p>
+      <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Grade</th><th>Pair</th><th>Side</th><th>Channel status</th><th>Channel</th><th title="Proven signals in the same direction: daily in the last 3 days or the latest weekly candle">Agreeing signals</th><th title="0-10 confluence of trend and momentum (daily)">Bull score</th><th>Close</th><th title="Longs: 10% of the channel width under the bottom line. Shorts: back above the line that was lost, +10% of the width">Stop / invalid</th><th>Target 1</th><th>Target 2</th><th title="Reward to target 1 ÷ risk to the stop">R:R</th><th title="Since 2022: this channel status's median 30-day result vs the average coin, and how often it beat the market">History vs market</th><th>Liquidity</th></tr></thead><tbody id="callsBodyW"></tbody></table></div>
+    </div>
     <div class="card">
       <div class="card-head"><h2>Watchlist hits, last 365 days</h2><span class="note" id="watchCount"></span></div>
       <div class="tbl-wrap" style="max-height: 72vh"><table><thead><tr><th>Date</th><th>Pair</th><th>Close</th><th>RVOL</th><th>Vol z</th><th>RSI</th><th>Taker buy</th><th>Volume</th><th>+7D</th><th>+30D</th><th>Max gain 30D</th><th>Max drawdown 30D</th></tr></thead><tbody id="watchBody"></tbody></table></div>
@@ -705,7 +719,7 @@ const isNew = h => !S.prevVisit || h.first_seen_utc > S.prevVisit;
 const newHl = () => S.prevVisit ? S.hl.filter(h => h.first_seen_utc > S.prevVisit) : S.hl.filter(h => h.first_seen_utc >= S.hl[0]?.first_seen_utc?.slice(0, 10));
 
 // ---------- highlights
-const KIND = { ema50_x_ema200: ["EMA golden cross (50 × 200)", "EMA death cross (50 × 200)"], sma50_x_sma200: ["MA golden cross (50 × 200)", "MA death cross (50 × 200)"],
+const KIND = { chan_call: ["Channel call (long): channel entry confirmed by proven signals", "Channel call (short / caution): channel break or rejection confirmed by proven signals"], ema50_x_ema200: ["EMA golden cross (50 × 200)", "EMA death cross (50 × 200)"], sma50_x_sma200: ["MA golden cross (50 × 200)", "MA death cross (50 × 200)"],
   lose_sma200: ["", "Lost the 200-day MA after 20+ days above it"], lose_ema200: ["", "Lost the 200-day EMA after 20+ days above it"],
   reclaim_sma200: ["Reclaimed the 200-day MA after 20+ days below it", ""], reclaim_ema200: ["Reclaimed the 200-day EMA after 20+ days below it", ""],
   price_x_ema200: ["Closed above the 200-day EMA", "Closed below the 200-day EMA"], price_x_sma200: ["Closed above the 200-day MA", "Closed below the 200-day MA"],
@@ -737,6 +751,7 @@ function hlEvidence(h) {
   if (h.kind === "bot_partial") return who + `Sold ${fN(100 * d.share, 0)}% at ${fPx(d.price)} (${fUsd2(d.pnl_usd)}); stop on the rest moved to break-even. Paper trade.`;
   if (h.kind === "bot_signal") return who + `Signal close ${fPx(d.ref_close)}; stop will sit ${fN(d.stop_dist_pct)}% below the fill. Paper trade.`;
   if (h.kind === "btc_regime") return "The bot opens new longs only while BTC is above its 200-day average.";
+  if (h.kind === "chan_call") return `Grade ${d.grade} · ${((chanData().labels || {})[d.status] || d.status || "").toLowerCase()} in a ${Math.round(d.days || 0)}-day channel (${(d.touches || []).join("/")} touches) · ${(d.signals || []).map(k => sigLabel(k.split(":")[1], h.direction) + (k.startsWith("1w") ? " (weekly)" : "")).join(", ")} · close ${fPx(d.close)}, stop ${fPx(d.stop)}, target ${fPx(d.t1)}${isNum(d.rr) ? " (R:R " + fN(d.rr, 1) + ")" : ""}. Not advice.`;
   if (h.kind === "new_listing" || h.kind === "stopped_trading") return "";
   if (!isNum(h.edge_30d)) return "";
   const also = (h.also || []).map(k => kindText({ kind: k, signal_direction: h.signal_direction })).filter(Boolean);
@@ -827,6 +842,33 @@ const chTime = (x, k) => x.tf === "4h" ? x.t1 + k * 14400 : new Date(Date.parse(
 const chLines = (x, k) => { const s = isNum(x.slope) ? x.slope : (x.lo1 - x.lo0) / Math.max(1, x.bars - 1); return [x.lo1 + s * k, x.hi1 + s * k]; };
 const chanTime = (x, t) => x.tf === "4h" ? new Date(t * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC" : t;
 function chanShape(x) { const s = x.slope_pct_day; return (Math.abs(s) < 0.05 ? "Flat" : s > 0 ? "Rising" : "Falling") + (Math.abs(s) < 0.05 ? "" : " " + fPct(s, 2) + "/day") + " · " + (x.tf === "4h" ? fN(x.days, 0) + " days" : x.days + " days"); }
+const callData = () => (S.hlMeta && S.hlMeta.channel_calls) || { rows: [], rules: {} };
+const CALL_INTRO = "Coins with an entry inside a clean daily channel that other indicators confirm: the channel status (long: near the bottom, bounce off the bottom, midline retest or reclaim, breakout; short / caution: breakdown, midline lost, rejected at the top) plus at least one PROVEN signal in the same direction (daily in the last 3 days or the latest weekly candle; proven = 100+ past cases with the same 30-day edge before and after 2022) and the bull score on the right side (5+ for longs, 5 or less for shorts). Grade A = 2+ agreeing proven signals and a channel status that has not lagged the market. Stops and targets come from the channel lines. Each new call is posted to Highlights when it appears. Checked after every daily close. Ideas to review on the chart, not advice.";
+function renderCalls(bodyId, side) {
+  const C = callData(), D = chanData(), body = $("#" + bodyId); if (!body) return; body.replaceChildren();
+  const rows = (C.rows || []).filter(x => !side || x.side === side), frag = document.createDocumentFragment();
+  rows.forEach(x => { const t = document.createElement("tr"); t.className = "clickable"; t.onclick = () => openPair(x.symbol, "1d");
+    const sigs = document.createElement("span"); sigs.className = "controls"; sigs.style.gap = "4px";
+    x.signals.slice(0, 4).forEach(k => { const [tf, sg] = k.split(":"); sigs.append(chip(sigLabel(sg, x.side === "long" ? "bullish" : "bearish") + (tf === "1w" ? " (weekly)" : ""), x.side === "long" ? "up" : "down")); });
+    const ch = x.channel || {};
+    t.append(tdNode(chip(x.grade, x.grade === "A" ? (x.side === "long" ? "up" : "down") : "neutral")), tdNode(symNode(x.symbol)), tdNode(chip(x.side === "long" ? "Long" : "Short / caution", x.side === "long" ? "up" : "down")),
+      tdNode(chip((D.labels || {})[x.status] || x.status, CH_UP[x.status] || "neutral")), td(Math.round(ch.days || 0) + " days · " + (ch.touches || []).join("/") + " touches · Q " + fN(ch.quality, 1), ""),
+      tdNode(sigs), td(String(x.bull_score), "num"), td(fPx(x.close), "num"), td(fPx(x.stop) + (isNum(x.risk_pct) ? " (" + fN(x.risk_pct, 1) + "%)" : ""), "num"),
+      td(fPx(x.t1) + " (" + fPct(100 * (x.t1 / x.close - 1), 1) + ")", "num"), td(isNum(x.t2) ? fPx(x.t2) + " (" + fPct(100 * (x.t2 / x.close - 1), 1) + ")" : "—", "num"),
+      td(isNum(x.rr) ? fN(x.rr, 1) : "—", "num"), x.hist ? td(fPct(x.hist.rel30, 1) + " · " + x.hist.beat30 + "%", "num " + cls(x.hist.rel30)) : td("—", "cold"), td("#" + x.liq_rank, "num")); frag.append(t); });
+  body.append(frag);
+  if (!rows.length) body.innerHTML = '<tr><td colspan="14" class="empty">No channel entry is confirmed by other indicators right now. That is a valid answer: nothing forced.</td></tr>';
+}
+function renderCallsAll() {
+  const C = callData(), n = (C.rows || []).length, a = (C.rows || []).filter(x => x.grade === "A").length;
+  $("#callsIntroW").textContent = CALL_INTRO; $("#callsIntroH").textContent = CALL_INTRO;
+  $("#callsNoteH").textContent = n ? `${n} now · ${a} grade A` : "";
+  renderCalls("callsBodyW", S.callSide || ""); renderCalls("callsBodyH", "");
+  const list = $("#hlCalls"); if (!list) return; list.replaceChildren();
+  const posted = S.hl.filter(h => h.kind === "chan_call");
+  posted.slice(0, 60).forEach(h => list.append(hlRow(h, true)));
+  if (!posted.length) list.innerHTML = '<div class="empty">No channel calls posted yet. New ones appear here (and on Telegram, once alerts are on) the day they qualify.</div>';
+}
 function renderChannels() {
   const D = chanData(), ru = D.rules || {}, card = $("#chanCard");
   if (!D.rows) { card.hidden = true; return; } card.hidden = false;
@@ -861,6 +903,7 @@ function renderChannels() {
       isNum(x.so_far_pct) ? td(fPct(x.so_far_pct, 1), "num " + cls(x.so_far_pct)) : td("—", "cold"), td("#" + x.liq_rank, "num")); frag.append(t); });
   body.append(frag);
   if (!rows.length) body.innerHTML = '<tr><td colspan="14" class="empty">No coin matches this filter right now.</td></tr>';
+  renderCallsAll();
 }
 function renderHighlights() {
   const bots = S.hl.filter(isBotHl), list = $("#hlBot"); list.replaceChildren();
@@ -1118,7 +1161,7 @@ function renderWatchStats() {
   if (!yb.children.length) yb.innerHTML = '<tr><td colspan="8" class="empty">No rule hits yet.</td></tr>';
 }
 function renderWatch() {
-  renderWatchStats();
+  renderWatchStats(); renderCallsAll();
   const b = $("#watchBody"); b.replaceChildren(); $("#watchCount").textContent = S.watch.length + " hits"; const frag = document.createDocumentFragment();
   S.watch.forEach(h => { const t = document.createElement("tr"); t.className = "clickable"; t.onclick = () => openPair(h.symbol);
     t.append(td(h.date, "num"), tdNode(symNode(h.symbol)), td(fPx(h.close), "num"), td(fX(h.rvol), "num pos"), td(fN(h.vol_z), "num"), td(fN(h.rsi), "num"),
@@ -1767,6 +1810,7 @@ segment("ideaSide", "v", v => { S.ideaSide = v; renderHighlights(); });
 segment("setupKind", "v", v => { S.setupKind = v; renderSetups(); });
 segment("chanKind", "v", v => { S.chanKind = v; renderChannels(); });
 segment("chanTf", "v", v => { S.chanTf = v; renderChannels(); });
+segment("callSide", "v", v => { S.callSide = v; renderCalls("callsBodyW", v); });
 $("#sigType").onchange = e => { S.sigType = e.target.value; renderSignals(); };
 $("#sigConf").onclick = e => { S.sigConf = !S.sigConf; e.currentTarget.setAttribute("aria-pressed", String(S.sigConf)); renderSignals(); };
 segment("libTf", "v", v => { S.lib.tf = v; renderLibrary(); }); segment("libVar", "v", v => { S.lib.variant = v; renderLibrary(); }); segment("libDir", "v", v => { S.lib.dir = v; renderLibrary(); });

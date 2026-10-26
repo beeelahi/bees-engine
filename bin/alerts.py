@@ -5,6 +5,7 @@ What is sent (each event once, newest data only, at most MAX_PER_RUN per run):
   * bot actions: entry signal, buy, partial profit, sale (paper trading)
   * the BTC 200-day market filter switching the breakout bots on or off
   * new "Possible major top (weekly)" setups, and the other leading setups (daily tops/bottoms, breakouts)
+  * channel calls: a channel entry confirmed by proven signals (each coin / side / channel / status once)
   * channels: breakouts / breakdowns (daily and 4h), midline reclaims / losses / retests and bottom bounces (daily),
     and coins at the edge of a long-term channel (150 most liquid, once a week)
   * engine problems: sync incomplete, website publish failed, 4h candles disagreeing with daily candles
@@ -134,6 +135,14 @@ def events(con, today):
                 f" ({'weekly' if x.get('tf') == '1w' else 'daily'} chart, close {_px(x.get('close'))}); invalid beyond {_px(x.get('stop'))}."
                 + (f" Measured target {_px(x.get('target'))}." if x.get("target") else "") + f" Liquidity #{x.get('liq_rank')}. Not advice.")
         out.append((f"setup:{x['kind']}:{x['symbol']}:{x['date']}", text))
+    for x in (hl.get("channel_calls") or {}).get("rows", []):
+        coin, ch = x["symbol"].replace("USDT", ""), x.get("channel") or {}
+        sigs = ", ".join(k.split(":")[1].replace("_", " ") + (" (weekly)" if k.startswith("1w") else "") for k in x.get("signals", []))
+        text = (f"CHANNEL CALL ({x['grade']}, {'long' if x['side'] == 'long' else 'short / caution'}): {coin} - {x['status'].replace('_', ' ')} in a "
+                f"{round(ch.get('days') or 0)}-day daily channel ({'/'.join(str(t) for t in ch.get('touches') or [])} touches), confirmed by {sigs}; "
+                f"bull score {x.get('bull_score')}. Close {_px(x.get('close'))}, stop {_px(x.get('stop'))}, target {_px(x.get('t1'))}"
+                + (f" (R:R {x['rr']})" if x.get("rr") else "") + f". Liquidity #{x.get('liq_rank')}. Not advice.")
+        out.append((f"call:{x['symbol']}:{x['side']}:{ch.get('t0')}:{x['status']}", text))
     C = hl.get("channels") or {}
     week = datetime.strptime(today, "%Y-%m-%d").strftime("%G-W%V")
     for x in C.get("rows", []):
