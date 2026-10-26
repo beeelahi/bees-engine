@@ -1206,12 +1206,12 @@ async function lowsSince(sym, fromDate) {
 }
 const slSort = (a, b) => (b.approved_at || "").localeCompare(a.approved_at || "");
 async function renderShortlist() {
-  const pub = !SL.owner;
+  const pub = !!S.pubSL || !SL.owner;          // the published list is the record; the owner sees it too
   if (pub && !S.pubSL) { $("#v-shortlist").innerHTML = '<div class="card empty">The shortlist is not published yet.</div>'; return; }
   const docs = pub ? (S.pubSL.rows || []) : SL.docs;
-  const candCard = $("#slCandHead").closest(".card"); candCard.hidden = pub; if (pub) $("#slConfirm").hidden = true;
+  const candCard = $("#slCandHead").closest(".card"); candCard.hidden = !SL.owner; if (pub) $("#slConfirm").hidden = true;
   $("#slThNote").hidden = pub; $("#slThAct").hidden = pub;
-  $("#slIntro").textContent = pub ? `Bee's own picks, published as they are approved${S.pubSL.as_of ? " (list as of " + S.pubSL.as_of.slice(0, 16).replace("T", " ") + " UTC)" : ""}. Not advice: these are one trader's positions, shown with their full record, losers included. Entry is the close of the latest daily candle on the day of approval; the stop is entry − 2 × ATR(14), locked at approval. R = (price − entry) ÷ (entry − stop). "Stop hit" means a daily low since approval went below the stop. "Review" means a proven bearish signal fired since approval.`
+  $("#slIntro").textContent = pub ? `Bee's own picks, public from the moment they are made: every pick and every close is a timestamped commit in the open-source repository, so the record cannot be edited after the fact${S.pubSL.as_of ? " (list as of " + S.pubSL.as_of.slice(0, 16).replace("T", " ") + " UTC)" : ""}. Not advice: these are one trader's positions, shown with their full record, losers included. Entry is the close of the latest daily candle on the day of approval; the stop is entry − 2 × ATR(14), locked at approval. R = (price − entry) ÷ (entry − stop). "Stop hit" means a daily low since approval went below the stop. "Review" means a proven bearish signal fired since approval.`
     : "Only you can approve or remove entries. The list (pair, dates, entry, stop, status and result; never your notes or the suggestions) is also published read-only on the public site. Entry is the close of the latest closed daily candle on the day you approve. Stop = entry − 2 × ATR(14, daily), locked at approval. R = (price − entry) ÷ (entry − stop). Stop hit: a daily low since approval went below the stop. Review: a proven bearish signal (consistent edge, 100+ cases) fired on the pair since approval.";
   const last = S.ov.last_date, P = provenSets(), scr = Object.fromEntries(S.scr.map(r => [r.symbol, r]));
   const active = docs.filter(d => d.status === "active").sort(slSort), closed = docs.filter(d => d.status === "closed").sort((a, b) => (b.closed_at || "").localeCompare(a.closed_at || ""));
@@ -1237,7 +1237,7 @@ async function renderShortlist() {
     tb.append(t);
   }
   if (!active.length) tb.innerHTML = pub ? '<tr><td colspan="10" class="empty">No active picks right now.</td></tr>' : '<tr><td colspan="12" class="empty">Nothing approved yet. Review the suggestions below, or approve any pair from its chart.</td></tr>';
-  if (pub) { renderClosedSL(closed); return; }
+  if (pub && !SL.owner) { renderClosedSL(closed); return; }
   // candidates
   const wk = S.sig.filter(x => x.tf === "1w" && !x.provisional).reduce((m, x) => x.period_start > m ? x.period_start : m, "");
   const from = daysAgo(last, 2), have = new Set(active.map(d => d.symbol));
@@ -1255,7 +1255,10 @@ async function renderShortlist() {
   cand.slice(0, 25).forEach(c => { const r = c.r, atr = r.d_atr14_pct / 100 * r.last_close, stop = r.last_close - 2 * atr;
     const reasons = document.createElement("span"); reasons.className = "controls"; reasons.style.gap = "4px";
     c.sig.slice(0, 4).forEach(x => { const ch = chip(sigLabel(x.signal, x.direction) + (x.tf === "1w" ? " (weekly)" : "") + (x.confirmed ? " ✓vol" : ""), "up"); ch.title = x.period_start; reasons.append(ch); });
-    const b = document.createElement("button"); b.className = "btn small primary"; b.type = "button"; b.textContent = "Review & approve"; b.onclick = e => { e.stopPropagation(); askApprove(r, c.sig); };
+    const b = document.createElement("button"); b.className = "btn small primary"; b.type = "button";
+    if (S.pubSL) { const sym = r.symbol.replace(/USDT$/, ""); b.textContent = "Copy “pick " + sym + "”"; b.title = "Picks are public commits now: send this to Claude to add it";
+      b.onclick = e => { e.stopPropagation(); navigator.clipboard && navigator.clipboard.writeText("pick " + sym); b.textContent = "Copied"; }; }
+    else { b.textContent = "Review & approve"; b.onclick = e => { e.stopPropagation(); askApprove(r, c.sig); }; }
     const t = document.createElement("tr"); t.className = "clickable"; t.onclick = () => openPair(r.symbol);
     t.append(tdNode(symNode(r.symbol)), tdNode(reasons), tdNode(chip(String(r.d_bull_score), r.d_bull_score >= 8 ? "up" : "neutral")), td(fPct(r.d_rs30), "num " + cls(r.d_rs30)), td(fN(r.d_rsi14), "num"),
       td(fPx(r.last_close), "num"), td(fPx(stop), "num"), td((2 * r.d_atr14_pct).toFixed(1) + "%", "num"), tdNode(b));
@@ -1512,7 +1515,7 @@ async function renderPair() {
   if (lp) { const c = chip(fPct(lp[1]) + " 24h", lp[1] >= 0 ? "up" : "down"); c.title = "Rolling 24 hours to " + fmtLocal(S.px.as_of) + " · high " + fPx(lp[2]) + " · low " + fPx(lp[3]); chg.append(c); }
   if (r) chg.append(chip(fPct(r.ret_1d) + " last day", r.ret_1d >= 0 ? "up" : "down"));
   const ab = $("#pairApprove"); const onList = SL.docs.some(d => d.status === "active" && d.symbol === S.pair);
-  ab.hidden = !SL.owner || !r || !isNum(r.d_atr14_pct) || onList;
+  ab.hidden = !SL.owner || !!S.pubSL || !r || !isNum(r.d_atr14_pct) || onList;
   ab.onclick = () => { location.hash = "shortlist"; setTimeout(() => askApprove(r, []), 300); };
   const st = $("#pairStats"); st.replaceChildren();
   if (r) { const g = k => r[p + "_" + k];

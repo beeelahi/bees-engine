@@ -19,8 +19,14 @@ Actions → **Operate** → choose a command:
 | `rollback` | Switch back to the previous release. |
 | `mm-start` / `mm-stop` | Market maker on / pause (pause cancels its own orders; it never market-sells). |
 | `trading-stop` / `trading-resume` | Live engine: block / allow new entries. |
+| `carry-study` | Run the funding-carry study on the server's full funding history. |
 
 The ops key can run only these commands (forced command, no shell).
+
+## Picks (Bee's Shortlist)
+
+Picks are public commits: `python3 tools/pick.py add SYMBOL --data <site data>` or `... close SYMBOL --reason "Stop hit"`,
+committed as `picks: add SYMBOL` / `picks: close SYMBOL`. The server publishes them after the checks pass.
 
 ## Incidents
 

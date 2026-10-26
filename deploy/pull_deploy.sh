@@ -15,7 +15,7 @@ APP="${BEES_APP:-/home/bees/app}"                # git checkout of the repositor
 ROOT="${BEES_ROOT:-/home/bees/BinanceData}"      # live install: code dirs + private data, settings and keys
 RELEASES="${BEES_RELEASES:-/home/bees/releases}" # unpacked, tested releases (last 5 kept)
 GIT_URL="${BEES_GIT_URL:-https://github.com/$REPO.git}"
-PARTS="bin web deploy"
+PARTS="bin web deploy picks"
 mkdir -p "$ROOT/logs" "$RELEASES"
 [ "${1:-}" = "--now" ] || exec >>"$ROOT/logs/deploy.log" 2>&1
 ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
@@ -37,9 +37,10 @@ switch_to() {  # $1 = unpacked release dir, $2 = sha
   flock -w 600 9 || { echo "$(ts) engine busy for 10 min, will retry"; exit 0; }   # never swap mid-run
   for p in $PARTS; do
     rm -rf "$ROOT/$p.new"
-    cp -a "$rel/$p" "$ROOT/$p.new"
+    [ -e "$rel/$p" ] && cp -a "$rel/$p" "$ROOT/$p.new"
   done
   for p in $PARTS; do
+    [ -e "$ROOT/$p.new" ] || continue
     rm -rf "$ROOT/$p.prev"
     [ -e "$ROOT/$p" ] && mv "$ROOT/$p" "$ROOT/$p.prev"
     mv "$ROOT/$p.new" "$ROOT/$p"

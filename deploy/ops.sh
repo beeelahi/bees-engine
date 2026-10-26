@@ -19,6 +19,9 @@ case "$CMD" in
     echo "-- last runs"; { grep -E "Run OK|Run FAILED|publish_site|Web export|live engine|ERROR" "$ROOT/logs/sync.log" || true; } | tail -n 12 | scrub
     echo "-- site"; cat "$ROOT/site_status.json" 2>/dev/null || echo "not published from this server yet"; echo
     echo "-- disk"; df -h / | tail -1; du -sh "$ROOT/data" 2>/dev/null || true
+    echo "-- keys present (names only)"; for f in .github_token .telegram .binance_testnet .binance_live .mexc_live; do if [ -e "$ROOT/$f" ]; then printf '%s ' "$f"; fi; done; echo
+    echo "-- settings"; python3 -c 'import json,sys; m=json.load(open(sys.argv[1])) if __import__("os").path.exists(sys.argv[1]) else {}; print("live.json mode:", m.get("mode","none"))' "$ROOT/live.json" 2>/dev/null || true
+    python3 -c 'import json,sys; m=json.load(open(sys.argv[1])); print("mm.json enabled:", m.get("enabled"))' "$ROOT/mm.json" 2>/dev/null || echo "mm.json: none"
     echo "-- switches"; for f in .no_publish STOP_TRADING FLATTEN_NOW MM_STOP; do if [ -e "$ROOT/$f" ]; then echo "$f is ON"; fi; done; echo "(none listed = all off)"
     ;;
   logs|sync-log)   tail -n "$N" "$ROOT/logs/sync.log" | scrub ;;
@@ -38,5 +41,6 @@ case "$CMD" in
   mm-stop)         touch "$ROOT/MM_STOP"; echo "MM_STOP set: the bot cancels its own orders and pauses (it never market-sells)" ;;
   trading-stop)    touch "$ROOT/STOP_TRADING"; echo "STOP_TRADING set: the live engine places no new entries" ;;
   trading-resume)  rm -f "$ROOT/STOP_TRADING"; echo "STOP_TRADING cleared" ;;
-  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop trading-stop trading-resume"; exit 2 ;;
+  carry-study)     nice -n 10 python3 "$ROOT/bin/carry_study.py" ;;
+  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop trading-stop trading-resume carry-study"; exit 2 ;;
 esac

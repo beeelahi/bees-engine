@@ -4,6 +4,15 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Added
+- Bee's Shortlist picks live in the repository (`picks/picks.json`): every pick and close is a public, timestamped
+  commit, added only through `tools/pick.py` with entry and stop taken from published data.
+- `carry_study.py`: funding-rate carry study on the full funding history, runnable on the server (`carry-study`).
+- Operations status shows which keys are present (names only) and the live / market-maker settings.
+
+### Changed
+- Deployment also ships `picks/`; parts missing from older releases are skipped on rollback.
+
 ## [1.0.0] - 2026-10-26
 
 ### Added

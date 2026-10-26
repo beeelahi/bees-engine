@@ -1,17 +1,17 @@
 """
 Bee's Shortlist, public read-only copy (Python 3.9 stdlib only).
 
-The shortlist itself lives in the owner-only database of the private dashboard; only the owner approves or removes
-entries there. A Claude session (scheduled) copies it to ~/BinanceData/public/shortlist.json. This module turns
-that file into web_export/shortlist.json for the public site, keeping ONLY the fields below: never the owner's
-notes, ids or the review suggestions. Returns True when the public copy changed (so the caller republishes).
+The picks live in the public repository (picks/picks.json): every pick and every close is a commit, so the record
+is verifiable. The deployment copies that folder to the server; this module turns it into web_export/shortlist.json
+for the website, keeping ONLY the fields below. Returns True when the public copy changed (so the caller
+republishes).
 """
 import json
 import os
 import re
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-SRC = os.path.join(ROOT, "public", "shortlist.json")
+SRC = os.path.join(ROOT, "picks", "picks.json")          # deployed from the repository (picks/), one commit per change
 DST = os.path.join(ROOT, "web_export", "shortlist.json")
 FIELDS = {"symbol": str, "status": str, "entry": float, "entry_date": str, "stop": float, "risk_pct": float,
           "approved_at": str, "exit": float, "exit_date": str, "closed_at": str, "close_reason": str}
