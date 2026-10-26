@@ -793,6 +793,14 @@ def main():
                 light_publish = True
     except Exception as e:
         log.exception(f"4h candles skipped: {e}")
+    try:                                       # big 4-hour moves on liquid coins (moves.json, alerts)
+        import moves_4h
+        mv = moves_4h.run(con, os.path.join(ROOT, "web_export"), int(time.time() * 1000))
+        if mv:
+            log.info(f"4h moves: {len(mv)} new ({', '.join(x['symbol'] + ' ' + x['kind'] for x in mv[:6])})")
+            light_publish = True
+    except Exception as e:
+        log.warning(f"4h moves skipped: {e}")
     try:                                       # 1-hour candles: accumulating from a 1-year start, never blocks the site
         import sync_1h
         r1 = sync_1h.run(con, api, utc_now().strftime("%Y-%m-%d"), utc_now().strftime("%Y-%m-%dT%H:%M:%SZ"))

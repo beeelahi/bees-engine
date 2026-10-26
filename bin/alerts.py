@@ -8,6 +8,7 @@ What is sent (each event once, newest data only, at most MAX_PER_RUN per run):
   * channel calls: a channel entry confirmed by proven signals (each coin / side / channel / status once)
   * channels: breakouts / breakdowns (daily and 4h), midline reclaims / losses / retests and bottom bounces (daily),
     and coins at the edge of a long-term channel (150 most liquid, once a week)
+  * big 4-hour moves on liquid coins (15%+, or 8%+ on 3x volume; BTC / ETH 3%+), with their measured record
   * engine problems: sync incomplete, website publish failed, 4h candles disagreeing with daily candles
 
 Security:
@@ -91,10 +92,35 @@ def _px(v):
     return f"{v:,.2f}" if a >= 100 else f"{v:.4f}" if a >= 1 else f"{v:.6g}"
 
 
+MOVES = os.path.join(ROOT, "web_export", "moves.json")
+MOVE_ALERT = ("pump_15", "dump_15", "pump_8", "dump_8", "market")
+
+
+def move_events(now_s=None):
+    """Big 4-hour moves closed in the last 8 hours (see moves_4h.py), with their measured record."""
+    import time
+    if not os.path.exists(MOVES):
+        return []
+    with open(MOVES) as f:
+        M = json.load(f)
+    now_s = now_s or time.time()
+    out = []
+    for x in M.get("rows", []):
+        if x["kind"] not in MOVE_ALERT or x["t"] < now_s - 8 * 3600:
+            continue
+        st = (M.get("stats") or {}).get(x["kind"])
+        rec = (f" History: 3 days later the median was {st['med3d']:+.1f}%, higher {st['up3d']}% of the time ({st['n']} cases)." if st else "")
+        when = datetime.fromtimestamp(x["t"] + 4 * 3600, tz=timezone.utc).strftime("%H:%M UTC")
+        text = (f"4h MOVE: {x['symbol'].replace('USDT', '')} {x['ret_pct']:+.1f}% in the 4h candle closing {when}"
+                + (f" on {x['rvol']}x volume" if x.get("rvol") else "") + f", close {_px(x['close'])}.{rec} Liquidity #{x['liq_rank']}. Not advice.")
+        out.append((f"move:{x['symbol']}:{x['t']}:{x['kind']}", text))
+    return out
+
+
 def events(con, today):
     """(key, text) for every alert-worthy event in the latest export."""
     if not os.path.exists(EXPORT):
-        return []
+        return move_events()
     with open(EXPORT) as f:
         hl = json.load(f)
     cut = (datetime.strptime(today, "%Y-%m-%d") - timedelta(days=FRESH_DAYS)).strftime("%Y-%m-%d")
@@ -181,7 +207,10 @@ def run(con, log=print, problems=()):
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     sent = {k for (k,) in con.execute("SELECT key FROM alerts_sent")}
-    todo = [(k, t) for k, t in events(con, today) if k not in sent]
+    evs = events(con, today)
+    if os.path.exists(EXPORT):
+        evs += move_events()
+    todo = [(k, t) for k, t in evs if k not in sent]
     todo += [(f"problem:{p}:{today}", f"Dashboard problem: {p}") for p in problems if f"problem:{p}:{today}" not in sent]
     n = 0
     lines = []

@@ -357,6 +357,14 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Setup</th><th>Side</th><th title="Median result 30 days after the setup (entry next open, no stop), before 2022">30d median ≤2021</th><th>Win ≤2021</th><th title="Same, from 2022 on">30d median 2022+</th><th>Win 2022+</th><th>Cases</th><th id="setupRegHead" title="Same setup, only on days with today's market regime (all years)">Today's regime</th></tr></thead><tbody id="setupStats"></tbody></table></div>
       <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Setup</th><th>Chart</th><th>Close</th><th title="Where the setup is wrong: beyond the swing high/low (+/- 0.5 ATR), or 1.5 ATR under a breakout">Invalidation</th><th title="Entry at the next open, out at the invalidation level if touched, else marked at the latest close (closed after 30 days). No fees.">So far</th><th>Liquidity</th></tr></thead><tbody id="setupBody"></tbody></table></div>
     </div>
+    <div class="card" id="movesCard">
+      <div class="card-head"><h2>Big 4-hour moves</h2>
+        <div class="seg" id="mvKind"><button type="button" data-v="" aria-pressed="true">Big moves</button><button type="button" data-v="hl" aria-pressed="false">30-day highs / lows</button><button type="button" data-v="all" aria-pressed="false">All</button></div>
+      </div>
+      <p class="note" style="margin:0 0 12px" id="mvIntro"></p>
+      <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Move</th><th title="Since late 2023, liquid coins">Cases</th><th title="Median change one day later, from the next 4h open">1 day later</th><th>Higher after 1 day</th><th title="Median change three days later">3 days later</th><th>Higher after 3 days</th><th title="Median of the coin's 3-day change minus the median liquid coin's">vs the average coin, 3d</th></tr></thead><tbody id="mvStats"></tbody></table></div>
+      <div class="tbl-wrap" style="max-height: 50vh"><table><thead><tr><th>Candle closed</th><th>Pair</th><th>Move</th><th>4h change</th><th title="Volume vs the average of the previous 30 candles">Volume</th><th>Close</th><th title="From that candle's close to the latest closed 4h candle">Since</th><th>Liquidity</th></tr></thead><tbody id="mvBody"></tbody></table></div>
+    </div>
     <div class="card" id="callsCardH">
       <div class="card-head"><h2>Channel calls</h2><span class="note" id="callsNoteH"></span></div>
       <p class="note" style="margin:0 0 12px" id="callsIntroH"></p>
@@ -673,6 +681,7 @@ async function loadAll() {
     try { S.dv = await j("data/derivs.json"); } catch (e) { S.dv = null; }
     try { S.pubSL = await j("data/shortlist.json"); } catch (e) { S.pubSL = null; }
     try { S.px = await j("data/prices.json"); } catch (e) { S.px = null; }
+    try { S.mv = await j("data/moves.json"); } catch (e) { S.mv = null; }
     toObjs(ov.dictionary).forEach(d => { S.dict[d.col] = d; });
   } catch (e) {
     $("#freshText").textContent = "Data not published yet"; $("#freshPill").className = "pill warn";
@@ -869,6 +878,22 @@ function renderCallsAll() {
   posted.slice(0, 60).forEach(h => list.append(hlRow(h, true)));
   if (!posted.length) list.innerHTML = '<div class="empty">No channel calls posted yet. New ones appear here (and on Telegram, once alerts are on) the day they qualify.</div>';
 }
+function renderMoves() {
+  const M = S.mv, card = $("#movesCard"); if (!card) return; if (!M) { card.hidden = true; return; } card.hidden = false;
+  const ST = M.stats || {}, me = ST._meta || {}, L = M.labels || {};
+  $("#mvIntro").textContent = `Checked every 15 minutes, as soon as a 4-hour candle closes, on the ${(M.rules || {}).top || 200} most liquid coins (last ${(M.rules || {}).keep_days || 7} days shown). Measured on every liquid coin from ${me.from || "late 2023"} to ${me.to || "now"}: big 4h pumps on heavy volume mostly FADED over the next 1-3 days (+15% candles: lower 3 days later about 7 times in 10), and big dumps did not reliably bounce. These are moves to know about, not entries: chasing a 4h pump has been a losing trade.`;
+  const sb = $("#mvStats"); sb.replaceChildren();
+  ["pump_15", "pump_8", "high_30d", "dump_15", "dump_8", "low_30d"].forEach(k => { const x = ST[k]; if (!x) return; const t = document.createElement("tr");
+    t.append(td(L[k] || k, ""), td(String(x.n), "num"), td(fPct(x.med1d, 1), "num " + cls(x.med1d)), td(x.up1d + "%", "num"), td(fPct(x.med3d, 1), "num " + cls(x.med3d)), td(x.up3d + "%", "num"), td(fPct(x.rel3d, 1), "num " + cls(x.rel3d))); sb.append(t); });
+  const f = S.mvKind || "", body = $("#mvBody"); body.replaceChildren(); const frag = document.createDocumentFragment();
+  const rows = (M.rows || []).filter(x => f === "all" ? true : f === "hl" ? /_30d$/.test(x.kind) : !/_30d$/.test(x.kind));
+  rows.slice(0, 300).forEach(x => { const t = document.createElement("tr"); t.className = "clickable"; t.onclick = () => openPair(x.symbol, "4h");
+    const up = /pump|high/.test(x.kind) || (x.kind === "market" && x.ret_pct > 0);
+    t.append(td(fmtLocal(new Date((x.t + 14400) * 1000).toISOString()), "num"), tdNode(symNode(x.symbol)), tdNode(chip(L[x.kind] || x.kind, up ? "up" : "down")), td(fPct(x.ret_pct, 1), "num " + cls(x.ret_pct)),
+      td(isNum(x.rvol) ? fN(x.rvol, 1) + "×" : "—", "num"), td(fPx(x.close), "num"), td(fPct(x.since_pct, 1), "num " + cls(x.since_pct)), td("#" + x.liq_rank, "num")); frag.append(t); });
+  body.append(frag);
+  if (!rows.length) body.innerHTML = '<tr><td colspan="8" class="empty">No big 4-hour moves in the last 7 days.</td></tr>';
+}
 function renderChannels() {
   const D = chanData(), ru = D.rules || {}, card = $("#chanCard");
   if (!D.rows) { card.hidden = true; return; } card.hidden = false;
@@ -903,7 +928,7 @@ function renderChannels() {
       isNum(x.so_far_pct) ? td(fPct(x.so_far_pct, 1), "num " + cls(x.so_far_pct)) : td("—", "cold"), td("#" + x.liq_rank, "num")); frag.append(t); });
   body.append(frag);
   if (!rows.length) body.innerHTML = '<tr><td colspan="14" class="empty">No coin matches this filter right now.</td></tr>';
-  renderCallsAll();
+  renderCallsAll(); renderMoves();
 }
 function renderHighlights() {
   const bots = S.hl.filter(isBotHl), list = $("#hlBot"); list.replaceChildren();
@@ -1032,6 +1057,9 @@ function renderToday() {
   const CHV = { breakout: "broke out", breakdown: "broke down", mid_reclaim: "reclaimed the midline", mid_loss: "lost the midline", mid_retest: "midline retest held", near_bottom: "near a long-term bottom", near_top: "near a long-term top", bottom_bounce: "bounced off a long-term bottom", top_reject: "rejected at a long-term top" };
   if (cb.length || ce.length) add(String(cb.length + ce.length), cb.some(x => x.status === "breakdown" || x.status === "mid_loss") ? "down" : "neutral", `Daily channels: ${cb.length} break or midline event${cb.length === 1 ? "" : "s"}, ${ce.length} at the edge of a long-term channel`,
     [...cb, ...ce].sort((a, b) => b.quality - a.quality).slice(0, 4).map(x => x.symbol.replace(/USDT$/, "") + " " + CHV[x.status]).join(" · "), () => { location.hash = "highlights"; setTimeout(() => $("#chanCard").scrollIntoView({ behavior: "smooth" }), 300); });
+  const mv = ((S.mv && S.mv.rows) || []).filter(x => !/_30d$/.test(x.kind) && x.t * 1000 > Date.now() - 864e5);
+  if (mv.length) add(String(mv.length), mv.some(x => /pump/.test(x.kind)) ? "warn" : "neutral", `Big 4-hour moves in the last 24 hours`,
+    mv.slice(0, 4).map(x => x.symbol.replace(/USDT$/, "") + " " + fPct(x.ret_pct, 0)).join(" · ") + " · pumps like these have mostly faded", () => { location.hash = "highlights"; setTimeout(() => $("#movesCard").scrollIntoView({ behavior: "smooth" }), 300); });
   const bots = S.hl.filter(isBotHl).filter(h => S.ov && h.period_start >= S.ov.last_date);
   if (bots.length) add("B", "warn", `${bots.length} bot action${bots.length > 1 ? "s" : ""} today`, bots.slice(0, 3).map(h => h.symbol.replace(/USDT$/, "") + " " + (KIND[h.kind] ? KIND[h.kind][0] : h.kind)).join(" · "), () => { location.hash = "record"; });
   const ld = latestIdeaDay(), td_ = ideas().filter(x => x.date === ld);
@@ -1811,6 +1839,7 @@ segment("setupKind", "v", v => { S.setupKind = v; renderSetups(); });
 segment("chanKind", "v", v => { S.chanKind = v; renderChannels(); });
 segment("chanTf", "v", v => { S.chanTf = v; renderChannels(); });
 segment("callSide", "v", v => { S.callSide = v; renderCalls("callsBodyW", v); });
+segment("mvKind", "v", v => { S.mvKind = v; renderMoves(); });
 $("#sigType").onchange = e => { S.sigType = e.target.value; renderSignals(); };
 $("#sigConf").onclick = e => { S.sigConf = !S.sigConf; e.currentTarget.setAttribute("aria-pressed", String(S.sigConf)); renderSignals(); };
 segment("libTf", "v", v => { S.lib.tf = v; renderLibrary(); }); segment("libVar", "v", v => { S.lib.variant = v; renderLibrary(); }); segment("libDir", "v", v => { S.lib.dir = v; renderLibrary(); });

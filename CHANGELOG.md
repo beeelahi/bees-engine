@@ -5,6 +5,9 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- Big 4-hour moves (`moves_4h.py`): pumps / dumps, 30-day highs / lows on volume and big BTC / ETH moves on the
+  200 most liquid coins, checked every 15 minutes, with their measured record (`research/moves_4h.py`); shown in
+  Highlights and the Overview, and sent to Telegram.
 - 1-hour candles (`sync_1h.py`) for every pair: one year of history, then accumulating every 15 minutes,
   audited against the daily candles.
 - Channel calls (`chan_calls.py`): a daily channel entry confirmed by proven signals in the same direction and the
