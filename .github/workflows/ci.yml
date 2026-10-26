@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Standard library only (no third-party imports)
+        run: python tools/check_stdlib.py
+      - name: Compile
+        run: python -m compileall -q bin
+      - name: Unit and scenario tests
+        run: python -m unittest discover -s tests -v
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Ruff (errors and undefined names)
+        run: |
+          pip install --quiet ruff==0.6.9
+          ruff check bin tests tools research
+      - name: Shell scripts
+        run: |
+          sudo apt-get install -y -qq shellcheck >/dev/null
+          shellcheck -S warning deploy/*.sh
+      - name: Dashboard page (JavaScript syntax)
+        run: node tools/check_page.js web/index.html
+
+  systemd:
+    name: Deployment units
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify systemd unit files
+        run: |
+          for u in deploy/systemd/*; do systemd-analyze verify --man=no "$u" 2>&1 | grep -v -e "is not executable" -e "Failed to resolve" -e "No such file" || true; done
+          grep -q "OnCalendar=\*-\*-\* \*:03/15:00" deploy/systemd/bees-sync.timer

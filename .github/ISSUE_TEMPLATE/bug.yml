@@ -1,0 +1,19 @@
+name: Bug report
+description: Something on the site or in the engine is wrong
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Include the page, pair and timeframe, or the log line.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+  - type: input
+    id: when
+    attributes:
+      label: When (UTC)

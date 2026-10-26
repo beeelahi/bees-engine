@@ -1,0 +1,7 @@
+# Every change is reviewed by the owner. Money-moving code is listed explicitly.
+*                       @beeelahi
+/bin/live_*.py          @beeelahi
+/bin/mm_*.py            @beeelahi
+/bin/mexc_exchange.py   @beeelahi
+/deploy/                @beeelahi
+/.github/               @beeelahi

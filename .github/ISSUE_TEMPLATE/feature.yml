@@ -1,0 +1,15 @@
+name: Feature or research idea
+description: A new view, signal, setup or bot to test
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+    validations:
+      required: true
+  - type: textarea
+    id: test
+    attributes:
+      label: How we would know it works
+      description: The out-of-sample test (up to 2021 vs. 2022 on) that would prove or kill it.
