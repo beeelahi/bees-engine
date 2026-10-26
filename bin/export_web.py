@@ -67,7 +67,7 @@ KEY_NEED_VOLUME = {"new_ath", "new_1y_high", "new_1y_low", "price_x_dc55", "sque
 KEY_MIN_HISTORY = 365      # days of continuous history on the pair (evidence from crypto history must apply)
 KEY_EXCLUDE = {"PAXG", "XAUT", "WBTC", "WBETH", "BETH", "BNSOL", "WSTETH", "STETH"}   # pegged / wrapped assets
 KEY_REPEAT_DAYS = 10       # the same signal on the same pair within this many days is shown once
-ALWAYS = {"bot_buy": 400, "bot_sell": 400, "bot_partial": 380, "bot_signal": 350, "btc_regime": 500, "chan_call": 300}
+ALWAYS = {"bot_buy": 400, "bot_sell": 400, "bot_partial": 380, "bot_signal": 350, "btc_regime": 500, "chan_call": 300, "hs_event": 290}
 SIGNAL_KINDS = set().union(*analytics.HIGHLIGHT_KINDS.values())
 
 
@@ -495,6 +495,13 @@ def run(con=None):
         print(f"export_web: {len(calls['rows'])} channel calls, {n_new} new")
     except Exception as e:
         print("export_web: channel calls skipped:", repr(e))
+    hsd = {"rows": [], "stats": {}, "labels": {}, "rules": {}}
+    try:                                         # head-and-shoulders tops and inverse: near / broken / retesting the neckline
+        import hs
+        hsd = hs.run(con)
+        print(f"export_web: {len(hsd['rows'])} head-and-shoulders patterns, {hs.log(con, hsd, datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))} new posts")
+    except Exception as e:
+        print("export_web: head-and-shoulders skipped:", repr(e))
     hl = key_highlights(con)
     hl["ideas"] = trade_ideas(con)
     try:
@@ -505,6 +512,7 @@ def run(con=None):
         hl["setups"] = {"rows": [], "stats": {}, "kinds": {}, "rules": {}}
     hl["channels"] = channels
     hl["channel_calls"] = calls
+    hl["hs"] = hsd
     write(os.path.join(OUT, "highlights.json"), hl)
     try:                                         # futures context: funding, open interest, long/short (public data)
         import derivatives

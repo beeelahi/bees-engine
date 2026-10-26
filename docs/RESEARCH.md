@@ -14,7 +14,14 @@ rules look the way they do. Scripts are in `research/`.
 * **Clusters of bottom-base breakouts**: when many deeply-fallen coins break out of tight bases within two weeks,
   the following month has been strong. Few independent episodes, so treated as a breadth gauge.
 
+* **Head-and-shoulders tops as shorts** (`research/hs_bt.py`, two swing sizes, 2022 on): near the neckline +0.47R
+  average (68% moved down in 30 days, 138 cases), at the break +0.3R (70%, 305 cases). Mostly the falling market:
+  against the average coin they are about even.
+
 ## Did not hold up
+
+* Neckline **retests** as a better entry: since 2022, top retests -0.02R (83 cases), inverse retests -0.13R (170 cases,
+  29% went up). Inverse head-and-shoulders bottoms lost money at every entry since 2022 (break: -0.2R, 34% up).
 
 * Mean reversion, pullback entries, bear-market breakdown shorts, wider universes for the breakout bots.
 * Tighter stops (1.0 ATR) to raise returns: worse in both periods.

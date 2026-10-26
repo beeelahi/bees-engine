@@ -5,6 +5,7 @@ What is sent (each event once, newest data only, at most MAX_PER_RUN per run):
   * bot actions: entry signal, buy, partial profit, sale (paper trading)
   * the BTC 200-day market filter switching the breakout bots on or off
   * new "Possible major top (weekly)" setups, and the other leading setups (daily tops/bottoms, breakouts)
+  * head and shoulders (tops and inverse): near the neckline, the break, the retest (150 most liquid)
   * channel calls: a channel entry confirmed by proven signals (each coin / side / channel / status once)
   * channels: breakouts / breakdowns (daily and 4h), midline reclaims / losses / retests and bottom bounces (daily),
     and coins at the edge of a long-term channel (150 most liquid, once a week)
@@ -161,6 +162,16 @@ def events(con, today):
                 f" ({'weekly' if x.get('tf') == '1w' else 'daily'} chart, close {_px(x.get('close'))}); invalid beyond {_px(x.get('stop'))}."
                 + (f" Measured target {_px(x.get('target'))}." if x.get("target") else "") + f" Liquidity #{x.get('liq_rank')}. Not advice.")
         out.append((f"setup:{x['kind']}:{x['symbol']}:{x['date']}", text))
+    for x in (hl.get("hs") or {}).get("rows", []):
+        if x["status"] not in ("broken", "retest", "near_neckline") or (x.get("liq_rank") or 999) > 150:
+            continue
+        top = x["kind"] == "top"
+        what = {"broken": "BROKE its neckline", "retest": "is RETESTING its neckline after the break", "near_neckline": "is near its neckline"}[x["status"]]
+        h = x.get("hist") or {}
+        rec = f" Since 2022 this went the pattern's way {h['win30']}% of the time (median {h['med30']:+.1f}% in 30 days)." if h else ""
+        text = (f"{'Head and shoulders TOP' if top else 'INVERSE head and shoulders'} on {x['symbol'].replace('USDT', '')} (daily): {what}. "
+                f"Neckline {_px(x.get('neck'))}, target {_px(x.get('target'))} ({x.get('to_target_pct'):+.1f}%), invalid at {_px(x.get('stop'))}.{rec} Not advice.")
+        out.append((f"hs:{x['symbol']}:{x['points']['head'][0]}:{x['status']}", text))
     for x in (hl.get("channel_calls") or {}).get("rows", []):
         coin, ch = x["symbol"].replace("USDT", ""), x.get("channel") or {}
         sigs = ", ".join(k.split(":")[1].replace("_", " ") + (" (weekly)" if k.startswith("1w") else "") for k in x.get("signals", []))

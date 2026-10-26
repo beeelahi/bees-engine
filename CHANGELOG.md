@@ -5,6 +5,9 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- Head-and-shoulders scanner v2 (`hs.py`): tops and inverse patterns on the daily chart with two swing sizes,
+  statuses near the neckline / broken / retesting / broken earlier, drawn on the chart (shoulders, head, extended
+  neckline, target), in the Watchlist and Highlights with each entry's measured record, posted to the feed and Telegram.
 - Big 4-hour moves (`moves_4h.py`): pumps / dumps, 30-day highs / lows on volume and big BTC / ETH moves on the
   200 most liquid coins, checked every 15 minutes, with their measured record (`research/moves_4h.py`); shown in
   Highlights and the Overview, and sent to Telegram.
