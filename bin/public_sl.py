@@ -18,7 +18,7 @@ DST = os.path.join(ROOT, "web_export", "shortlist.json")
 FIELDS = {"symbol": str, "status": str, "entry": float, "entry_date": str, "stop": float, "risk_pct": float,
           "approved_at": str, "exit": float, "exit_date": str, "closed_at": str, "close_reason": str, "source": str, "why": list}
 WHY_RE = re.compile(r"(1d|1w):[a-z0-9_]{1,40}")
-SYM_RE = re.compile(r"[A-Z0-9]{2,20}USDT")
+SYM_RE = re.compile(r"[A-Z0-9]{1,20}USDT")
 DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}([T ][0-9:.]+Z?)?")
 REASONS = {"Removed", "Stop hit", "Target reached", "Closed", "Signal exit"}
 
@@ -83,7 +83,7 @@ def build(src=SRC, auto=AUTO):
         out["auto"] = {"last_date": au.get("last_date") if isinstance(au.get("last_date"), str) else None,
                        "ledger_head": head if re.fullmatch(r"[0-9a-f]{64}|", head or "") else ""}
         if out["auto"]["last_date"] and DATE_RE.fullmatch(out["auto"]["last_date"]):
-            out["as_of"] = max(filter(None, [as_of, out["auto"]["last_date"]]))
+            out["as_of"] = out["auto"]["last_date"]           # the daily close the automatic picks are based on
     return out
 
 
