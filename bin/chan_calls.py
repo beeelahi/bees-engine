@@ -91,6 +91,15 @@ def log(con, calls, now_utc):
     """Post each NEW call to the highlights feed (highlight_log, kind 'chan_call'). A coin is posted again only when
     its side flips or REPOST_DAYS have passed since its last post."""
     import json
+    # calls posted before the stop / reward rule existed (first run, 2026-10-26) that would not pass it are withdrawn
+    for sym, ps, det in con.execute("SELECT symbol, period_start, detail FROM highlight_log WHERE kind='chan_call' AND first_seen_utc < '2026-10-27'").fetchall():
+        try:
+            d = json.loads(det or "{}")
+        except ValueError:
+            d = {}
+        risk = abs(d.get("close", 0) - d.get("stop", 0)) / d["close"] if d.get("close") else 1
+        if risk > MAX_RISK or (d.get("rr") or 0) < MIN_RR:
+            con.execute("DELETE FROM highlight_log WHERE kind='chan_call' AND symbol=? AND period_start=?", (sym, ps))
     since = (datetime.strptime(now_utc[:10], "%Y-%m-%d") - timedelta(days=REPOST_DAYS)).strftime("%Y-%m-%d")
     recent = {(s, d) for s, d in con.execute(
         "SELECT symbol, direction FROM highlight_log WHERE kind='chan_call' AND period_start > ?", (since,))}
