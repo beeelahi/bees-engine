@@ -16,10 +16,10 @@ case "$CMD" in
     echo "deployed: $(cut -c1-7 "$ROOT/.deployed_sha" 2>/dev/null || echo unknown)"
     systemctl list-timers bees-sync.timer bees-deploy.timer --no-pager | head -4
     for s in bees-sync bees-mm bees-deploy; do printf '%-12s %s\n' "$s" "$(systemctl is-active $s.service || true)"; done
-    echo "-- last runs"; grep -E "Run OK|Run FAILED|publish_site|Web export|live engine|ERROR" "$ROOT/logs/sync.log" | tail -n 12 | scrub
-    echo "-- site"; cat "$ROOT/site_status.json" 2>/dev/null; echo
-    echo "-- disk"; df -h / | tail -1; du -sh "$ROOT/data" 2>/dev/null
-    echo "-- switches"; for f in .no_publish STOP_TRADING FLATTEN_NOW MM_STOP; do [ -e "$ROOT/$f" ] && echo "$f is ON"; done; echo "(none listed = all off)"
+    echo "-- last runs"; { grep -E "Run OK|Run FAILED|publish_site|Web export|live engine|ERROR" "$ROOT/logs/sync.log" || true; } | tail -n 12 | scrub
+    echo "-- site"; cat "$ROOT/site_status.json" 2>/dev/null || echo "not published from this server yet"; echo
+    echo "-- disk"; df -h / | tail -1; du -sh "$ROOT/data" 2>/dev/null || true
+    echo "-- switches"; for f in .no_publish STOP_TRADING FLATTEN_NOW MM_STOP; do if [ -e "$ROOT/$f" ]; then echo "$f is ON"; fi; done; echo "(none listed = all off)"
     ;;
   logs|sync-log)   tail -n "$N" "$ROOT/logs/sync.log" | scrub ;;
   deploy-log)      tail -n "$N" "$ROOT/logs/deploy.log" 2>/dev/null | scrub ;;
