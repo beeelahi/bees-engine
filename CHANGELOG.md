@@ -11,7 +11,7 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 - 1-hour candles (`sync_1h.py`) for every pair: one year of history, then accumulating every 15 minutes,
   audited against the daily candles.
 - Channel calls (`chan_calls.py`): a daily channel entry confirmed by proven signals in the same direction and the
-  bull score, graded A/B with stops and targets from the channel lines. Shown in the Watchlist (Channel setups) and
+  bull score, graded A/B with stops and targets from the channel lines; kept only with a stop within 20% and 1.5+ R:R. Shown in the Watchlist (Channel setups) and
   Highlights; each new call is posted to the highlights feed and to Telegram.
 - Channel detector v2: every clean parallel channel up to 7 years back (up to 3 per coin), anchored on real swing
   points from the first touch, with midline tracking (reclaim, retest, loss), bottom bounces and top rejections.

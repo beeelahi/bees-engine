@@ -13,14 +13,17 @@ A call needs all of:
 One call per coin (its best channel). Score = channel quality + 2 per agreeing proven signal (+1 if volume
 confirmed) + the status's measured 30-day result vs the average coin + the bull score's distance from neutral.
 Grade A = 2+ agreeing proven signals and a status that has not lagged the market; else B.
-Plan: longs stop 10% of the channel width under the bottom line; targets the midline (when below it) and the top
-line. Shorts are invalid back above the line they lost (+10% of the width); targets the midline / bottom line.
+Plan: the stop sits 10% of the channel width beyond the line the entry depends on (the bottom line for bottom
+entries, the midline for midline reclaims / retests, the top line for breakouts; for shorts the line that was lost
+or rejected). Targets: the midline, then the far line (a breakout: half a width above the top). A call is kept only
+when the stop is within MAX_RISK of the price and the first target pays at least MIN_RR times the risk.
 """
 from datetime import datetime, timedelta
 
 LONG = {"near_bottom", "bottom_bounce", "mid_retest", "mid_reclaim", "breakout"}
 SHORT = {"breakdown", "mid_loss", "top_reject"}
 REPOST_DAYS = 7
+MAX_RISK, MIN_RR = 0.20, 1.5
 
 
 def _r(x):
@@ -56,9 +59,10 @@ def build(con, chan_rows, signal_stats, last_date):
         lo, hi, close = x["lo1"], x["hi1"], x["close"]
         w, mid = hi - lo, (lo + hi) / 2
         if side == "long":
-            stop = lo - 0.1 * w
-            t1 = mid if close < mid - 0.05 * w else hi
-            t2 = hi if t1 != hi else None
+            line = {"near_bottom": lo, "bottom_bounce": lo, "mid_reclaim": mid, "mid_retest": mid, "breakout": hi}[x["status"]]
+            stop = line - 0.1 * w
+            t1 = mid if close < mid - 0.05 * w else hi if close < hi - 0.05 * w else hi + w / 2
+            t2 = hi if t1 == mid else None
         else:
             line = {"breakdown": lo, "mid_loss": mid, "top_reject": hi}[x["status"]]
             stop = line + 0.1 * w
@@ -66,6 +70,8 @@ def build(con, chan_rows, signal_stats, last_date):
             t2 = lo if t1 != lo else None
         risk = abs(close - stop)
         rr = abs(t1 - close) / risk if risk > 0 and (t1 - close) * sg > 0 else None
+        if risk <= 0 or risk / close > MAX_RISK or rr is None or rr < MIN_RR:
+            continue                                # a great channel is not a great entry when the stop is too far
         grade = "A" if len(agree) >= 2 and (rel is None or sg * rel >= 0) else "B"
         row = {"symbol": x["symbol"], "side": side, "grade": grade, "score": round(score, 1), "status": x["status"],
                "date": last_date, "close": close, "stop": _r(stop), "t1": _r(t1), "t2": _r(t2), "rr": None if rr is None else round(rr, 1),
@@ -77,7 +83,8 @@ def build(con, chan_rows, signal_stats, last_date):
         if x["symbol"] not in best or row["score"] > best[x["symbol"]]["score"]:
             best[x["symbol"]] = row
     rows = sorted(best.values(), key=lambda r: (r["grade"], -r["score"]))
-    return {"rows": rows, "rules": {"long": sorted(LONG), "short": sorted(SHORT), "daily_days": 3, "repost_days": REPOST_DAYS}}
+    return {"rows": rows, "rules": {"long": sorted(LONG), "short": sorted(SHORT), "daily_days": 3, "repost_days": REPOST_DAYS,
+                                     "max_risk_pct": 100 * MAX_RISK, "min_rr": MIN_RR}}
 
 
 def log(con, calls, now_utc):
