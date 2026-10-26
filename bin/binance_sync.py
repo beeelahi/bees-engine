@@ -793,6 +793,15 @@ def main():
                 light_publish = True
     except Exception as e:
         log.exception(f"4h candles skipped: {e}")
+    try:                                       # 1-hour candles: accumulating from a 1-year start, never blocks the site
+        import sync_1h
+        r1 = sync_1h.run(con, api, utc_now().strftime("%Y-%m-%d"), utc_now().strftime("%Y-%m-%dT%H:%M:%SZ"))
+        log.info("1h candles: {complete}/{pairs} pairs complete, {pending} pending, +{added:,} rows ({rows:,} total), "
+                 "{errors} errors, audit {audit_checked} days checked, {audit_bad} mismatched, {seconds}s".format(**r1))
+        if r1["audit_bad"]:
+            problems.append("1h candles disagree with daily candles")
+    except Exception as e:
+        log.exception(f"1h candles skipped: {e}")
     try:                                       # Bee's Shortlist: automatic picks, once per new daily close
         import auto_picks
         auto_picks.run(con, os.path.join(ROOT, "web_export"), log.info)

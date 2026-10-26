@@ -23,7 +23,8 @@ Every 15 minutes:
 3. **Analytics rebuild** (only when a new daily candle closed, or the engine version changed): indicators on
    daily, weekly and monthly bars, signals, signal statistics, leading setups, channels, the paper bots (replayed
    from inception and integrity-checked), and the web export. Followed by a **full publish**.
-4. **4-hour candles**: incremental, audited against the daily candles (they must aggregate exactly).
+4. **4-hour and 1-hour candles**: incremental, audited against the daily candles (they must aggregate exactly).
+   Hourly history started with one year back and accumulates from there.
 5. **Derivatives**: funding history since 2019, daily open interest and long/short ratios for the 150 most
    liquid perpetuals.
 6. **Market-making research**: order-book snapshots and candle history for the configured MEXC coins.
