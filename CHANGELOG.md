@@ -5,6 +5,9 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- Fade 4h (`paper4h.py`): an experimental 4-hour PAPER bot that shorts liquid, shortable coins after a 15%+ 4h
+  pump, stop above the pump, out after 3 days; hash-chained ledger; shown on the Bot tab with its backtest
+  (`research/bot4h.py`). 4h breakout longs were tested and rejected (lost in both halves).
 - Head-and-shoulders scanner v2 (`hs.py`): tops and inverse patterns on the daily chart with two swing sizes,
   statuses near the neckline / broken / retesting / broken earlier, drawn on the chart (shoulders, head, extended
   neckline, target), in the Watchlist and Highlights with each entry's measured record, posted to the feed and Telegram.

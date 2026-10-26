@@ -266,6 +266,17 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
   </section>
 
   <section class="view" id="v-bot" hidden>
+    <div class="card" id="p4Card" hidden>
+      <div class="card-head"><h2>Fade 4h · experimental paper bot</h2><span class="note" id="p4Note"></span></div>
+      <p class="note" style="margin:0 0 12px" id="p4Intro"></p>
+      <div class="grid-kpi" style="margin-bottom:12px">
+        <div class="card kpi"><div class="label">Paper equity</div><div class="v" id="p4Eq">—</div><div class="note" id="p4EqNote">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Open shorts</div><div class="v" id="p4Open">—</div><div class="note" id="p4OpenNote">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Closed trades</div><div class="v" id="p4Closed">—</div><div class="note" id="p4ClosedNote">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Backtest (unseen half)</div><div class="v" id="p4Bt">—</div><div class="note" id="p4BtNote">&nbsp;</div></div>
+      </div>
+      <div class="tbl-wrap" style="max-height: 45vh"><table><thead><tr><th>Pair</th><th>Status</th><th>Signal candle</th><th>Pump</th><th>Entry</th><th>Stop</th><th>Exit / price</th><th>Result</th><th>R</th></tr></thead><tbody id="p4Body"></tbody></table></div>
+    </div>
     <div class="grid-kpi">
       <div class="card kpi"><div class="label">Portfolio (paper)</div><div class="v" id="pEq">—</div><div class="note" id="pEqNote">&nbsp;</div></div>
       <div class="card kpi"><div class="label">Open positions</div><div class="v" id="pOpen">—</div><div class="note" id="pOpenNote">&nbsp;</div></div>
@@ -701,6 +712,7 @@ async function loadAll() {
     try { S.pubSL = await j("data/shortlist.json"); } catch (e) { S.pubSL = null; }
     try { S.px = await j("data/prices.json"); } catch (e) { S.px = null; }
     try { S.mv = await j("data/moves.json"); } catch (e) { S.mv = null; }
+    try { S.p4 = await j("data/paper4h.json"); } catch (e) { S.p4 = null; }
     toObjs(ov.dictionary).forEach(d => { S.dict[d.col] = d; });
   } catch (e) {
     $("#freshText").textContent = "Data not published yet"; $("#freshPill").className = "pill warn";
@@ -1800,7 +1812,29 @@ function btRows(body, bt) {
   return row;
 }
 const statusChip = st => chip(st === "proven" ? "Proven" : "Experimental", st === "proven" ? "up" : "warn");
+function renderPaper4h() {
+  const P = S.p4, card = $("#p4Card"); if (!card) return; if (!P) { card.hidden = true; return; } card.hidden = false;
+  const ru = P.rules || {}, st = P.stats || {}, A = st.first_half, B = st.second_half;
+  $("#p4Intro").textContent = `Paper only, never real orders. Trades the one 4-hour effect that held up in testing: big pumps fade. When a coin with a USDT perpetual (so it can be shorted) closes a 4h candle ${ru.pump_pct || 15}%+ above the previous close, the bot shorts at the next open, stop above that candle's high (+${ru.stop_atr || 0.5} ATR), and covers after ${ru.hold_candles || 18} candles (3 days) or at the stop. Risk ${ru.risk_pct || 1}% of paper equity per trade, at most ${ru.max_open || 5} open, ${ru.cost_pct || 0.15}% costs a side; funding not included. Backtest ${st.from || ""} to ${st.to || ""}: ${A ? `first half ${A.n} trades, ${A.win}% winners, avg ${fN(A.avg_r, 2)}R` : ""}${B ? `; second half ${B.n} trades, ${B.win}% winners, avg ${fN(B.avg_r, 2)}R, profit factor ${B.pf}` : ""}. Most trades lose small and a few collapses pay for them, so expect long losing streaks. 4h breakout longs were tested too and lost money in both halves, so there is no 4h long bot. Every open and close is written to a hash-chained ledger${P.ledger_head ? " (head " + P.ledger_head.slice(0, 12) + "…)" : ""}.`;
+  $("#p4Note").textContent = "started " + new Date(P.start_ms).toISOString().slice(0, 16).replace("T", " ") + " UTC";
+  const unreal = (P.open || []).reduce((a, q) => a + (q.unreal || 0), 0), eq = P.equity + unreal, ret = (eq / P.start_equity - 1) * 100;
+  $("#p4Eq").textContent = fUsd2 ? fUsd2(eq) : fN(eq, 0); $("#p4EqNote").textContent = fPct(ret, 2) + " since start";
+  $("#p4Open").textContent = String((P.open || []).length); $("#p4OpenNote").textContent = (P.pending || []).length ? (P.pending || []).length + " entering at the next 4h open" : "max " + (ru.max_open || 5);
+  const cl = P.closed || [], wins = cl.filter(x => x.pnl > 0).length;
+  $("#p4Closed").textContent = String(P.n_closed || 0); $("#p4ClosedNote").textContent = cl.length ? `${Math.round(100 * wins / cl.length)}% winners · avg ${fN(cl.reduce((a, x) => a + x.r, 0) / cl.length, 2)}R` : "none yet";
+  $("#p4Bt").textContent = B ? (B.avg_r >= 0 ? "+" : "") + fN(B.avg_r, 2) + "R" : "—"; $("#p4BtNote").textContent = B ? `${B.n} trades · PF ${B.pf} · first half ${fN(A.avg_r, 2)}R` : "";
+  const body = $("#p4Body"); body.replaceChildren();
+  const T = ms => new Date(ms).toISOString().slice(5, 16).replace("T", " ");
+  [...(P.pending || []).map(x => ({ ...x, _st: "pending" })), ...(P.open || []).map(x => ({ ...x, _st: "open" })), ...cl.slice().reverse().map(x => ({ ...x, _st: "closed" }))].forEach(x => {
+    const t = document.createElement("tr"); t.className = "clickable"; t.onclick = () => openPair(x.symbol, "4h");
+    const res = x._st === "closed" ? x.pnl_pct : x._st === "open" && isNum(x.price) ? (x.entry / x.price - 1) * 100 : null;
+    t.append(tdNode(symNode(x.symbol)), tdNode(chip(x._st === "pending" ? "Entering next open" : x._st === "open" ? "Short open" : x.reason === "stop" ? "Stopped" : "Closed (3 days)", x._st === "closed" ? (x.pnl > 0 ? "up" : "down") : "neutral")),
+      td(T(x.signal_ms + 14400000) + " UTC", "num"), td(fPct(x.pump_pct, 1), "num"), td(isNum(x.entry) ? fPx(x.entry) : "—", "num"), td(fPx(x.stop), "num"),
+      td(x._st === "closed" ? fPx(x.exit) : isNum(x.price) ? fPx(x.price) : "—", "num"), td(isNum(res) ? fPct(res, 1) : "—", "num " + cls(res)), td(isNum(x.r) ? fN(x.r, 2) : "—", "num " + cls(x.r))); body.append(t); });
+  if (!body.children.length) body.innerHTML = '<tr><td colspan="9" class="empty">No trades yet. The bot acts the first time a liquid, shortable coin closes a 4h candle 15%+ up.</td></tr>';
+}
 function renderBot() {
+  renderPaper4h();
   const R = S.bot;
   if (!R || !R.bots) { $("#v-bot").querySelectorAll("tbody").forEach(t => { t.innerHTML = '<tr><td colspan="13" class="empty">The bots start after the next sync on the Mac.</td></tr>'; }); return; }
   const PF = R.portfolio, usd = v => "$" + v.toLocaleString("en-US", { maximumFractionDigits: 2, minimumFractionDigits: 2 });

@@ -801,6 +801,12 @@ def main():
             light_publish = True
     except Exception as e:
         log.warning(f"4h moves skipped: {e}")
+    try:                                       # experimental 4h paper bot (paper only: never places an order)
+        import paper4h
+        if paper4h.run(con, os.path.join(ROOT, "web_export"), int(time.time() * 1000), log=log.info):
+            light_publish = True
+    except Exception as e:
+        log.warning(f"Paper 4h bot skipped: {e}")
     try:                                       # 1-hour candles: accumulating from a 1-year start, never blocks the site
         import sync_1h
         r1 = sync_1h.run(con, api, utc_now().strftime("%Y-%m-%d"), utc_now().strftime("%Y-%m-%dT%H:%M:%SZ"))
