@@ -1,0 +1,20 @@
+{
+  "enabled": false,
+  "coins": [
+    {
+      "symbol": "ABCUSDT",
+      "mode": "grid",
+      "size": 1000,
+      "step": 0.015,
+      "levels": 20,
+      "sell_orders_live": 10,
+      "start_coins": 100000,
+      "floor": 70000,
+      "max_usdt": 1000,
+      "band": [0.01, 0.10],
+      "recenter_steps": 3,
+      "buy_rungs": 15,
+      "buy_orders_live": 15
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+# Private: never in the repository (CI also rejects these)
+data/
+logs/
+web_export/
+site_build/
+exports/
+public/
+research_data/
+*.db
+*.db-wal
+*.db-shm
+.github_token
+.telegram
+.binance_*
+.mexc_*
+mm.json
+live.json
+site_status.json
+status.json
+STOP_TRADING
+FLATTEN_NOW
+MM_STOP
+.no_publish
+# Python
+__pycache__/
+*.pyc
+.venv/
+.ruff_cache/
