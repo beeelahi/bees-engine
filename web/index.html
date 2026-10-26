@@ -685,17 +685,19 @@ const tzName = () => { try { return Intl.DateTimeFormat().resolvedOptions().time
 const livePx = sym => { const x = S.px && S.px.rows && S.px.rows[sym]; const age = S.px && S.px.as_of ? (Date.now() - Date.parse(S.px.as_of)) / 6e4 : 1e9; return x && age < 180 ? x : null; };
 function renderFresh() {
   const ov = S.ov, st = ov.status || {};
-  const syncIso = st.last_run_utc || ov.generated_utc;
-  const pxAge = S.px && S.px.as_of ? (Date.now() - Date.parse(S.px.as_of)) / 6e4 : null;
-  $("#syncText").textContent = (isNum(pxAge) && pxAge < 120 ? "Prices " + fmtLocal(S.px.as_of) + " · " : "") + "Last sync " + fmtLocal(syncIso) + " (" + tzName() + ")";
-  $("#syncText").title = "Sync " + syncIso + " · analytics " + (ov.analytics_built_utc || "—") + " · package " + ov.generated_utc + " (UTC)";
+  const runIso = st.last_run_utc || ov.generated_utc;
+  // the engine refreshes every 15 minutes (live prices, 4h candles, shortlist); the daily package only rebuilds
+  // after each daily close (00:00 UTC), so the newest of the two is the real "last update"
+  const syncIso = S.px && S.px.as_of && S.px.as_of > runIso ? S.px.as_of : runIso;
+  $("#syncText").textContent = "Updated " + fmtLocal(syncIso) + " (" + tzName() + ") · refreshes every 15 min";
+  $("#syncText").title = "Last refresh " + syncIso + " · daily rebuild " + runIso + " · analytics " + (ov.analytics_built_utc || "—") + " · package " + ov.generated_utc + " (UTC)";
   const ageH = (Date.now() - Date.parse(ov.generated_utc)) / 36e5;
   const ok = st.last_run_ok !== false && ageH < 36;
   $("#freshPill").className = "pill " + (ok ? "ok" : ageH < 72 ? "warn" : "bad");
   $("#freshText").textContent = "Data through " + (ov.synced_through || ov.last_date) + " UTC";
   $("#freshPill").title = "Package built " + ov.generated_utc + (st.last_run_ok === false ? " · last sync incomplete" : "");
   S.prevVisit = store.get("lastVisit");
-  $("#footSync").textContent = `Last sync ${fmtLocal(syncIso)} (${tzName()}) · market data through ${ov.synced_through || ov.last_date} (daily candles close 00:00 UTC) · analytics built ${fmtLocal(ov.analytics_built_utc)} · published ${fmtLocal(ov.generated_utc)}.`;
+  $("#footSync").textContent = `Last refresh ${fmtLocal(syncIso)} (${tzName()}, every 15 minutes) · daily candles through ${ov.synced_through || ov.last_date} (daily candles close 00:00 UTC) · analytics built ${fmtLocal(ov.analytics_built_utc)} · published ${fmtLocal(ov.generated_utc)}.`;
   setTimeout(() => store.set("lastVisit", new Date().toISOString().slice(0, 19) + "Z"), 4000);
   const n = newHl().filter(isBotHl).length + ideas().filter(x => x.date === latestIdeaDay()).length; const b = $("#hlBadge"); b.hidden = !n; b.textContent = n;
 }
