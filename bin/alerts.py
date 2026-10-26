@@ -5,7 +5,8 @@ What is sent (each event once, newest data only, at most MAX_PER_RUN per run):
   * bot actions: entry signal, buy, partial profit, sale (paper trading)
   * the BTC 200-day market filter switching the breakout bots on or off
   * new "Possible major top (weekly)" setups, and the other leading setups (daily tops/bottoms, breakouts)
-  * channel breakouts / breakdowns (daily and 4h), and coins reaching a channel edge (100 most liquid, once a week)
+  * channels: breakouts / breakdowns (daily and 4h), midline reclaims / losses / retests and bottom bounces (daily),
+    and coins at the edge of a long-term channel (150 most liquid, once a week)
   * engine problems: sync incomplete, website publish failed, 4h candles disagreeing with daily candles
 
 Security:
@@ -137,16 +138,27 @@ def events(con, today):
     week = datetime.strptime(today, "%Y-%m-%d").strftime("%G-W%V")
     for x in C.get("rows", []):
         coin, tf = x["symbol"].replace("USDT", ""), ("4h" if x.get("tf") == "4h" else "daily")
-        lines = f"bottom {_px(x.get('lo1'))}, top {_px(x.get('hi1'))}"
-        if x["status"] in ("breakout", "breakdown") and (x.get("ago") or 0) <= 1:
-            up = x["status"] == "breakout"
+        lines = f"bottom {_px(x.get('lo1'))}, midline {_px((x['lo1'] + x['hi1']) / 2)}, top {_px(x.get('hi1'))}"
+        shape = f"{round(x.get('days') or 0)}-day channel, {x['touches'][0]}/{x['touches'][1]} touches"
+        st, fresh = x["status"], (x.get("ago") or 0) <= 1
+        if st in ("breakout", "breakdown") and fresh and (x.get("quality") or 0) >= 6:
+            up = st == "breakout"
             text = (f"Channel {'BREAKOUT' if up else 'BREAKDOWN'} on {coin} ({tf} chart): closed {'above the top' if up else 'below the bottom'} "
-                    f"line {_px(x.get('level'))} on heavy volume. Channel {lines}. Liquidity #{x.get('liq_rank')}. Check the chart. Not advice.")
-            out.append((f"chan:{x['status']}:{x['symbol']}:{x.get('tf')}:{x.get('event_t')}", text))
-        elif x["status"] in ("near_bottom", "near_top") and (x.get("liq_rank") or 999) <= 100:
-            text = (f"{coin} is near its channel {'bottom' if x['status'] == 'near_bottom' else 'top'} ({tf} chart, close {_px(x.get('close'))}): "
-                    f"{lines}, {x.get('touches', ['-', '-'])[0]}/{x.get('touches', ['-', '-'])[1]} touches. Edges are decision points: watch for a bounce or a break. Not advice.")
-            out.append((f"chan:{x['status']}:{x['symbol']}:{x.get('tf')}:{week}", text))
+                    f"line {_px(x.get('level'))}. {shape}; {lines}. Liquidity #{x.get('liq_rank')}. Check the chart. Not advice.")
+        elif st in ("mid_reclaim", "mid_loss") and fresh and tf == "daily" and (x.get("quality") or 0) >= 7:
+            text = (f"{coin} {'reclaimed' if st == 'mid_reclaim' else 'lost'} its channel midline {_px(x.get('level'))} (daily chart). "
+                    f"{shape}; {lines}. Liquidity #{x.get('liq_rank')}. Not advice.")
+        elif st in ("mid_retest", "bottom_bounce") and tf == "daily" and (x.get("quality") or 0) >= 7 and (x.get("liq_rank") or 999) <= 150:
+            text = (f"{coin}: {'midline retest held' if st == 'mid_retest' else 'bounced off the channel bottom'} (daily chart, close {_px(x.get('close'))}). "
+                    f"{shape}; {lines}. Liquidity #{x.get('liq_rank')}. Not advice.")
+        elif st in ("near_bottom", "near_top") and tf == "daily" and (x.get("days") or 0) >= 365 and (x.get("liq_rank") or 999) <= 150:
+            text = (f"{coin} is near the {'bottom' if st == 'near_bottom' else 'top'} of its long-term channel (daily chart, close {_px(x.get('close'))}): "
+                    f"{shape}; {lines}. Edges are decision points: watch for a bounce or a break. Not advice.")
+            out.append((f"chan:{st}:{x['symbol']}:{x.get('tf')}:{x.get('t0')}:{week}", text))
+            continue
+        else:
+            continue
+        out.append((f"chan:{st}:{x['symbol']}:{x.get('tf')}:{x.get('t0')}:{x.get('event_t') or x.get('t1')}", text))
     return out
 
 

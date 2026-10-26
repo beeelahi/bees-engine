@@ -27,7 +27,7 @@ and every later run must reproduce it exactly.
 | Possible top / bottom | Daily RSI divergence at a 90-day extreme | Tops held up; bottoms did not |
 | Head-and-shoulders top | Completed pattern, first close below the neckline | Price lower 30 days later in about two-thirds of cases (4h: no edge) |
 | Bottom accumulation breakout | 80%+ below the 2-year high, tight 60-day base, volume breakout | Alone: close to a coin flip. When 5+ fire within 14 days: strong (market-breadth signal) |
-| Channels (daily + 4h) | Clean parallel channel, 5+ touches, 93%+ of closes inside | Breakdowns: price lower after 30 days in most cases. Edges are decision points, not bounces. 4h: no edge |
+| Channels (daily + 4h) | Every clean parallel channel up to 7 years back, up to 3 per coin: starts at its first touch, 2+ touches per line, 5+ in all; statuses at the edges, the midline (reclaim, retest, loss) and breaks | Since 2022 no status beats the average coin by much; best: long-term channel bottoms and midline retests in narrow channels (a few % better than the market, ~60% of the time). Use as the map; act when a proven signal agrees. 4h: no edge |
 
 The live track record of each setup is recomputed from full history on every run and shown next to it.
 

@@ -5,6 +5,9 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- Channel detector v2: every clean parallel channel up to 7 years back (up to 3 per coin), anchored on real swing
+  points from the first touch, with midline tracking (reclaim, retest, loss), bottom bounces and top rejections.
+  Charts draw every channel extended left and right; each row shows its status's measured record vs the market.
 - Automatic Bee's Shortlist (`auto_picks.py`): once per daily close the engine opens picks by the shortlist rules
   (bull score 7+, a proven bullish signal) and closes them on a stop hit, a proven bearish signal or delisting.
   Every open and close goes into a SHA-256-chained ledger; the head hash is published with the list.
@@ -14,6 +17,7 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 - Operations status shows which keys are present (names only) and the live / market-maker settings.
 
 ### Changed
+- The site header shows the latest 15-minute refresh instead of the daily rebuild time.
 - Deployment also ships `picks/`; parts missing from older releases are skipped on rollback.
 
 ## [1.0.0] - 2026-10-26
