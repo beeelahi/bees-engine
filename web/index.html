@@ -129,6 +129,10 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .today-list .ic.up { background: var(--up-soft); color: var(--up); } .today-list .ic.down { background: var(--down-soft); color: var(--down); }
 .today-list .ic.neutral { background: rgba(255,255,255,0.06); color: var(--muted); } .today-list .ic.warn { background: var(--warn-soft); color: var(--warn); }
 .today-list b { font-weight: 600; } .today-list small { display: block; color: var(--muted); font-size: 12px; }
+.backbtn { position: fixed; left: 16px; bottom: 18px; z-index: 50; display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel, #10173a); color: var(--fg); font: inherit; font-weight: 600; cursor: pointer; box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+.backbtn:hover { border-color: var(--accent); } .backbtn[hidden] { display: none; }
+@keyframes backflash { 0% { box-shadow: inset 0 0 0 2px var(--accent); background: color-mix(in srgb, var(--accent) 22%, transparent); } 100% { box-shadow: inset 0 0 0 2px transparent; background: transparent; } }
+.backflash { animation: backflash 2.2s ease-out 1; }
 .hl { display: grid; grid-template-columns: 110px minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 9px 4px; border-bottom: 1px solid var(--line); cursor: pointer; }
 .hl:hover { background: var(--panel-2); }
 .hl .what { min-width: 0; } .hl .what b { font-weight: 600; } .hl .what span { color: var(--muted); }
@@ -169,6 +173,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       </div>
     </div>
     <div class="risk-line">Information only, not financial advice. Bot results are simulated. <a href="#disclaimer" id="discLink">Read the disclaimer</a>.</div>
+    <button class="backbtn" id="backBtn" type="button" hidden aria-label="Back to where you were">← Back</button>
     <nav class="tabs" aria-label="Views">
       <a href="#overview" data-view="overview">Overview</a>
       <a href="#shortlist" data-view="shortlist" id="navShort" hidden>Bee's Shortlist</a>
@@ -1828,7 +1833,42 @@ function show(v) {
   if (!VIEWS.includes(v) || (v === "shortlist" && !SL.owner && !S.pubSL)) v = "overview"; VIEWS.forEach(x => { $("#v-" + x).hidden = x !== v; });
   $$("nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.view === v ? "page" : "false"));
   ({ overview: renderOverview, shortlist: renderShortlist, top50: renderTop50, bot: renderBot, record: renderRecord, lab: renderLab, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch, signals: renderSignals, library: renderLibrary, listings: renderListings, pair: renderPair })[v](); }
-window.addEventListener("hashchange", () => show(location.hash.slice(1)));
+// ---------- Back: return to the exact spot you clicked from (same page, same row), with the button or the browser
+const VIEW_NAME = { overview: "Overview", shortlist: "Bee's Shortlist", top50: "Top 50", bot: "Bot", record: "Track record", lab: "Setup Lab", highlights: "Highlights", screener: "Screener", watchlist: "Watchlist", signals: "Signals", library: "Signal library", listings: "Listings", pair: "Pair chart" };
+const backStack = []; let lastClick = null, restoring = false;
+function spotOf(el) {
+  const item = el && el.closest && el.closest("tr, .hl, .tile, li, [data-k], button, a");
+  if (!item || item.closest("nav.tabs") || item.id === "backBtn") return null;
+  const box = item.parentElement && item.parentElement.closest("[id]"); if (!box) return null;
+  const sel = item.tagName.toLowerCase() + (item.classList[0] ? "." + item.classList[0] : "");
+  return { box: box.id, sel, idx: [...box.querySelectorAll(sel)].indexOf(item) };
+}
+document.addEventListener("click", e => { if (restoring) return; const a = e.target.closest && e.target.closest("nav.tabs a");
+  lastClick = a ? null : { hash: location.hash || "#overview", y: window.scrollY, spot: spotOf(e.target), at: Date.now() }; }, true);
+function updateBack() { const b = $("#backBtn"), top = backStack[backStack.length - 1]; if (!b) return; b.hidden = !top;
+  if (top) { const v = top.hash.slice(1).split("/")[0] || "overview"; b.textContent = "← Back to " + (VIEW_NAME[v] || "previous page"); } }
+function restoreSpot(entry) {
+  restoring = true;
+  const go = () => { let el = null;
+    if (entry.spot) { const box = document.getElementById(entry.spot.box); if (box && !box.closest("[hidden]")) el = box.querySelectorAll(entry.spot.sel)[entry.spot.idx] || null; }
+    if (el) { el.scrollIntoView({ block: "center" }); el.classList.remove("backflash"); void el.offsetWidth; el.classList.add("backflash"); } else window.scrollTo(0, entry.y);
+    restoring = false; };
+  setTimeout(go, 120); setTimeout(() => { if (entry.spot) go(); }, 700);    // again once late renders (charts, lists) settle
+}
+let prevHash = location.hash || "#overview";
+window.addEventListener("hashchange", () => {
+  const now = location.hash || "#overview", top = backStack[backStack.length - 1];
+  if (top && top.hash === now) { backStack.pop(); show(now.slice(1)); restoreSpot(top); }   // the Back button or the browser's back
+  else {
+    const fresh = lastClick && Date.now() - lastClick.at < 1500 && lastClick.hash === prevHash;
+    if (fresh && prevHash.split("/")[0] !== now.split("/")[0]) { backStack.push(lastClick); if (backStack.length > 20) backStack.shift(); }
+    else if (!lastClick) backStack.length = 0;                  // a tab click starts a new trail
+    show(now.slice(1));
+  }
+  lastClick = null; prevHash = now; updateBack();
+});
+$("#backBtn").onclick = () => { const top = backStack[backStack.length - 1]; if (top) location.hash = top.hash; };
+document.addEventListener("keydown", e => { if (e.key === "Escape" && backStack.length && !document.querySelector("dialog[open]")) $("#backBtn").click(); });
 $("#discLink").onclick = e => { e.preventDefault(); $("#disclaimer").scrollIntoView({ behavior: "smooth", block: "start" }); };
 function segment(id, attr, fn) { $$("#" + id + " button").forEach(b => b.onclick = () => { $$("#" + id + " button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); fn(b.dataset[attr]); }); }
 segment("tfSeg", "tf", v => { S.tf = v; renderScreener(); }); segment("topRange", "k", v => { S.topKey = v; renderTop(); });

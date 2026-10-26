@@ -25,6 +25,8 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 - Operations status shows which keys are present (names only) and the live / market-maker settings.
 
 ### Changed
+- Back button: after clicking through to a pair (or another view), "Back" (or the browser's back, or Esc) returns to
+  the exact row you clicked, scrolled into view and briefly highlighted.
 - The site header shows the latest 15-minute refresh instead of the daily rebuild time.
 - Deployment also ships `picks/`; parts missing from older releases are skipped on rollback.
 
