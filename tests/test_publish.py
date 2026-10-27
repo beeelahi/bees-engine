@@ -98,6 +98,13 @@ class AuthConfigTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             P.auth_config(self.cfg({"url": "https://abcdefghijklmnop.supabase.co", "key": "sb_secret_" + "x" * 30}))
 
+    def test_google_client_id(self):
+        base = {"url": "https://abcdefghijklmnop.supabase.co", "key": "sb_publishable_" + "x" * 30}
+        meta, _ = P.auth_config(self.cfg(dict(base, google_client_id="123456789-abcdefghijk.apps.googleusercontent.com")))
+        self.assertIn("google_client_id", meta)
+        meta, _ = P.auth_config(self.cfg(dict(base, google_client_id="GOCSPX-secret-looking-value")))
+        self.assertNotIn("google_client_id", meta)
+
     def test_bad_url_ignored(self):
         self.assertEqual(P.auth_config(self.cfg({"url": "https://evil.example.com", "key": "sb_publishable_" + "x" * 30})), (None, None))
         self.assertEqual(P.auth_config(self.cfg({"url": "http://abcdefghijklmnop.supabase.co", "key": "sb_publishable_" + "x" * 30})), (None, None))

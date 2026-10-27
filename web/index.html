@@ -2310,6 +2310,21 @@ if (!window.claude) { $("#openReq").hidden = true; $("#tabReq").hidden = true; i
 // adds a personal dashboard. The page holds only the project's PUBLIC key; every row is readable by its owner only.
 const AUTH = (() => { try { const m = document.querySelector('meta[name="auth-config"]'); const c = m ? JSON.parse(m.content) : null;
   return c && /^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(c.url || "") && typeof c.key === "string" && c.key.length > 20 ? c : null; } catch (e) { return null; } })();
+// Google sign-in without any Google script on the page: a direct OpenID Connect request (response_type=id_token,
+// returned to beesells.xyz, so Google's screen names this site), then supabase.auth.signInWithIdToken. A random state
+// guards against forged returns and a hashed nonce binds the token to this attempt; both live in sessionStorage only.
+const GOOGLE_ID = AUTH && /^[0-9]{6,20}-[a-z0-9]{10,64}\.apps\.googleusercontent\.com$/.test(AUTH.google_client_id || "") ? AUTH.google_client_id : null;
+const sess = { get(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }, del(k) { try { sessionStorage.removeItem(k); } catch (e) {} } };
+const rand = () => [...crypto.getRandomValues(new Uint8Array(32))].map(b => b.toString(16).padStart(2, "0")).join("");
+const sha256hex = async t => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t)))].map(b => b.toString(16).padStart(2, "0")).join("");
+const GOOGLE_RETURN = (() => {                        // runs before the router sees the URL: take the token out of it at once
+  const h = location.hash.slice(1); if (!/(^|&)(id_token|error)=/.test(h) || !/(^|&)state=/.test(h)) return null;
+  const q = new URLSearchParams(h), saved = (() => { try { return JSON.parse(sess.get("g_oidc") || "null"); } catch (e) { return null; } })(); sess.del("g_oidc");
+  history.replaceState(null, "", location.pathname + location.search + (saved && saved.back ? saved.back : ""));
+  if (!saved || q.get("state") !== saved.state || Date.now() - saved.t > 10 * 60e3) return { error: "This sign-in link has expired or didn't come from this page. Please try again." };
+  if (q.get("error")) return { error: q.get("error") === "access_denied" ? "Google sign-in was cancelled." : "Google sign-in didn't complete. Please try again." };
+  return { token: q.get("id_token"), nonce: saved.nonce };
+})();
 const SB_LIB = { src: "https://unpkg.com/@supabase/supabase-js@2.117.3/dist/umd/supabase.js", sri: "sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R" };
 const ME = { sb: null, user: null, profile: null, watch: new Map(), mode: "signin", busy: false };
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => { t.hidden = true; }, 3200); }
@@ -2365,7 +2380,12 @@ async function authGo() {
   } catch (e) { authMsg(friendly(e)); } finally { ME.busy = false; btn.disabled = false; btn.textContent = label; }
 }
 async function google() { if (!ME.sb) { authMsg("The sign-in service is still loading. Try again in a moment."); return; }
-  store.set("guest", "1"); const { error } = await ME.sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin + "/" + location.hash } }); if (error) { openAuth("signin"); authMsg(friendly(error)); } }
+  store.set("guest", "1");
+  if (GOOGLE_ID) { const state = rand(), nonce = rand(); sess.set("g_oidc", JSON.stringify({ state, nonce, back: location.hash, t: Date.now() }));
+    const u = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    Object.entries({ client_id: GOOGLE_ID, redirect_uri: location.origin + "/", response_type: "id_token", scope: "openid email profile", nonce: await sha256hex(nonce), state, prompt: "select_account" }).forEach(([k, v]) => u.searchParams.set(k, v));
+    location.assign(u.toString()); return; }
+  const { error } = await ME.sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin + "/" + location.hash } }); if (error) { openAuth("signin"); authMsg(friendly(error)); } }
 async function loadMine() {
   if (!ME.user) return;
   const [p, w] = await Promise.all([ME.sb.from("profiles").select("display_name, settings, created_at").eq("id", ME.user.id).maybeSingle(), ME.sb.from("watchlist").select("symbol, note, position, created_at").order("position").order("created_at")]);
@@ -2466,6 +2486,9 @@ async function authInit() {
   $("#meSave").onclick = saveSettings; $("#meExport").onclick = exportMine; $("#meDelTxt").oninput = () => { $("#meDel").disabled = $("#meDelTxt").value.trim() !== "DELETE"; }; $("#meDel").onclick = deleteMe;
   try { const lib = await loadSb(); ME.sb = lib.createClient(AUTH.url, AUTH.key, { auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }); }
   catch (e) { $("#signInBtn").title = "Sign-in is unavailable right now"; return; }
+  if (GOOGLE_RETURN && GOOGLE_RETURN.token) { const { error } = await ME.sb.auth.signInWithIdToken({ provider: "google", token: GOOGLE_RETURN.token, nonce: GOOGLE_RETURN.nonce });
+    if (error) { openAuth("signin"); authMsg(friendly(error)); } else toast("Signed in with Google."); }
+  else if (GOOGLE_RETURN && GOOGLE_RETURN.error) { openAuth("signin"); authMsg(GOOGLE_RETURN.error); }
   ME.sb.auth.onAuthStateChange((ev, session) => { if (ev === "PASSWORD_RECOVERY") openAuth("reset"); setTimeout(() => setUser(session ? session.user : null), 0); });
   const { data } = await ME.sb.auth.getSession(); await setUser(data && data.session ? data.session.user : null);
   if (!ME.user && store.get("guest") !== "1" && $("#authDlg").hidden) openWelcome();

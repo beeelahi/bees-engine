@@ -34,7 +34,12 @@ Security:
    Authorized redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback`. OAuth consent screen: app name
    "Bee's Dashboard", support email, authorized domain `beesells.xyz`. Copy the Client ID and Client Secret into
    Supabase, Authentication, Providers, Google, and enable it. The secret goes only into Supabase.
-6. **Publish**: put the Project URL and the **publishable key** (Project Settings, API Keys; `sb_publishable_...`,
+6. **Google screen shows beesells.xyz** (direct sign-in, no Google script on the page): in the same Google OAuth
+   client add Authorized JavaScript origin `https://beesells.xyz` and Authorized redirect URI `https://beesells.xyz/`
+   (keep the Supabase callback too), then put the Client ID (not the secret) in `web/auth.json` as
+   `google_client_id`. The page then asks Google for an ID token directly (state + hashed nonce) and signs in with
+   `supabase.auth.signInWithIdToken`. Without it, the page falls back to Supabase's redirect.
+7. **Publish**: put the Project URL and the **publishable key** (Project Settings, API Keys; `sb_publishable_...`,
    or the legacy `anon` key) into `web/auth.json` and push. The next publish turns accounts on.
 
 Never put the `service_role` / `sb_secret_...` key anywhere in this project.

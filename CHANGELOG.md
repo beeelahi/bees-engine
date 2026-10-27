@@ -5,6 +5,9 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- Google sign-in that names beesells.xyz on Google's screen: a direct OpenID Connect ID-token request (random
+  state, hashed nonce, no Google script, CSP unchanged) and `signInWithIdToken`. On once `google_client_id` is set in
+  `web/auth.json`; until then the Supabase redirect is used.
 - Accounts (off until `web/auth.json` is filled in): a first-visit welcome with Continue with Google, Create a free
   account, Sign in, or Explore as a guest (remembered); a Sign-in button in the header; **My dashboard** with your own
   coins list (live price, 24h / 7D / 30D, bull score, what's happening, a note per coin), "on my coins today", display

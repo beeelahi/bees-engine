@@ -60,7 +60,11 @@ def auth_config(path=AUTH_CFG):
             raise RuntimeError("publish_site: web/auth.json key is not the anon key; refusing to publish it")
     elif not key.startswith("sb_publishable_"):
         return None, None
-    return json.dumps({"url": url, "key": key}, separators=(",", ":")), url
+    out = {"url": url, "key": key}
+    gid = (c or {}).get("google_client_id") or ""      # public OAuth client ID (no secret): direct Google sign-in
+    if re.fullmatch(r"[0-9]{6,20}-[a-z0-9]{10,64}\.apps\.googleusercontent\.com", gid):
+        out["google_client_id"] = gid
+    return json.dumps(out, separators=(",", ":")), url
 
 
 def csp_for(page, extra_connect=None):
