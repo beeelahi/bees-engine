@@ -536,10 +536,15 @@ def run(con=None):
     except Exception as e:
         print("export_web: derivatives skipped:", repr(e))
     write(os.path.join(OUT, "listings.json"), {
-        "listings": table(con, """SELECT p.symbol, p.token, p.status, p.first_candle, p.delisted_on,
+        # stopped trading: the day the change was seen, or (for pairs halted before tracking began) the day after
+        # their last daily candle, marked as estimated
+        "listings": table(con, """SELECT * FROM (SELECT p.symbol, p.token, p.status, p.first_candle,
+              CASE WHEN p.status != 'TRADING' THEN COALESCE(p.delisted_on,
+                   date((SELECT MAX(date) FROM daily d WHERE d.symbol=p.symbol), '+1 day')) END AS delisted_on,
+              CASE WHEN p.status != 'TRADING' AND p.delisted_on IS NULL THEN 1 ELSE 0 END AS delisted_est,
               (SELECT close FROM daily d WHERE d.symbol=p.symbol ORDER BY date DESC LIMIT 1) AS last_close,
               (SELECT quote_volume_24h FROM ticker_snapshots t WHERE t.symbol=p.symbol ORDER BY snap_date DESC LIMIT 1) AS vol_24h_usdt
-              FROM pairs p WHERE p.first_candle >= ? OR p.delisted_on >= ? ORDER BY COALESCE(p.delisted_on, p.first_candle) DESC""",
+              FROM pairs p) WHERE first_candle >= ? OR delisted_on >= ? ORDER BY COALESCE(delisted_on, first_candle) DESC""",
                           (ago(180), ago(180))),
         "universe_log": table(con, "SELECT * FROM universe_log WHERE date >= ? ORDER BY date DESC", (ago(180),)),
     })

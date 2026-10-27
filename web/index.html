@@ -76,6 +76,8 @@ tbody tr.clickable { cursor: pointer; }
 .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; gap: 2px; background: rgba(255,255,255,0.04); overflow-x: auto; max-width: 100%; scrollbar-width: none; }
 .seg button { border-radius: 999px; }
+.card-head > div { min-width: 0; max-width: 100%; }
+#wkBody { min-width: 0; } #wkBody > * { min-width: 0; overflow-x: auto; }
 .seg button { flex: 0 0 auto; }
 .seg button { border: 0; background: transparent; padding: 6px 12px; font-size: 12.5px; font-weight: 500; color: var(--muted); }
 .seg button[aria-pressed="true"] { background: rgba(255,255,255,0.12); color: #fff; }
@@ -1341,7 +1343,7 @@ function renderListings() {
     nl.append(t); });
   if (!nl.children.length) nl.innerHTML = '<tr><td colspan="7" class="empty">No new USDT listings in the last 180 days.</td></tr>';
   const off = $("#offList"); off.replaceChildren();
-  L.filter(r => r.delisted_on).forEach(r => { const t = document.createElement("tr"); t.append(tdNode(symNode(r.symbol)), td(r.delisted_on, "num"), td(fPx(r.last_close), "num")); off.append(t); });
+  L.filter(r => r.delisted_on).forEach(r => { const t = document.createElement("tr"); t.append(tdNode(symNode(r.symbol)), td(r.delisted_on + (r.delisted_est ? " (est.)" : ""), "num"), td(fPx(r.last_close), "num")); off.append(t); });
   if (!off.children.length) off.innerHTML = '<tr><td colspan="3" class="empty">None in the last 180 days.</td></tr>';
   const ul = $("#uniLog"); ul.replaceChildren();
   toObjs(S.lst.universe_log).forEach(r => { const t = document.createElement("tr"); t.append(tdNode(symNode(r.symbol)), tdNode(chip(r.event === "entered" ? "Entered" : "Left", r.event === "entered" ? "up" : "down")), td(r.date, "num"), td(fUsd(r.vol_24h_usdt), "num")); ul.append(t); });
