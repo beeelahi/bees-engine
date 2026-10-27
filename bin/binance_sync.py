@@ -950,6 +950,14 @@ def main():
     except Exception as e:
         log.warning(f"Telegram alerts skipped: {e}")
     con.close()
+    try:                                       # daily database upkeep: integrity check, verified backup, WAL checkpoint
+        if utc_now().hour >= 1:                # after the daily rebuild that follows 00:00 UTC
+            import db_maint
+            dp = db_maint.run(log.info)
+            if dp:
+                notify("Bee's Dashboard", "Database upkeep: " + "; ".join(dp)[:300])
+    except Exception as e:
+        log.warning(f"Database upkeep skipped: {e}")
     return 0 if result.get("ok") else 1
 
 

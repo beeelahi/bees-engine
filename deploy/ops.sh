@@ -22,6 +22,7 @@ case "$CMD" in
     echo "-- keys present (names only)"; for f in .github_token .telegram .binance_testnet .binance_live .mexc_live; do if [ -e "$ROOT/$f" ]; then printf '%s ' "$f"; fi; done; echo
     echo "-- settings"; python3 -c 'import json,sys; m=json.load(open(sys.argv[1])) if __import__("os").path.exists(sys.argv[1]) else {}; print("live.json mode:", m.get("mode","none"))' "$ROOT/live.json" 2>/dev/null || true
     python3 -c 'import json,sys; m=json.load(open(sys.argv[1])); print("mm.json enabled:", m.get("enabled"))' "$ROOT/mm.json" 2>/dev/null || echo "mm.json: none"
+    echo "-- database upkeep"; python3 -c 'import json,sys; m=json.load(open(sys.argv[1])); print(m.get("utc"), "problems:", m.get("problems") or "none"); [print(" ", k, v.get("check"), "|", v.get("backup", v.get("error", ""))) for k, v in m.get("databases", {}).items()]' "$ROOT/db_maint.json" 2>/dev/null || echo "not run yet"
     echo "-- switches"; for f in .no_publish STOP_TRADING FLATTEN_NOW MM_STOP; do if [ -e "$ROOT/$f" ]; then echo "$f is ON"; fi; done; echo "(none listed = all off)"
     ;;
   logs|sync-log)   tail -n "$N" "$ROOT/logs/sync.log" | scrub ;;

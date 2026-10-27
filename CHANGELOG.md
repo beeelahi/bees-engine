@@ -4,6 +4,14 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Added
+- Database upkeep (`db_maint.py`, once a day after the daily rebuild): quick integrity check of every database
+  (full check of binance.db on Sundays), an online, verified backup of each (last 2 kept, skipped when disk is
+  short), WAL checkpoint and planner statistics. Problems raise an alert; results show in the ops status.
+- Website smoke test in CI: a synthetic data package is built with the real analytics, bots and export, then every
+  tab, section and chart view is opened on a desktop and a phone screen; any JavaScript error, empty view or
+  sideways scrolling fails the build, and the server only deploys builds that pass.
+
 ### Changed
 - Fewer, clearer tabs: Top 50 now sits on the Overview (under Latest signals / Top performers, above Data health);
   Signals and Signal library are one Signals tab (Latest signals | Signal library); Bot and Track record are one

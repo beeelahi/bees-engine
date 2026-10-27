@@ -61,3 +61,23 @@ jobs:
         run: |
           for u in deploy/systemd/*; do systemd-analyze verify --man=no "$u" 2>&1 | grep -v -e "is not executable" -e "Failed to resolve" -e "No such file" || true; done
           grep -q "OnCalendar=\*-\*-\* \*:03/15:00" deploy/systemd/bees-sync.timer
+
+  site:
+    name: Website smoke test (every tab, desktop and phone)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+      - name: Browser
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.48.2
+          npx playwright install --with-deps chromium
+      - name: Synthetic data package
+        run: python tools/site_smoke_data.py "$RUNNER_TEMP/site"
+      - name: Open every view
+        run: node tools/site_smoke.js "$RUNNER_TEMP/site"
