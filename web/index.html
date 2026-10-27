@@ -160,6 +160,37 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
 .suggest button:hover { color: var(--fg); border-color: var(--accent); }
 .row-end { display: flex; justify-content: flex-end; gap: 8px; align-items: center; }
 .empty { padding: 28px; text-align: center; color: var(--muted); }
+/* accounts */
+.acct-ov { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 16px; background: rgba(4, 9, 26, 0.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.acct-ov[hidden] { display: none; }
+.acct-card { width: 100%; max-width: 420px; max-height: calc(100vh - 32px); overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 28px 24px 22px; box-shadow: 0 24px 80px rgba(0,0,0,.5); position: relative; animation: acctIn .18s ease-out; }
+@keyframes acctIn { from { transform: translateY(8px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
+.acct-card h2 { margin: 6px 0 6px; font-size: 22px; } .acct-card p.lead { margin: 0 0 18px; color: var(--muted); line-height: 1.5; }
+.acct-card .x { position: absolute; top: 12px; right: 12px; border: 0; background: transparent; color: var(--muted); font-size: 20px; cursor: pointer; padding: 6px 10px; border-radius: 8px; }
+.acct-card .x:hover { color: var(--fg); background: var(--panel-2); }
+.acct-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel-2); color: var(--fg); font: inherit; font-weight: 600; cursor: pointer; margin-top: 10px; }
+.acct-btn:hover { border-color: var(--accent); } .acct-btn:disabled { opacity: .6; cursor: progress; }
+.acct-btn.google { background: #fff; color: #1f1f1f; border-color: #fff; } .acct-btn.google:hover { box-shadow: 0 0 0 3px var(--accent-soft); }
+.acct-btn.main { background: var(--accent); color: #041024; border-color: var(--accent); }
+.acct-btn.ghost { background: transparent; border-color: transparent; color: var(--muted); font-weight: 500; } .acct-btn.ghost:hover { color: var(--fg); border-color: transparent; }
+.acct-or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin: 16px 0 6px; } .acct-or::before, .acct-or::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+.acct-perks { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 8px; font-size: 13px; color: var(--muted); } .acct-perks li::before { content: "✓ "; color: var(--up); font-weight: 700; }
+.acct-field { display: grid; gap: 6px; margin-top: 12px; } .acct-field label { font-size: 12.5px; color: var(--muted); }
+.acct-field input { width: 100%; box-sizing: border-box; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: inherit; }
+.acct-field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.acct-pw { position: relative; } .acct-pw button { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; padding: 6px; }
+.acct-msg { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 13px; line-height: 1.45; } .acct-msg.err { background: var(--down-soft, rgba(255,90,101,.14)); color: #ffb3b8; } .acct-msg.ok { background: var(--up-soft); color: #9ff3e6; }
+.acct-tabs { display: flex; gap: 4px; background: var(--bg); padding: 4px; border-radius: 12px; margin-bottom: 4px; } .acct-tabs button { flex: 1; border: 0; padding: 8px; border-radius: 9px; background: transparent; color: var(--muted); font: inherit; font-weight: 600; cursor: pointer; } .acct-tabs button[aria-selected="true"] { background: var(--panel-2); color: var(--fg); }
+.acct-small { font-size: 12px; color: var(--muted); margin-top: 14px; line-height: 1.5; } .acct-small a, .acct-link { color: var(--accent); cursor: pointer; background: none; border: 0; padding: 0; font: inherit; text-decoration: underline; }
+.acct-strength { height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; } .acct-strength i { display: block; height: 100%; width: 0; transition: width .2s, background .2s; }
+.avatar { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: linear-gradient(135deg, #4a55e8, #04b7f8); color: #fff; font-weight: 700; cursor: pointer; display: inline-grid; place-items: center; font-size: 13px; }
+.me-menu { position: absolute; right: 16px; top: 58px; z-index: 70; min-width: 220px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px; box-shadow: 0 16px 48px rgba(0,0,0,.45); }
+.me-menu[hidden] { display: none; } .me-menu .who { padding: 10px 12px; border-bottom: 1px solid var(--line); margin-bottom: 4px; font-size: 13px; } .me-menu .who small { display: block; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; }
+.me-menu button { display: block; width: 100%; text-align: left; padding: 9px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--fg); font: inherit; cursor: pointer; } .me-menu button:hover { background: var(--panel-2); }
+.star { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 999px; padding: 6px 12px; font: inherit; cursor: pointer; white-space: nowrap; } .star[aria-pressed="true"] { color: #ffd166; border-color: #ffd16666; background: rgba(255, 209, 102, .08); }
+.me-note { width: 100%; min-width: 140px; box-sizing: border-box; padding: 6px 8px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--fg); font: inherit; } .me-note:hover, .me-note:focus { border-color: var(--line); background: var(--bg); outline: none; }
+.me-hero { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; } .me-hero .avatar { width: 56px; height: 56px; font-size: 20px; cursor: default; }
+.toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 90; background: var(--panel-2); border: 1px solid var(--line); color: var(--fg); padding: 10px 16px; border-radius: 999px; box-shadow: 0 10px 30px rgba(0,0,0,.4); font-size: 13.5px; } .toast[hidden] { display: none; }
 @media (max-width: 640px) { .brand .sub { display: none; } .chart-main { height: 300px; } input.search { width: 130px; } .hl { grid-template-columns: 1fr auto; } .hl .when { grid-column: 1 / -1; } }
 </style>
 
@@ -171,12 +202,21 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
         <span class="pill" id="freshPill"><span class="dot"></span><span id="freshText">Loading data…</span></span>
         <span class="note num" id="syncText"></span>
         <button class="btn" id="openAsk" type="button">Ask Claude</button>
+        <button class="btn primary" id="signInBtn" type="button" hidden>Sign in</button>
+        <button class="avatar" id="meBtn" type="button" hidden aria-haspopup="menu" aria-expanded="false" aria-label="Your account"></button>
         <button class="btn primary" id="openReq" type="button">Request a change</button>
       </div>
     </div>
     <div class="risk-line">Information only, not financial advice. Bot results are simulated. <a href="#disclaimer" id="discLink">Read the disclaimer</a>.</div>
     <button class="backbtn" id="backBtn" type="button" hidden aria-label="Back to where you were">← Back</button>
+    <div class="me-menu" id="meMenu" role="menu" hidden>
+      <div class="who"><b id="meMenuName"></b><small id="meMenuEmail"></small></div>
+      <button type="button" role="menuitem" data-go="me">★ My dashboard</button>
+      <button type="button" role="menuitem" data-go="me-settings">Settings</button>
+      <button type="button" role="menuitem" id="meSignOut">Sign out</button>
+    </div>
     <nav class="tabs" aria-label="Views">
+      <a href="#me" data-view="me" id="navMe" hidden>★ My dashboard</a>
       <a href="#overview" data-view="overview">Overview</a>
       <a href="#shortlist" data-view="shortlist" id="navShort" hidden>Bee's Shortlist</a>
       <a href="#top50" data-view="top50">Top 50</a>
@@ -560,9 +600,42 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
     </div>
   </section>
 
+  <section class="view" id="v-me" hidden>
+    <div class="card">
+      <div class="me-hero"><span class="avatar" id="meAvatar" aria-hidden="true"></span><div><h2 style="margin:0" id="meHello">Your dashboard</h2><div class="note" id="meSince"></div></div></div>
+    </div>
+    <div class="card" id="meCoinsCard">
+      <div class="card-head"><h2>My coins</h2><span class="note" id="meCoinsNote"></span></div>
+      <div class="controls" style="margin-bottom:12px"><input class="search" id="meAdd" list="meAddList" placeholder="Add a coin, e.g. SOL" autocomplete="off" aria-label="Add a coin to my coins" style="width:220px"><datalist id="meAddList"></datalist><button class="btn primary" id="meAddBtn" type="button">Add</button></div>
+      <div class="tbl-wrap" style="max-height:70vh"><table><thead><tr><th>Pair</th><th>Price</th><th>24h</th><th>7D</th><th>30D</th><th title="0-10 confluence of trend and momentum">Bull score</th><th>What's happening</th><th>My note</th><th></th></tr></thead><tbody id="meCoins"></tbody></table></div>
+    </div>
+    <div class="card" id="meNewsCard">
+      <div class="card-head"><h2>On my coins today</h2><span class="note">calls, channels, patterns, breakouts and signals for the coins you follow</span></div>
+      <div class="hl-list" id="meNews"></div>
+    </div>
+    <div class="grid-2">
+      <div class="card" id="meSettings">
+        <div class="card-head"><h2>Settings</h2></div>
+        <div class="acct-field"><label for="meName">Display name</label><input id="meName" maxlength="60" autocomplete="nickname"></div>
+        <div class="acct-field"><label for="meStart">Open the site on</label><select id="meStart" class="search" style="width:100%"><option value="">Overview (default)</option><option value="me">My dashboard</option><option value="highlights">Highlights</option><option value="watchlist">Watchlist</option><option value="shortlist">Bee's Shortlist</option><option value="screener">Screener</option><option value="top50">Top 50</option></select></div>
+        <div class="row-end" style="margin-top:14px"><span class="note" id="meSaved"></span><button class="btn primary" id="meSave" type="button">Save settings</button></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Account</h2></div>
+        <div class="note" id="meAcct" style="line-height:1.7"></div>
+        <div class="controls" style="margin-top:14px; gap:8px"><button class="btn" id="meOut" type="button">Sign out</button><button class="btn" id="meOutAll" type="button">Sign out everywhere</button><button class="btn" id="meExport" type="button">Download my data</button></div>
+        <details style="margin-top:16px"><summary class="note" style="cursor:pointer">Delete my account</summary>
+          <p class="note">This permanently deletes your account, your coins, notes and settings. It cannot be undone. Type DELETE to confirm.</p>
+          <div class="controls"><input class="search" id="meDelTxt" placeholder="DELETE" autocomplete="off" aria-label="Type DELETE to confirm"><button class="btn" id="meDel" type="button" disabled>Delete my account</button></div>
+        </details>
+      </div>
+    </div>
+  </section>
+
   <section class="view" id="v-pair" hidden>
     <div class="controls">
       <select id="pairSel" aria-label="Pair"></select>
+      <button class="star" id="pairStar" type="button" aria-pressed="false" hidden>☆ Add to my coins</button>
       <div class="seg" id="pairTf"><button type="button" data-tf="4h" aria-pressed="false">4H</button><button type="button" data-tf="1d" aria-pressed="true">Daily</button><button type="button" data-tf="1w" aria-pressed="false">Weekly</button><button type="button" data-tf="1M" aria-pressed="false">Monthly</button></div>
       <button class="toggle" type="button" data-o="ema" aria-pressed="true">EMA 21/50/200</button>
       <button class="toggle" type="button" data-o="bb" aria-pressed="false">Bollinger</button>
@@ -630,6 +703,40 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
   </div>
 </aside>
 
+<div class="acct-ov" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="welTitle">
+  <div class="acct-card">
+    <svg class="mark" viewBox="0 0 32 32" width="40" height="40" aria-hidden="true"><defs><linearGradient id="bm2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4a55e8"/><stop offset="1" stop-color="#04b7f8"/></linearGradient></defs><rect width="32" height="32" rx="8" fill="url(#bm2)"/><path d="M7 21l6-7 5 4 7-9" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <h2 id="welTitle">Welcome to Bee's Dashboard</h2>
+    <p class="lead">A market terminal for every Binance USDT pair, where every signal, setup and bot shows its own track record.</p>
+    <button class="acct-btn google" type="button" data-auth="google"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.6 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.7 6c4.5-4.2 6.9-10.3 6.9-17.7z"/><path fill="#FBBC05" d="M10.6 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.7-6c-2.1 1.4-4.9 2.3-8.2 2.3-6.2 0-11.5-4.1-13.4-9.8l-7.9 6.1C6.6 42.6 14.6 48 24 48z"/></svg>Continue with Google</button>
+    <button class="acct-btn main" type="button" data-auth="signup">Create a free account</button>
+    <button class="acct-btn" type="button" data-auth="signin">Sign in with email</button>
+    <div class="acct-or">or</div>
+    <button class="acct-btn ghost" type="button" id="welGuest">Explore as a guest →</button>
+    <ul class="acct-perks"><li>Your own coins list with live prices</li><li>Notes on any coin, saved to your account</li><li>Today's calls, channels and patterns for your coins, in one place</li><li>Your own start page. More personal tools are coming</li></ul>
+    <p class="acct-small">Guests see everything that is public. You can sign in later from the top right. Information only, not financial advice.</p>
+  </div>
+</div>
+<div class="acct-ov" id="authDlg" hidden role="dialog" aria-modal="true" aria-labelledby="authTitle">
+  <div class="acct-card">
+    <button class="x" type="button" id="authClose" aria-label="Close">×</button>
+    <h2 id="authTitle">Sign in</h2>
+    <p class="lead" id="authLead"></p>
+    <div class="acct-tabs" role="tablist" id="authTabs"><button type="button" role="tab" data-mode="signin">Sign in</button><button type="button" role="tab" data-mode="signup">Create account</button></div>
+    <div id="authForm">
+      <button class="acct-btn google" type="button" data-auth="google" id="authGoogle"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.6 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.7 6c4.5-4.2 6.9-10.3 6.9-17.7z"/><path fill="#FBBC05" d="M10.6 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.7-6c-2.1 1.4-4.9 2.3-8.2 2.3-6.2 0-11.5-4.1-13.4-9.8l-7.9 6.1C6.6 42.6 14.6 48 24 48z"/></svg>Continue with Google</button>
+      <div class="acct-or" id="authOr">or with email</div>
+      <div class="acct-field" id="fName"><label for="authName">Your name (optional)</label><input id="authName" maxlength="60" autocomplete="name"></div>
+      <div class="acct-field" id="fEmail"><label for="authEmail">Email</label><input id="authEmail" type="email" autocomplete="email" inputmode="email" required></div>
+      <div class="acct-field" id="fPw"><label for="authPw" id="authPwLabel">Password</label><div class="acct-pw"><input id="authPw" type="password" autocomplete="current-password" minlength="8" required><button type="button" id="authPwShow" aria-label="Show password">Show</button></div>
+        <div class="acct-strength" id="authStrength" hidden><i></i></div><div class="acct-small" id="authPwHint" hidden style="margin-top:2px">At least 8 characters. Longer is stronger; a phrase works well.</div></div>
+      <button class="acct-btn main" type="button" id="authGo">Sign in</button>
+      <div class="acct-small" id="authLinks"></div>
+    </div>
+    <div class="acct-msg" id="authMsg" hidden role="status" aria-live="polite"></div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
 <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js" integrity="sha384-OK7vELvjHdhUFi31JYioPIcRHTROLdcDa6ZsNWgvgLaKj+9JqhU0Ad8g4wz3CXjA" crossorigin="anonymous"></script>
 <script>
 (() => {
@@ -1718,7 +1825,7 @@ async function renderPair() {
   syncPairHash();
   const r = S.scr.find(x => x.symbol === S.pair), p = { "4h": "d", "1d": "d", "1w": "w", "1M": "m" }[S.pairTf];
   const lp = livePx(S.pair);
-  $("#pairName").textContent = S.pair ? S.pair.replace(/USDT$/, " / USDT") : "—"; $("#pairPx").textContent = lp ? fPx(lp[0]) : r ? fPx(r.last_close) : "—";
+  paintStar(); $("#pairName").textContent = S.pair ? S.pair.replace(/USDT$/, " / USDT") : "—"; $("#pairPx").textContent = lp ? fPx(lp[0]) : r ? fPx(r.last_close) : "—";
   $("#pairPx").title = lp ? "Live price, " + fmtLocal(S.px.as_of) + " (refreshed every 15 minutes)" : "Last daily close";
   const chg = $("#pairChg"); chg.replaceChildren();
   if (lp) { const c = chip(fPct(lp[1]) + " 24h", lp[1] >= 0 ? "up" : "down"); c.title = "Rolling 24 hours to " + fmtLocal(S.px.as_of) + " · high " + fPx(lp[2]) + " · low " + fPx(lp[3]); chg.append(c); }
@@ -1968,14 +2075,14 @@ function renderBot() {
 const fUsd2 = v => isNum(v) ? (v < 0 ? "−$" : "$") + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
 
 // ---------- routing + controls
-const VIEWS = ["overview", "shortlist", "top50", "bot", "record", "lab", "highlights", "screener", "watchlist", "signals", "library", "listings", "pair"];
+const VIEWS = ["me", "overview", "shortlist", "top50", "bot", "record", "lab", "highlights", "screener", "watchlist", "signals", "library", "listings", "pair"];
 function show(v) {
   const parts = String(v || "").split("/");
   if (parts[0] === "pair" && parts[1]) { const sym = decodeURIComponent(parts[1]).toUpperCase(); if (S.index && S.index[sym]) S.pair = sym;
     if (["4h", "1d", "1w", "1M"].includes(parts[2])) S.pairTf = parts[2]; v = "pair"; }
   if (!VIEWS.includes(v) || (v === "shortlist" && !SL.owner && !S.pubSL)) v = "overview"; VIEWS.forEach(x => { $("#v-" + x).hidden = x !== v; });
   $$("nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.view === v ? "page" : "false"));
-  ({ overview: renderOverview, shortlist: renderShortlist, top50: renderTop50, bot: renderBot, record: renderRecord, lab: renderLab, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch, signals: renderSignals, library: renderLibrary, listings: renderListings, pair: renderPair })[v](); }
+  ({ me: () => { if (!ME.user) { if (AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); return; } renderMe(); }, overview: renderOverview, shortlist: renderShortlist, top50: renderTop50, bot: renderBot, record: renderRecord, lab: renderLab, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch, signals: renderSignals, library: renderLibrary, listings: renderListings, pair: renderPair })[v](); }
 // ---------- Back: return to the exact spot you clicked from (same page, same row), with the button or the browser
 const VIEW_NAME = { overview: "Overview", shortlist: "Bee's Shortlist", top50: "Top 50", bot: "Bot", record: "Track record", lab: "Setup Lab", highlights: "Highlights", screener: "Screener", watchlist: "Watchlist", signals: "Signals", library: "Signal library", listings: "Listings", pair: "Pair chart" };
 const backStack = []; let lastClick = null, restoring = false;
@@ -2198,6 +2305,171 @@ $("#reqSend").onclick = async () => { const text = $("#reqInput").value.trim(); 
 
 if (!window.claude) { $("#openReq").hidden = true; $("#tabReq").hidden = true; if (!ASK_ENDPOINT) $("#openAsk").hidden = true;
   const intro = $("#askBody .msg.sys"); if (intro) intro.textContent = "Ask about the numbers on this dashboard: prices, indicators, signals, trade ideas, the bots and their backtests. Answers are generated automatically from this data and can be wrong. Information only, not financial advice. Limited number of questions per visitor."; }
-(async () => { if (!(await loadAll())) return; renderFresh(); initScreenerControls(); if (S.pubSL) $("#navShort").hidden = false; initShortlist(); show(location.hash.slice(1)); })();
+
+// ---------- Accounts (Supabase Auth + Postgres with row-level security). Guests see everything public; signing in
+// adds a personal dashboard. The page holds only the project's PUBLIC key; every row is readable by its owner only.
+const AUTH = (() => { try { const m = document.querySelector('meta[name="auth-config"]'); const c = m ? JSON.parse(m.content) : null;
+  return c && /^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(c.url || "") && typeof c.key === "string" && c.key.length > 20 ? c : null; } catch (e) { return null; } })();
+const SB_LIB = { src: "https://unpkg.com/@supabase/supabase-js@2.117.3/dist/umd/supabase.js", sri: "sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R" };
+const ME = { sb: null, user: null, profile: null, watch: new Map(), mode: "signin", busy: false };
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => { t.hidden = true; }, 3200); }
+function loadSb() { return window.supabase ? Promise.resolve(window.supabase) : new Promise((res, rej) => { const x = document.createElement("script"); x.src = SB_LIB.src; x.integrity = SB_LIB.sri; x.crossOrigin = "anonymous"; x.referrerPolicy = "no-referrer"; x.onload = () => res(window.supabase); x.onerror = () => rej(new Error("load")); document.head.append(x); }); }
+const meName = () => (ME.profile && ME.profile.display_name) || (ME.user && ME.user.email ? ME.user.email.split("@")[0] : "there");
+const initials = n => (String(n).trim().split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(w => w[0]).join("") || "?").toUpperCase();
+function friendly(err) {
+  const m = String((err && (err.message || err.error_description)) || err || "");
+  if (/invalid login credentials/i.test(m)) return "That email and password don't match. Check them, or reset your password.";
+  if (/email not confirmed/i.test(m)) return "Please confirm your email first: open the link we sent you. Didn't get it? Use “Resend confirmation” below.";
+  if (/already registered|already exists/i.test(m)) return "There's already an account with this email. Sign in instead, or reset your password.";
+  if (/password.*(at least|short|weak)/i.test(m)) return "Please choose a longer password: at least 8 characters.";
+  if (/rate limit|too many|security purposes/i.test(m)) return "Too many attempts. Please wait a minute and try again.";
+  if (/network|fetch|load/i.test(m)) return "Can't reach the sign-in service. Check your connection and try again.";
+  return m || "Something went wrong. Please try again.";
+}
+function authMsg(text, ok) { const b = $("#authMsg"); b.hidden = !text; b.className = "acct-msg " + (ok ? "ok" : "err"); b.textContent = text || ""; }
+function openOverlay(id) { const o = $("#" + id); o.hidden = false; const f = o.querySelector("input:not([hidden]), button.acct-btn"); setTimeout(() => f && f.focus(), 30); }
+function closeOverlay(id) { $("#" + id).hidden = true; }
+function openWelcome() { if (AUTH) openOverlay("welcome"); }
+function setMode(mode, lead) {
+  ME.mode = mode; authMsg("");
+  const T = { signin: ["Welcome back", "Sign in"], signup: ["Create your free account", "Create account"], forgot: ["Reset your password", "Send reset link"], reset: ["Choose a new password", "Save new password"] }[mode];
+  $("#authTitle").textContent = T[0]; $("#authGo").textContent = T[1]; $("#authLead").textContent = lead || ({ signin: "Your coins, notes and settings are waiting.", signup: "Free. Keep your own coins list, notes and start page, on any device.", forgot: "Enter your account email and we'll send you a link to set a new password.", reset: "Enter a new password for your account." }[mode]);
+  $$("#authTabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.mode === mode)));
+  $("#authTabs").hidden = mode === "forgot" || mode === "reset"; $("#authGoogle").hidden = $("#authOr").hidden = mode === "forgot" || mode === "reset";
+  $("#fName").hidden = mode !== "signup"; $("#fEmail").hidden = mode === "reset"; $("#fPw").hidden = mode === "forgot";
+  $("#authPw").autocomplete = mode === "signin" ? "current-password" : "new-password"; $("#authPwLabel").textContent = mode === "reset" ? "New password" : "Password";
+  $("#authStrength").hidden = $("#authPwHint").hidden = !(mode === "signup" || mode === "reset");
+  const L = $("#authLinks"); L.replaceChildren();
+  const link = (txt, fn) => { const a = document.createElement("button"); a.type = "button"; a.className = "acct-link"; a.textContent = txt; a.onclick = fn; return a; };
+  if (mode === "signin") { L.append(link("Forgot your password?", () => setMode("forgot")), document.createTextNode(" · "), link("Resend confirmation email", resendConfirm)); }
+  if (mode === "signup") { L.append(document.createTextNode("By creating an account you agree to the "), Object.assign(document.createElement("a"), { href: "terms.html", target: "_blank", rel: "noopener", textContent: "Terms" }), document.createTextNode(" and "), Object.assign(document.createElement("a"), { href: "privacy.html", target: "_blank", rel: "noopener", textContent: "Privacy notice" }), document.createTextNode(". We store only your email, name and what you save here.")); }
+  if (mode === "forgot") L.append(link("← Back to sign in", () => setMode("signin")));
+}
+function openAuth(mode, lead) { if (!AUTH) return; closeOverlay("welcome"); setMode(mode || "signin", lead); openOverlay("authDlg"); }
+function pwStrength(p) { let sc = 0; if (p.length >= 8) sc++; if (p.length >= 12) sc++; if (/[A-Z]/.test(p) && /[a-z]/.test(p)) sc++; if (/\d/.test(p)) sc++; if (/[^A-Za-z0-9]/.test(p)) sc++; return sc; }
+async function resendConfirm() { const email = $("#authEmail").value.trim(); if (!email) { authMsg("Enter your email above, then tap “Resend confirmation email”."); return; }
+  if (!ME.sb) return; const { error } = await ME.sb.auth.resend({ type: "signup", email, options: { emailRedirectTo: location.origin + "/" } }); authMsg(error ? friendly(error) : "If that email has an unconfirmed account, a new confirmation link is on its way.", !error); }
+async function authGo() {
+  if (ME.busy || !ME.sb) return; const email = $("#authEmail").value.trim(), pw = $("#authPw").value, name = $("#authName").value.trim();
+  if (ME.mode !== "reset" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { authMsg("Please enter a valid email address."); $("#authEmail").focus(); return; }
+  if ((ME.mode === "signup" || ME.mode === "reset") && pw.length < 8) { authMsg("Please choose a password of at least 8 characters."); $("#authPw").focus(); return; }
+  if (ME.mode === "signin" && !pw) { authMsg("Please enter your password."); $("#authPw").focus(); return; }
+  ME.busy = true; const btn = $("#authGo"), label = btn.textContent; btn.disabled = true; btn.textContent = "One moment…";
+  try {
+    if (ME.mode === "signin") { const { data, error } = await ME.sb.auth.signInWithPassword({ email, password: pw }); if (error) throw error; closeOverlay("authDlg"); await setUser(data && data.session ? data.session.user : null); toast("Signed in. Welcome back, " + meName() + "!"); }
+    else if (ME.mode === "signup") { const { data, error } = await ME.sb.auth.signUp({ email, password: pw, options: { data: name ? { display_name: name } : {}, emailRedirectTo: location.origin + "/" } }); if (error) throw error;
+      if (data && data.session) { closeOverlay("authDlg"); await setUser(data.session.user); toast("Account created. Welcome, " + meName() + "!"); location.hash = "me"; }
+      else { setMode("signin"); $("#authEmail").value = email; authMsg("We sent a confirmation link to " + email + ". Open it to activate your account; then sign in here.", true); } }
+    else if (ME.mode === "forgot") { const { error } = await ME.sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + "/" }); if (error) throw error; authMsg("If an account exists for " + email + ", a reset link is on its way. It works once and expires soon.", true); }
+    else if (ME.mode === "reset") { const { error } = await ME.sb.auth.updateUser({ password: pw }); if (error) throw error; closeOverlay("authDlg"); toast("Password updated. You're signed in."); }
+  } catch (e) { authMsg(friendly(e)); } finally { ME.busy = false; btn.disabled = false; btn.textContent = label; }
+}
+async function google() { if (!ME.sb) { authMsg("The sign-in service is still loading. Try again in a moment."); return; }
+  store.set("guest", "1"); const { error } = await ME.sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin + "/" + location.hash } }); if (error) { openAuth("signin"); authMsg(friendly(error)); } }
+async function loadMine() {
+  if (!ME.user) return;
+  const [p, w] = await Promise.all([ME.sb.from("profiles").select("display_name, settings, created_at").eq("id", ME.user.id).maybeSingle(), ME.sb.from("watchlist").select("symbol, note, position, created_at").order("position").order("created_at")]);
+  ME.profile = p.data || { display_name: null, settings: {}, created_at: ME.user.created_at };
+  ME.watch = new Map(((w.data) || []).map(x => [x.symbol, x]));
+}
+function paintAccount() {
+  const on = !!ME.user; $("#signInBtn").hidden = !AUTH || on; $("#meBtn").hidden = !on; $("#navMe").hidden = !on; $("#pairStar").hidden = !AUTH;
+  if (on) { const n = meName(); $("#meBtn").textContent = initials(n); $("#meMenuName").textContent = n; $("#meMenuEmail").textContent = ME.user.email || ""; }
+  paintStar(); if (!$("#v-me").hidden) renderMe();
+}
+async function setUser(u) {
+  const was = ME.user && ME.user.id; ME.user = u || null;
+  if (ME.user && ME.user.id !== was) { try { await loadMine(); } catch (e) { toast("Couldn't load your saved items. Refresh to try again."); } }
+  if (!ME.user) { ME.profile = null; ME.watch = new Map(); }
+  paintAccount();
+  if (ME.user && !was) { const st = (ME.profile && ME.profile.settings || {}).start; if (st && !location.hash.slice(1)) location.hash = st; }
+}
+function paintStar() { const b = $("#pairStar"); if (!b || !S.pair) return; const on = ME.watch.has(S.pair); b.setAttribute("aria-pressed", String(on)); b.textContent = on ? "★ In my coins" : "☆ Add to my coins"; }
+async function toggleCoin(sym, force) {
+  if (!ME.user) { openAuth("signup", "Create a free account to keep your own coins list, with live prices and today's calls for each coin."); return; }
+  const has = ME.watch.has(sym), want = force === undefined ? !has : force; if (want === has) return;
+  if (want) { ME.watch.set(sym, { symbol: sym, note: null, position: ME.watch.size }); paintStar();
+    const { error } = await ME.sb.from("watchlist").insert({ symbol: sym, position: ME.watch.size }); if (error) { ME.watch.delete(sym); toast(/limit/.test(error.message) ? "You can follow up to 300 coins." : "Couldn't save. Please try again."); } else toast(sym.replace(/USDT$/, "") + " added to your coins"); }
+  else { const keep = ME.watch.get(sym); ME.watch.delete(sym); paintStar();
+    const { error } = await ME.sb.from("watchlist").delete().eq("symbol", sym); if (error) { ME.watch.set(sym, keep); toast("Couldn't remove. Please try again."); } else toast(sym.replace(/USDT$/, "") + " removed"); }
+  paintStar(); if (!$("#v-me").hidden) renderMe();
+}
+const saveNote = (() => { const timers = {}; return (sym, note) => { clearTimeout(timers[sym]); timers[sym] = setTimeout(async () => {
+  const { error } = await ME.sb.from("watchlist").update({ note: note.slice(0, 500) || null }).eq("symbol", sym); if (error) toast("Couldn't save your note."); else { const x = ME.watch.get(sym); if (x) x.note = note; } }, 600); }; })();
+function coinNews(sym) {
+  const out = [], H = S.hlMeta || {}, D = (chanData().labels || {});
+  ((H.channel_calls || {}).rows || []).filter(x => x.symbol === sym).forEach(x => out.push(["Channel call " + x.grade + " (" + (x.side === "long" ? "long" : "short") + "): " + (D[x.status] || x.status).toLowerCase(), x.side === "long" ? "up" : "down"]));
+  ((H.ltbo || {}).rows || []).filter(x => x.symbol === sym && x.days_since <= 30).forEach(x => out.push(["Long-term breakout " + x.grade + " (" + x.event_date + "), weekly close " + x.weekly, "up"]));
+  ((H.hs || {}).rows || []).filter(x => x.symbol === sym && x.status !== "after_break").forEach(x => out.push([(x.kind === "top" ? "H&S top: " : "Inverse H&S: ") + (HS_ST[x.status] || x.status).toLowerCase(), x.kind === "top" ? "down" : "up"]));
+  (chanData().rows || []).filter(x => x.symbol === sym && x.tf === "1d" && x.status !== "inside").slice(0, 1).forEach(x => out.push(["Channel: " + (D[x.status] || x.status).toLowerCase(), CH_UP[x.status] || "neutral"]));
+  const pick = ((S.pubSL && S.pubSL.rows) || []).find(d => d.symbol === sym && d.status === "active"); if (pick) out.push(["On Bee's Shortlist (" + (pick.side || "long") + ")", pick.side === "short" ? "down" : "up"]);
+  const last = S.ov && S.ov.last_date; S.sig.filter(x => x.symbol === sym && x.tf === "1d" && x.period_start === last).slice(0, 2).forEach(x => out.push([sigLabel(x.signal, x.direction), x.direction === "bullish" ? "up" : "down"]));
+  return out;
+}
+function renderMe() {
+  if (!ME.user) { $("#meCoins").innerHTML = ""; return; }
+  const n = meName(); $("#meAvatar").textContent = initials(n); $("#meHello").textContent = "Hi, " + n;
+  const since = (ME.profile && ME.profile.created_at) || ME.user.created_at; $("#meSince").textContent = since ? "Member since " + new Date(since).toLocaleDateString(undefined, { month: "long", year: "numeric" }) : "";
+  const dl = $("#meAddList"); if (!dl.children.length && S.index) Object.keys(S.index).sort().forEach(k => { const o = document.createElement("option"); o.value = k.replace(/USDT$/, ""); dl.append(o); });
+  const scr = Object.fromEntries(S.scr.map(r => [r.symbol, r])), tb = $("#meCoins"); tb.replaceChildren();
+  const coins = [...ME.watch.values()]; $("#meCoinsNote").textContent = coins.length ? coins.length + " coin" + (coins.length > 1 ? "s" : "") + " · prices refresh every 15 minutes" : "";
+  coins.forEach(c => { const r = scr[c.symbol], lp = livePx(c.symbol), t = document.createElement("tr"); t.className = "clickable"; t.onclick = e => { if (!e.target.closest("input,button")) openPair(c.symbol); };
+    const px = lp ? lp[0] : r ? r.last_close : null, ch = lp ? lp[1] : null;
+    const news = document.createElement("span"); news.className = "controls"; news.style.gap = "4px"; coinNews(c.symbol).slice(0, 3).forEach(([txt, k]) => news.append(chip(txt, k)));
+    if (!news.children.length) news.append(Object.assign(document.createElement("span"), { className: "note", textContent: "Quiet today" }));
+    const note = document.createElement("input"); note.className = "me-note"; note.maxLength = 500; note.placeholder = "Add a note…"; note.value = c.note || ""; note.setAttribute("aria-label", "Note for " + c.symbol); note.oninput = () => saveNote(c.symbol, note.value);
+    const rm = document.createElement("button"); rm.className = "btn small"; rm.type = "button"; rm.textContent = "Remove"; rm.onclick = () => toggleCoin(c.symbol, false);
+    t.append(tdNode(symNode(c.symbol)), td(fPx(px), "num"), td(isNum(ch) ? fPct(ch, 1) : "—", "num " + cls(ch)), td(r ? fPct(r.ret_7d, 1) : "—", "num " + (r ? cls(r.ret_7d) : "")), td(r ? fPct(r.ret_30d, 1) : "—", "num " + (r ? cls(r.ret_30d) : "")),
+      tdNode(r && isNum(r.d_bull_score) ? chip(String(r.d_bull_score), r.d_bull_score >= 7 ? "up" : r.d_bull_score <= 3 ? "down" : "neutral") : chip("—", "neutral")), tdNode(news), tdNode(note), tdNode(rm)); tb.append(t); });
+  if (!coins.length) tb.innerHTML = '<tr><td colspan="9" class="empty">No coins yet. Add one above, or tap “☆ Add to my coins” on any chart.</td></tr>';
+  const nl = $("#meNews"); nl.replaceChildren(); let any = 0;
+  coins.forEach(c => coinNews(c.symbol).forEach(([txt, k]) => { any++; const d = document.createElement("div"); d.className = "hl"; const w = document.createElement("div"); w.className = "when"; w.append(symNode(c.symbol)); const what = document.createElement("div"); what.className = "what"; what.textContent = txt; const right = document.createElement("div"); right.append(chip(k === "up" ? "Bullish" : k === "down" ? "Bearish" : "Info", k)); d.append(w, what, right); d.onclick = () => openPair(c.symbol); nl.append(d); }));
+  if (!any) nl.innerHTML = '<div class="empty">' + (coins.length ? "Nothing new on your coins today." : "Follow a few coins and their calls, channels and patterns will show up here.") + "</div>";
+  $("#meName").value = (ME.profile && ME.profile.display_name) || ""; $("#meStart").value = ((ME.profile && ME.profile.settings) || {}).start || "";
+  const prov = ((ME.user.app_metadata || {}).providers || [ (ME.user.app_metadata || {}).provider ]).filter(Boolean).map(x => x === "email" ? "email and password" : x === "google" ? "Google" : x).join(" and ");
+  $("#meAcct").textContent = "Signed in as " + (ME.user.email || "—") + (prov ? " · with " + prov : "") + ". Your coins, notes and settings are stored in your private account (only you can read them).";
+}
+async function saveSettings() {
+  const name = $("#meName").value.trim().slice(0, 60), start = $("#meStart").value, settings = Object.assign({}, (ME.profile && ME.profile.settings) || {}, { start });
+  const { error } = await ME.sb.from("profiles").update({ display_name: name || null, settings }).eq("id", ME.user.id);
+  if (error) { $("#meSaved").textContent = "Not saved, please try again."; return; }
+  ME.profile = Object.assign(ME.profile || {}, { display_name: name || null, settings }); $("#meSaved").textContent = "Saved ✓"; setTimeout(() => { $("#meSaved").textContent = ""; }, 2500); paintAccount();
+}
+function exportMine() {
+  const data = { exported_utc: new Date().toISOString(), email: ME.user.email, profile: ME.profile, coins: [...ME.watch.values()] };
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })); a.download = "bees-dashboard-my-data.json"; document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+async function deleteMe() {
+  if ($("#meDelTxt").value.trim() !== "DELETE") return; $("#meDel").disabled = true;
+  const { error } = await ME.sb.rpc("delete_my_account"); if (error) { toast("Couldn't delete the account: " + friendly(error)); $("#meDel").disabled = false; return; }
+  await ME.sb.auth.signOut(); store.set("guest", "1"); location.hash = "overview"; toast("Your account and data were deleted.");
+}
+async function authInit() {
+  if (!AUTH) return;                                    // accounts not configured: the site works exactly as before
+  $("#signInBtn").hidden = false; $("#pairStar").hidden = false;
+  $("#signInBtn").onclick = () => openAuth("signin"); $("#welGuest").onclick = () => { store.set("guest", "1"); closeOverlay("welcome"); toast("Exploring as a guest. Sign in anytime from the top right."); };
+  $$("[data-auth]").forEach(b => b.onclick = () => b.dataset.auth === "google" ? google() : openAuth(b.dataset.auth));
+  $$("#authTabs button").forEach(b => b.onclick = () => setMode(b.dataset.mode)); $("#authClose").onclick = () => closeOverlay("authDlg"); $("#authGo").onclick = authGo;
+  ["authEmail", "authPw", "authName"].forEach(id => $("#" + id).addEventListener("keydown", e => { if (e.key === "Enter") authGo(); }));
+  $("#authPwShow").onclick = () => { const i = $("#authPw"), show = i.type === "password"; i.type = show ? "text" : "password"; $("#authPwShow").textContent = show ? "Hide" : "Show"; };
+  $("#authPw").addEventListener("input", () => { const sc = pwStrength($("#authPw").value), bar = $("#authStrength i"); bar.style.width = (sc * 20) + "%"; bar.style.background = sc <= 1 ? "var(--down)" : sc <= 3 ? "var(--warn)" : "var(--up)"; });
+  ["welcome", "authDlg"].forEach(id => $("#" + id).addEventListener("click", e => { if (e.target.id === id) { if (id === "welcome") store.set("guest", "1"); closeOverlay(id); } }));
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("#authDlg").hidden) closeOverlay("authDlg"); else if (!$("#welcome").hidden) { store.set("guest", "1"); closeOverlay("welcome"); } } }, true);
+  $("#meBtn").onclick = e => { e.stopPropagation(); const m = $("#meMenu"); m.hidden = !m.hidden; $("#meBtn").setAttribute("aria-expanded", String(!m.hidden)); };
+  document.addEventListener("click", e => { if (!e.target.closest("#meMenu, #meBtn")) $("#meMenu").hidden = true; });
+  $$("#meMenu [data-go]").forEach(b => b.onclick = () => { $("#meMenu").hidden = true; location.hash = "me"; if (b.dataset.go === "me-settings") setTimeout(() => $("#meSettings").scrollIntoView({ behavior: "smooth" }), 250); });
+  const out = async scope => { await ME.sb.auth.signOut(scope ? { scope } : undefined); store.set("guest", "1"); if (location.hash === "#me") location.hash = "overview"; toast("Signed out."); };
+  $("#meSignOut").onclick = () => { $("#meMenu").hidden = true; out(); }; $("#meOut").onclick = () => out(); $("#meOutAll").onclick = () => out("global");
+  $("#pairStar").onclick = () => S.pair && toggleCoin(S.pair);
+  const addCoin = () => { let v = $("#meAdd").value.trim().toUpperCase().replace(/[^A-Z0-9]/g, ""); if (!v) return; if (!v.endsWith("USDT")) v += "USDT"; if (!S.index[v]) { toast(v.replace(/USDT$/, "") + " isn't a tracked USDT pair."); return; } $("#meAdd").value = ""; toggleCoin(v, true); };
+  $("#meAddBtn").onclick = addCoin; $("#meAdd").addEventListener("keydown", e => { if (e.key === "Enter") addCoin(); });
+  $("#meSave").onclick = saveSettings; $("#meExport").onclick = exportMine; $("#meDelTxt").oninput = () => { $("#meDel").disabled = $("#meDelTxt").value.trim() !== "DELETE"; }; $("#meDel").onclick = deleteMe;
+  try { const lib = await loadSb(); ME.sb = lib.createClient(AUTH.url, AUTH.key, { auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }); }
+  catch (e) { $("#signInBtn").title = "Sign-in is unavailable right now"; return; }
+  ME.sb.auth.onAuthStateChange((ev, session) => { if (ev === "PASSWORD_RECOVERY") openAuth("reset"); setTimeout(() => setUser(session ? session.user : null), 0); });
+  const { data } = await ME.sb.auth.getSession(); await setUser(data && data.session ? data.session.user : null);
+  if (!ME.user && store.get("guest") !== "1" && $("#authDlg").hidden) openWelcome();
+}
+(async () => { if (!(await loadAll())) return; renderFresh(); initScreenerControls(); if (S.pubSL) $("#navShort").hidden = false; initShortlist(); show(location.hash.slice(1)); authInit(); })();
 })();
 </script>

@@ -5,6 +5,13 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- Accounts (off until `web/auth.json` is filled in): a first-visit welcome with Continue with Google, Create a free
+  account, Sign in, or Explore as a guest (remembered); a Sign-in button in the header; **My dashboard** with your own
+  coins list (live price, 24h / 7D / 30D, bull score, what's happening, a note per coin), "on my coins today", display
+  name, start page, export my data, sign out everywhere and delete account; "Add to my coins" on every chart.
+  Supabase Auth (PKCE) + Postgres with row-level security on every table (`supabase/migrations/`); only the public
+  key ever reaches the page and the publisher refuses a secret key. Privacy notice and terms pages. Guide:
+  `docs/ACCOUNTS.md`.
 - Long-term channel breakout radar (`ltbo.py`): every close above a 250+ day channel gets a dossier, graded on the
   three checks that separated winners in testing, followed for 180 days (weekly close, since / best, line now, width
   target), in the Watchlist and Highlights, posted to the feed and Telegram. The last 180 days are filled in once,

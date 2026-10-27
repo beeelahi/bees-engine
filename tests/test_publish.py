@@ -60,3 +60,51 @@ class PublishTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AuthConfigTest(unittest.TestCase):
+    """Accounts: only the public Supabase key may ever reach the page; the CSP opens exactly that origin."""
+
+    def cfg(self, obj):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d)
+        p = os.path.join(d, "auth.json")
+        with open(p, "w") as f:
+            json.dump(obj, f)
+        return p
+
+    @staticmethod
+    def jwt(role):
+        import base64
+        enc = lambda o: base64.urlsafe_b64encode(json.dumps(o).encode()).decode().rstrip("=")
+        return enc({"alg": "HS256"}) + "." + enc({"role": role, "iss": "supabase"}) + ".c2lnbmF0dXJlc2lnbmF0dXJl"
+
+    def test_empty_or_missing_is_off(self):
+        self.assertEqual(P.auth_config("/nonexistent/auth.json"), (None, None))
+        self.assertEqual(P.auth_config(self.cfg({"url": "", "key": ""})), (None, None))
+
+    def test_publishable_key_accepted_and_csp(self):
+        meta, origin = P.auth_config(self.cfg({"url": "https://abcdefghijklmnop.supabase.co", "key": "sb_publishable_" + "x" * 30}))
+        self.assertEqual(origin, "https://abcdefghijklmnop.supabase.co")
+        html = P.wrap("<title>t</title><header></header><script>1</script>", auth=(meta, origin))
+        self.assertIn('name="auth-config"', html)
+        self.assertIn("connect-src 'self' https://abcdefghijklmnop.supabase.co;", html)
+        self.assertIn("&quot;url&quot;", html)
+
+    def test_anon_jwt_ok_service_role_refused(self):
+        self.assertIsNotNone(P.auth_config(self.cfg({"url": "https://abcdefghijklmnop.supabase.co", "key": self.jwt("anon")}))[0])
+        with self.assertRaises(RuntimeError):
+            P.auth_config(self.cfg({"url": "https://abcdefghijklmnop.supabase.co", "key": self.jwt("service_role")}))
+        with self.assertRaises(RuntimeError):
+            P.auth_config(self.cfg({"url": "https://abcdefghijklmnop.supabase.co", "key": "sb_secret_" + "x" * 30}))
+
+    def test_bad_url_ignored(self):
+        self.assertEqual(P.auth_config(self.cfg({"url": "https://evil.example.com", "key": "sb_publishable_" + "x" * 30})), (None, None))
+        self.assertEqual(P.auth_config(self.cfg({"url": "http://abcdefghijklmnop.supabase.co", "key": "sb_publishable_" + "x" * 30})), (None, None))
+
+    def test_legal_pages(self):
+        page = P.legal_page(*P.LEGAL["privacy.html"])
+        self.assertNotIn("<script", page)
+        self.assertNotIn("Contact", page)
+        self.assertIn("Contact", P.legal_page(*P.LEGAL["terms.html"], contact="hello@example.com"))
+        self.assertNotIn("Contact", P.legal_page(*P.LEGAL["terms.html"], contact="<x>@bad"))

@@ -19,6 +19,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CFG = os.path.join(ROOT, "site.json")
 TOKEN = os.path.join(ROOT, ".github_token")
 PAGE = os.path.join(ROOT, "web", "index.html")
+AUTH_CFG = os.path.join(ROOT, "web", "auth.json")   # public Supabase project URL + publishable (anon) key; optional
 EXPORT = os.path.join(ROOT, "web_export")
 BUILD = os.path.join(ROOT, "site_build")
 
@@ -36,6 +37,32 @@ def ask_origin(cfg):
     return (url, m.group(1)) if m else (None, None)
 
 
+def auth_config(path=AUTH_CFG):
+    """Accounts (optional): web/auth.json = {"url": "https://<ref>.supabase.co", "key": "<publishable / anon key>"}.
+    Only the PUBLIC key belongs here. A secret / service-role key is refused outright, so it can never reach the page.
+    Returns (json_for_meta, origin) or (None, None) when accounts are not configured."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            c = json.load(f)
+    except (OSError, ValueError):
+        return None, None
+    url, key = (c or {}).get("url") or "", (c or {}).get("key") or ""
+    if not re.fullmatch(r"https://[a-z0-9]{10,40}\.supabase\.co", url) or not re.fullmatch(r"[A-Za-z0-9._-]{20,400}", key):
+        return None, None
+    if key.startswith("sb_secret_"):
+        raise RuntimeError("publish_site: web/auth.json holds a SECRET key; only the publishable (anon) key may be used")
+    if key.count(".") == 2:                               # legacy JWT key: must be the anon role
+        try:
+            claims = json.loads(base64.urlsafe_b64decode(key.split(".")[1] + "=="))
+        except ValueError:
+            return None, None
+        if claims.get("role") != "anon":
+            raise RuntimeError("publish_site: web/auth.json key is not the anon key; refusing to publish it")
+    elif not key.startswith("sb_publishable_"):
+        return None, None
+    return json.dumps({"url": url, "key": key}, separators=(",", ":")), url
+
+
 def csp_for(page, extra_connect=None):
     """Strict Content-Security-Policy: only this page's own inline script (pinned by hash), the pinned
     chart library from unpkg, Google Fonts, and same-origin data files. No other script, frame,
@@ -49,18 +76,72 @@ def csp_for(page, extra_connect=None):
             "; base-uri 'none'; form-action 'none'; manifest-src 'none'")
 
 
-def wrap(page, ask_url=None, ask_org=None):
+def wrap(page, ask_url=None, ask_org=None, auth=(None, None)):
     """The page source is written for the Claude viewer (no <html>/<head>). Turn it into a full document:
     everything before the first <header> (title, meta, fonts, style) goes into <head>."""
     cut = page.find("<header")
     head, body = (page[:cut], page[cut:]) if cut > 0 else ("", page)
     return ("<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
-            f"<meta http-equiv=\"Content-Security-Policy\" content=\"{csp_for(page, ask_org)}\">\n"
-            + (f"<meta name=\"ask-endpoint\" content=\"{ask_url}\">\n" if ask_url else "") +
+            f"<meta http-equiv=\"Content-Security-Policy\" content=\"{csp_for(page, ' '.join(x for x in (ask_org, auth[1]) if x) or None)}\">\n"
+            + (f"<meta name=\"ask-endpoint\" content=\"{ask_url}\">\n" if ask_url else "")
+            + (f"<meta name=\"auth-config\" content=\"{html_attr(auth[0])}\">\n" if auth[0] else "") +
             "<meta name=\"referrer\" content=\"no-referrer\">\n"
             "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\">\n"
             "<meta name=\"robots\" content=\"noindex,nofollow\">\n"
             f"<link rel=\"icon\" href=\"{ICON}\">\n<style>{RESET}</style>\n{head}\n</head>\n<body>\n{body}\n</body>\n</html>\n")
+
+
+def html_attr(s):
+    return s.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+LEGAL_CSP = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
+LEGAL = {
+    "privacy.html": ("Privacy notice", [
+        ("What we store", "Nothing, if you use the site as a guest: there are no ads, no trackers and no analytics. Your settings "
+         "(theme, filters) stay in your own browser. If you create an account we store your email address, the display name you "
+         "choose, and what you save: the coins you follow, your notes on them and your dashboard settings. If you sign in with "
+         "Google we receive your name and email from Google, nothing else."),
+        ("Where", "Accounts are run by Supabase, our database and sign-in provider. Your password is never "
+         "stored by us in readable form; Supabase keeps only a salted hash. Every saved row is protected so only your own signed-in "
+         "account can read or change it."),
+        ("What we don't do", "We don't sell or share your data, send marketing emails, or use your data to train anything. "
+         "Emails are sent only to confirm your account or reset your password."),
+        ("Other services the page loads", "To display the page your browser fetches fonts from Google Fonts and two pinned "
+         "code libraries (charts, sign-in) from unpkg.com, and the page is hosted on GitHub Pages. Like any web request, these "
+         "services see your IP address; we receive nothing from them."),
+        ("Your control", "From My dashboard you can download everything we hold about you (Export my data), sign out of all "
+         "devices, and delete your account. Deleting removes your account and all saved items at once, for good."),
+    ]),
+    "terms.html": ("Terms of use", [
+        ("Information, not advice", "Bee's Dashboard shows market data, statistics and pattern detections for information and "
+         "education. Nothing on it is investment, financial or trading advice, or a recommendation to buy or sell anything. "
+         "Past results, including measured records of signals and calls, do not guarantee future results. Crypto assets are "
+         "volatile; you can lose all of the money you put in. Make your own decisions, ideally with a licensed adviser."),
+        ("Accuracy", "Data comes from public exchange feeds and automated analysis. It may be delayed, incomplete or wrong, and "
+         "the service may be unavailable at times. It is provided as is, without warranties."),
+        ("Your account", "Keep your password private. One account per person. Don't misuse the service: no automated scraping "
+         "of accounts, no attempts to access others' data, no abuse of sign-up or email features. We may suspend accounts that do."),
+        ("Changes", "These terms and the service may change; the date below shows the latest version. Continuing to use the "
+         "site after a change means you accept it. You can delete your account at any time from My dashboard."),
+    ]),
+}
+
+
+def legal_page(title, sections, contact=None):
+    import html as H
+    if contact and re.fullmatch(r"[^@\s<>\"]+@[^@\s<>\"]+\.[a-z]{2,}", contact):
+        sections = list(sections) + [("Contact", "Questions or data requests: " + contact + ".")]
+    body = "".join(f"<h2>{H.escape(h)}</h2><p>{H.escape(t)}</p>" for h, t in sections)
+    return ("<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">"
+            f"<meta http-equiv=\"Content-Security-Policy\" content=\"{LEGAL_CSP}\">"
+            "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta name=\"referrer\" content=\"no-referrer\">"
+            f"<meta name=\"robots\" content=\"noindex,nofollow\"><link rel=\"icon\" href=\"{ICON}\"><title>{H.escape(title)} · Bee's Dashboard</title>"
+            "<style>:root{color-scheme:light dark}body{margin:0;font:16px/1.6 system-ui,-apple-system,sans-serif;background:Canvas;color:CanvasText}"
+            "main{max-width:720px;margin:0 auto;padding:32px 16px 64px}h1{font-size:28px;margin:8px 0 4px}h2{font-size:18px;margin:28px 0 6px}"
+            "p{margin:0}a{color:#2f7fbf}.d{opacity:.7;font-size:14px}</style></head><body><main>"
+            f"<p><a href=\"./\">← Back to Bee's Dashboard</a></p><h1>{H.escape(title)}</h1><p class=\"d\">Last updated 27 October 2026</p>"
+            f"{body}</main></body></html>\n")
 
 
 def read_token():
@@ -155,8 +236,9 @@ def _sync_tree(dst_data):
 def _write_static(cfg, domain):
     with open(PAGE, encoding="utf-8") as f:
         ask_url, ask_org = ask_origin(cfg)
-        html = wrap(f.read(), ask_url, ask_org)
-    for name, text in (("index.html", html), (".nojekyll", ""), ("robots.txt", "User-agent: *\nDisallow: /\n")) + \
+        html = wrap(f.read(), ask_url, ask_org, auth_config())
+    legal = tuple((n, legal_page(*v, contact=(cfg or {}).get("contact_email"))) for n, v in LEGAL.items())
+    for name, text in (("index.html", html), (".nojekyll", ""), ("robots.txt", "User-agent: *\nDisallow: /\n")) + legal + \
             ((("CNAME", domain.strip() + "\n"),) if domain else ()):
         path = os.path.join(BUILD, name)
         if not os.path.exists(path) or open(path, encoding="utf-8").read() != text:
