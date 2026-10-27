@@ -801,6 +801,27 @@ def main():
             light_publish = True
     except Exception as e:
         log.warning(f"4h moves skipped: {e}")
+    try:                                       # long-term breakouts: one-time 180-day history, a few coins per run
+        import ltbo
+        if con.execute("SELECT 1 FROM sqlite_master WHERE name='latest'").fetchone():
+            con.execute("CREATE TABLE IF NOT EXISTS ltbo_backfill(symbol TEXT PRIMARY KEY, done_utc TEXT)")
+            if con.execute("SELECT COUNT(*) FROM ltbo_backfill").fetchone()[0] < 200:
+                bf = ltbo.backfill(con)
+                log.info("long-term breakouts history: {coins} coins scanned, {added} breakouts added, {left} left".format(**bf))
+                if bf["added"] and os.path.isdir(os.path.join(ROOT, "web_export")):
+                    import export_web
+                    lt = ltbo.export(con, con.execute("SELECT MAX(date) FROM daily").fetchone()[0],
+                                     signal_stats=export_web.table(con, "SELECT * FROM signal_stats"))
+                    hp = os.path.join(ROOT, "web_export", "highlights.json")
+                    with open(hp) as f:
+                        hl_ = json.load(f)
+                    hl_["ltbo"] = lt
+                    with open(hp + ".tmp", "w") as f:
+                        json.dump(hl_, f, separators=(",", ":"))
+                    os.replace(hp + ".tmp", hp)
+                    light_publish = True
+    except Exception as e:
+        log.warning(f"Long-term breakouts history skipped: {e}")
     try:                                       # experimental 4h paper bot (paper only: never places an order)
         import paper4h
         if paper4h.run(con, os.path.join(ROOT, "web_export"), int(time.time() * 1000), log=log.info):

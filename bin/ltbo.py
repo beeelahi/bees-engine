@@ -20,7 +20,7 @@ import json
 import os
 from datetime import datetime, timedelta, timezone
 
-MIN_DAYS, KEEP_DAYS, RSI_LO, RSI_HI, MAX_EXT = 250, 180, 55, 75, 10.0
+MIN_DAYS, KEEP_DAYS, RSI_LO, RSI_HI, MAX_EXT, DEDUP_DAYS = 250, 180, 55, 75, 10.0, 14
 SCHEMA = """CREATE TABLE IF NOT EXISTS ltbo(symbol TEXT, event_date TEXT, t0 TEXT, level REAL, slope REAL, width REAL,
     close REAL, grade TEXT, checks TEXT, first_seen TEXT, PRIMARY KEY(symbol, event_date))"""
 
@@ -54,8 +54,9 @@ def record(con, chan_rows, now_utc):
         if x.get("tf") != "1d" or x["status"] != "breakout" or (x.get("days") or 0) < MIN_DAYS or not x.get("event_t"):
             continue
         ev = x["event_t"]
-        if con.execute("SELECT 1 FROM ltbo WHERE symbol=? AND event_date=?", (x["symbol"], ev)).fetchone():
-            continue
+        near = (datetime.strptime(ev, "%Y-%m-%d") - timedelta(days=DEDUP_DAYS)).strftime("%Y-%m-%d")
+        if con.execute("SELECT 1 FROM ltbo WHERE symbol=? AND event_date BETWEEN ? AND ?", (x["symbol"], near, ev)).fetchone():
+            continue                                        # the same move breaking a second, nested channel: one record
         d = con.execute("SELECT date, close, volume_usdt FROM daily WHERE symbol=? AND date<=? ORDER BY date DESC LIMIT 300",
                         (x["symbol"], ev)).fetchall()[::-1]
         if len(d) < 40 or d[-1][0] != ev:
@@ -163,3 +164,52 @@ def log(con, data, now_utc):
 
 def now_utc():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+BACKFILL_DAYS, BACKFILL_STEP = 180, 10
+
+
+def backfill(con, budget_s=120, top=200):
+    """One-time history: find the long-term breakouts of the last BACKFILL_DAYS days the way they would have been seen
+    then (channels fitted every BACKFILL_STEP days with the data known at that time), a few coins per run until done."""
+    import time
+    import chan
+    con.execute(SCHEMA)
+    con.execute("CREATE TABLE IF NOT EXISTS ltbo_backfill(symbol TEXT PRIMARY KEY, done_utc TEXT)")
+    done = {s for (s,) in con.execute("SELECT symbol FROM ltbo_backfill")}
+    liq = [s for (s,) in con.execute("""SELECT l.symbol FROM latest l WHERE l.in_universe=1 ORDER BY
+               (SELECT AVG(volume_usdt) FROM (SELECT volume_usdt FROM daily d WHERE d.symbol=l.symbol ORDER BY date DESC LIMIT 20)) DESC
+               LIMIT ?""", (top,))]
+    t0, added, n = time.time(), 0, 0
+    for sym in liq:
+        if sym in done:
+            continue
+        if time.time() - t0 > budget_s:
+            break
+        d = con.execute("SELECT date, open, high, low, close, volume_usdt FROM daily WHERE symbol=? ORDER BY date DESC LIMIT ?",
+                        (sym, chan.TF["1d"]["lookback"] + BACKFILL_DAYS + 50)).fetchall()[::-1]
+        if len(d) >= 400:
+            dates = [r[0] for r in d]
+            o, h, l, c, v = ([r[k] or 0.0 for r in d] for k in range(1, 6))
+            last = len(c) - 1
+            seen = set()
+            for fit in range(last - BACKFILL_DAYS, last, BACKFILL_STEP):
+                for f in chan.find(h, l, c, fit):
+                    if f["bars"] < MIN_DAYS:
+                        continue
+                    for k in range(fit + 1, min(last + 1, fit + BACKFILL_STEP + 1)):
+                        st = chan.state(f, o, h, l, c, k)
+                        if not st or st["status"] != "breakout" or st["event_i"] != k or dates[k] in seen:
+                            continue
+                        seen.add(dates[k])
+                        lo, hi = chan.lines(f, k)
+                        mid = (lo + hi) / 2
+                        row = {"symbol": sym, "tf": "1d", "status": "breakout", "days": f["bars"], "event_t": dates[k], "level": hi,
+                               "slope_pct_day": round(100 * f["m"] / mid, 2), "slope": f["m"], "t0": dates[f["first"]],
+                               "lo1": lo, "hi1": hi, "touches": [f["touch_lo"], f["touch_hi"]], "width_pct": round(100 * f["w"] / lo, 1)}
+                        added += record(con, [row], now_utc())
+        con.execute("INSERT OR REPLACE INTO ltbo_backfill VALUES(?,?)", (sym, now_utc()))
+        con.commit()
+        n += 1
+    left = len([s for s in liq if s not in done]) - n
+    return {"coins": n, "added": added, "left": left}

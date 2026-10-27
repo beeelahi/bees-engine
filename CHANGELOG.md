@@ -7,7 +7,8 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ### Added
 - Long-term channel breakout radar (`ltbo.py`): every close above a 250+ day channel gets a dossier, graded on the
   three checks that separated winners in testing, followed for 180 days (weekly close, since / best, line now, width
-  target), in the Watchlist and Highlights, posted to the feed and Telegram.
+  target), in the Watchlist and Highlights, posted to the feed and Telegram. The last 180 days are filled in once,
+  a few coins per run, the way they would have been seen at the time.
 - Channel breaks are now detected against the channel as it stood before the break (refitting on the break candle
   absorbed it).
 - Fade 4h (`paper4h.py`): an experimental 4-hour PAPER bot that shorts liquid, shortable coins after a 15%+ 4h
