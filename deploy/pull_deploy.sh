@@ -90,7 +90,7 @@ try:
 except ValueError:
     print("unknown"); sys.exit()
 if not runs: print("pending"); sys.exit()
-if any(r["status"] != "completed" for r in runs): print("pending"); sys.exit()
+if any(r["status"] != "completed" and not r.get("conclusion") for r in runs): print("pending"); sys.exit()   # a run GitHub left "in progress" with a result counts as done
 bad = [r["name"] for r in runs if r["conclusion"] not in ("success", "neutral", "skipped")]
 print("failed:" + ",".join(bad) if bad else "success")') || STATE="unknown"
 [ "${BEES_TEST_SKIP_CHECKS:-}" = "yes-this-is-a-test" ] && STATE=success      # test harness only
