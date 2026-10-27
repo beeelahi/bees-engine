@@ -568,7 +568,8 @@ def run(con=None):
         k = i % SHARDS
         index[sym] = f"s{k:02d}.json"
         entry = {}
-        for tf, frm in (("1d", d_from), ("1w", w_from), ("1M", "0000")):
+        ext = __import__("venues").is_external(sym)          # pairs added on purpose: their complete history
+        for tf, frm in (("1d", "0000" if ext else d_from), ("1w", "0000" if ext else w_from), ("1M", "0000")):
             rows = con.execute("""
                 SELECT c.period_start, c.open, c.high, c.low, c.close, c.volume_usdt, i.ema21, i.ema50, i.ema200,
                        i.rsi14, i.macd, i.macd_signal, i.rvol20, i.bb_up, i.bb_lo, i.supertrend, i.ichi_span_a,
@@ -589,6 +590,8 @@ def run(con=None):
         import h4_export
         n4 = h4_export.write(con, universe, OUT, int(time.time() * 1000))
         print(f"export_web: 4h charts for {n4} pairs")
+        n1 = h4_export.write_h1(con, universe, OUT, int(time.time() * 1000))
+        print(f"export_web: 1h charts for {n1} pairs")
     except Exception as e:
         print("export_web: 4h charts skipped:", repr(e))
     size = sum(os.path.getsize(os.path.join(dp, f)) for dp, _, fs in os.walk(OUT) for f in fs)

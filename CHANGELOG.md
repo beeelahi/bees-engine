@@ -5,6 +5,11 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- 1-hour charts (1H) for the 30 most liquid pairs and ZIG (90 days for ZIG), refreshed every hour; ZIG's 4H chart
+  shows 200 days and its daily / weekly charts its complete history.
+- 1H / 4H views show that timeframe's own numbers (last candle, 24 hours, 7 days, RSI, MACD, Supertrend, cloud,
+  EMA 200, RVOL, when the last candle closed), refreshed with every new candle.
+- Tables show the latest price (15-minute refresh) and a live 24h change column instead of the last daily close.
 - ZIG/USDT tracked from MEXC like any Binance pair (`venues.py`): daily, 4h and 1h candles, the 24h ticker and the
   listing status come from MEXC's public API, reshaped into Binance rows (paged in explicit windows; trade count
   and taker volume left empty, never invented). Indicators, signals, channels, patterns and the website include it,

@@ -636,7 +636,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
     <div class="controls">
       <select id="pairSel" aria-label="Pair"></select>
       <button class="star" id="pairStar" type="button" aria-pressed="false" hidden>☆ Add to my coins</button>
-      <div class="seg" id="pairTf"><button type="button" data-tf="4h" aria-pressed="false">4H</button><button type="button" data-tf="1d" aria-pressed="true">Daily</button><button type="button" data-tf="1w" aria-pressed="false">Weekly</button><button type="button" data-tf="1M" aria-pressed="false">Monthly</button></div>
+      <div class="seg" id="pairTf"><button type="button" data-tf="1h" aria-pressed="false">1H</button><button type="button" data-tf="4h" aria-pressed="false">4H</button><button type="button" data-tf="1d" aria-pressed="true">Daily</button><button type="button" data-tf="1w" aria-pressed="false">Weekly</button><button type="button" data-tf="1M" aria-pressed="false">Monthly</button></div>
       <button class="toggle" type="button" data-o="ema" aria-pressed="true">EMA 21/50/200</button>
       <button class="toggle" type="button" data-o="bb" aria-pressed="false">Bollinger</button>
       <button class="toggle" type="button" data-o="st" aria-pressed="false">Supertrend</button>
@@ -771,7 +771,7 @@ const daysAgo = (d, n) => new Date(Date.parse(d) - n * 864e5).toISOString().slic
 const PRICE_LEVEL = new Set(["ema9", "ema21", "ema50", "ema100", "ema200", "sma7", "sma25", "sma99", "sma200", "supertrend", "dc20_up", "dc55_up"]);
 const METRICS = {
   ret_1d: ["1D", "ret"], ret_7d: ["7D", "ret"], ret_30d: ["30D", "ret"], ret_90d: ["90D", "ret"], ret_180d: ["180D", "ret"], ret_365d: ["1Y", "ret"],
-  vol_24h_usdt: ["24h vol", "usd"], mcap_est: ["Mkt cap (est.)", "usd"], last_close: ["Price", "px"], on_watchlist_today: ["Watch", "watch"], listed: ["Listed", "text"],
+  vol_24h_usdt: ["24h vol", "usd"], mcap_est: ["Mkt cap (est.)", "usd"], last_close: ["Price", "px"], live_24h: ["24h", "ret"], on_watchlist_today: ["Watch", "watch"], listed: ["Listed", "text"],
   ema9: ["vs EMA9", "dist"], ema21: ["vs EMA21", "dist"], ema50: ["vs EMA50", "dist"], ema100: ["vs EMA100", "dist"], ema200: ["vs EMA200", "dist"],
   sma7: ["vs MA7", "dist"], sma25: ["vs MA25", "dist"], sma99: ["vs MA99", "dist"], sma200: ["vs SMA200", "dist"],
   supertrend: ["vs Supertrend", "dist"], dc20_up: ["vs 20-bar high", "dist"], dc55_up: ["vs 55-bar high", "dist"],
@@ -783,9 +783,9 @@ const METRICS = {
   st_dir: ["Supertrend", "dir"], ichi_pos: ["Cloud", "cloud"], rvol20: ["RVOL 20", "x"], rvol50: ["RVOL 50", "x"], vol_z20: ["Vol z", "n2"],
   cmf20: ["CMF 20", "n2"], taker_buy_ratio: ["Taker buy", "share"], dist_ath: ["From ATH", "ret"], bars_since_ath: ["Bars since ATH", "int"],
   bull_score: ["Confluence /10", "score"], dist_hi_1y: ["From 1y high", "ret"], dist_lo_1y: ["From 1y low", "ret"], streak: ["Streak", "int"], "@trend": ["vs EMA 21·50·200", "trend"] };
-const GLOBAL = new Set(["ret_1d", "ret_7d", "ret_30d", "ret_90d", "ret_180d", "ret_365d", "vol_24h_usdt", "mcap_est", "last_close", "on_watchlist_today", "listed"]);
+const GLOBAL = new Set(["live_24h", "ret_1d", "ret_7d", "ret_30d", "ret_90d", "ret_180d", "ret_365d", "vol_24h_usdt", "mcap_est", "last_close", "on_watchlist_today", "listed"]);
 const PRESETS = {
-  overview: ["last_close", "mcap_est", "ret_1d", "ret_7d", "ret_30d", "ret_90d", "ret_365d", "bull_score", "rvol20", "rsi14", "macd_hist", "@trend", "rs30", "vol_24h_usdt", "on_watchlist_today"],
+  overview: ["last_close", "live_24h", "mcap_est", "ret_1d", "ret_7d", "ret_30d", "ret_90d", "ret_365d", "bull_score", "rvol20", "rsi14", "macd_hist", "@trend", "rs30", "vol_24h_usdt", "on_watchlist_today"],
   trend: ["last_close", "ema21", "ema50", "ema200", "sma200", "st_dir", "ichi_pos", "adx14", "pdi14", "mdi14", "dc55_up", "rs30"],
   momentum: ["last_close", "rsi6", "rsi14", "rsi24", "stoch_k", "stochrsi_k", "macd_hist", "macdf_hist", "roc10", "roc30", "streak"],
   volatility: ["last_close", "bb_pctb", "bb_bw", "bb_bw_rank", "atr14_pct", "hv", "dc20_up", "ret_7d", "ret_30d"],
@@ -794,6 +794,8 @@ const PRESETS = {
 const PRESET_NAMES = { overview: "Overview", trend: "Trend", momentum: "Momentum", volatility: "Volatility", volume: "Volume", position: "Position" };
 function raw(r, k) { return GLOBAL.has(k) ? r[k] : r[S.tf + "_" + k]; }
 function val(r, k) {
+  if (k === "last_close") { const lp = livePx(r.symbol); if (lp) return lp[0]; }          // latest price (15-minute refresh)
+  if (k === "live_24h") { const lp = livePx(r.symbol); return lp ? lp[1] : null; }
   if (k === "@trend") { return [21, 50, 200].reduce((s, n) => s + (isNum(raw(r, "ema" + n)) && raw(r, "close") > raw(r, "ema" + n) ? 1 : 0), 0); }
   const v = raw(r, k), t = METRICS[k] && METRICS[k][1];
   if (t === "dist") { const c = raw(r, "close"); return isNum(v) && v !== 0 && isNum(c) ? (c / v - 1) * 100 : null; }
@@ -842,11 +844,26 @@ async function loadAll() {
   }
   return true;
 }
-async function h4Rows(sym) {
-  if (!S.h4index) S.h4index = j("data/h4/index.json").catch(() => ({}));
-  const ix = await S.h4index, file = ix && ix[sym]; if (!file) return null;
-  S.h4shards = S.h4shards || {}; if (!S.h4shards[file]) S.h4shards[file] = j("data/h4/" + file);
-  const sh = await S.h4shards[file]; return { columns: sh.columns, rows: sh.pairs[sym] || [] };
+async function h4Rows(sym, sub = "h4") {             // intraday chart data: h4 (4-hour) or h1 (1-hour)
+  S.ix = S.ix || {}; S.ish = S.ish || {};
+  if (!S.ix[sub]) S.ix[sub] = j("data/" + sub + "/index.json").catch(() => ({}));
+  const ix = await S.ix[sub], file = ix && ix[sym]; if (!file) return null;
+  const key = sub + "/" + file; if (!S.ish[key]) S.ish[key] = j("data/" + key);
+  const sh = await S.ish[key]; return { columns: sh.columns, rows: sh.pairs[sym] || [] };
+}
+const INTRA = { "1h": { sub: "h1", bar: 3600, name: "1-hour", short: "1h", day: 24 }, "4h": { sub: "h4", bar: 14400, name: "4-hour", short: "4h", day: 6 } };
+// numbers for the 1H / 4H views, from that timeframe's own candles (refreshed with every new candle)
+function intraTiles(rows, ci, tf) {
+  const I = INTRA[tf], n = rows.length, L = rows[n - 1], c = i => rows[i] && rows[i][ci.c];
+  const chg = k => n > k && isNum(c(n - 1 - k)) ? (L[ci.c] / c(n - 1 - k) - 1) * 100 : null;
+  const pos = (v, lo, hi) => !isNum(v) ? "—" : v > hi ? "Above" : v < lo ? "Below" : "Inside";
+  const closeT = new Date((L[0] + I.bar) * 1000);
+  return [["Last " + I.short + " candle", fPct(chg(1))], ["24 hours", fPct(chg(I.day))], ["7 days", fPct(chg(7 * I.day))],
+    ["RSI 14 (" + I.short + ")", fN(L[ci.rsi])], ["MACD (" + I.short + ")", !isNum(L[ci.macd]) || !isNum(L[ci.sig]) ? "—" : L[ci.macd] >= L[ci.sig] ? "Above signal" : "Below signal"],
+    ["Supertrend (" + I.short + ")", !isNum(L[ci.st]) ? "—" : L[ci.c] >= L[ci.st] ? "Up" : "Down"],
+    ["Cloud (" + I.short + ")", !isNum(L[ci.sa]) || !isNum(L[ci.sb]) ? "—" : pos(L[ci.c], Math.min(L[ci.sa], L[ci.sb]), Math.max(L[ci.sa], L[ci.sb]))],
+    ["vs EMA 200 (" + I.short + ")", isNum(L[ci.e200]) && L[ci.e200] ? fPct((L[ci.c] / L[ci.e200] - 1) * 100) : "—"],
+    ["RVOL 20 (" + I.short + ")", fX(L[ci.rv])], ["Last candle closed", fmtLocal(closeT.toISOString())]];
 }
 async function pairRows(sym) {
   const file = S.index && S.index[sym]; if (!file) return null;
@@ -1826,7 +1843,7 @@ async function renderPair() {
   sel.value = S.pair; $$("#pairTf button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tf === S.pairTf)));
   $$("[data-o]").forEach(b => b.setAttribute("aria-pressed", String(S.ov_on.has(b.dataset.o))));
   syncPairHash();
-  const r = S.scr.find(x => x.symbol === S.pair), p = { "4h": "d", "1d": "d", "1w": "w", "1M": "m" }[S.pairTf];
+  const r = S.scr.find(x => x.symbol === S.pair), p = { "1h": "d", "4h": "d", "1d": "d", "1w": "w", "1M": "m" }[S.pairTf];
   const lp = livePx(S.pair);
   paintStar(); $("#pairName").textContent = S.pair ? S.pair.replace(/USDT$/, " / USDT") + (venueOf(S.pair) ? " · " + venueOf(S.pair) : "") : "—"; $("#pairPx").textContent = lp ? fPx(lp[0]) : r ? fPx(r.last_close) : "—";
   $("#pairPx").title = lp ? "Live price, " + fmtLocal(S.px.as_of) + " (refreshed every 15 minutes)" : "Last daily close";
@@ -1854,10 +1871,12 @@ async function renderPair() {
   charts.forEach(c => c.remove()); charts = [];
   renderPairProfile(r);
   let ci, rows;
-  if (S.pairTf === "4h") {
-    const h4 = await h4Rows(S.pair);
-    if (!h4 || !h4.rows.length) { $("#cMain").innerHTML = '<div class="empty">4-hour candles are shown for the 200 most liquid pairs. This pair isn\'t one of them yet, or its 4-hour history is still downloading.</div>'; $("#cRsi").replaceChildren(); $("#cMacd").replaceChildren(); return; }
+  if (INTRA[S.pairTf]) {
+    const I = INTRA[S.pairTf], h4 = await h4Rows(S.pair, I.sub);
+    if (!h4 || !h4.rows.length) { $("#cMain").innerHTML = '<div class="empty">' + (S.pairTf === "1h" ? "1-hour candles are shown for the 30 most liquid pairs and ZIG." : "4-hour candles are shown for the 200 most liquid pairs and ZIG.") + ' This pair isn\'t one of them yet, or its history is still downloading.</div>'; $("#cRsi").replaceChildren(); $("#cMacd").replaceChildren(); return; }
     ci = Object.fromEntries(h4.columns.map((c, i) => [c, i])); rows = h4.rows;
+    if (rows.length) { st.replaceChildren(); intraTiles(rows, ci, S.pairTf).forEach(([k, v]) => { const d = document.createElement("div"); const l = document.createElement("span"); l.className = "label"; l.textContent = k; const b = document.createElement("b"); b.textContent = v; d.append(l, b); st.append(d); });
+      const lastC = chg.lastElementChild; if (lastC && rows.length > 1) { const L = rows[rows.length - 1], P = rows[rows.length - 2], v = (L[ci.c] / P[ci.c] - 1) * 100; lastC.replaceWith(chip(fPct(v) + " last " + I.short, v >= 0 ? "up" : "down")); } }
   } else {
     const pr = await pairRows(S.pair);
     if (!pr || !pr.data) { $("#cMain").innerHTML = '<div class="empty">No series for this pair.</div>'; return; }
@@ -1867,7 +1886,7 @@ async function renderPair() {
   if (typeof LightweightCharts === "undefined") { $("#cMain").innerHTML = '<div class="empty">The chart library didn\'t load. Check your connection and reload.</div>'; return; }
   const base = { layout: { background: { type: "solid", color: css("--panel") }, textColor: css("--muted"), fontFamily: "JetBrains Mono, monospace", fontSize: 11 },
     grid: { vertLines: { color: css("--line") }, horzLines: { color: css("--line") } }, rightPriceScale: { borderColor: css("--line") },
-    timeScale: { borderColor: css("--line"), timeVisible: S.pairTf === "4h" }, crosshair: { mode: 0 }, autoSize: true, localization: { locale: "en-US" } };
+    timeScale: { borderColor: css("--line"), timeVisible: !!INTRA[S.pairTf] }, crosshair: { mode: 0 }, autoSize: true, localization: { locale: "en-US" } };
   const main = LightweightCharts.createChart($("#cMain"), base);
   const lc = rows.length ? Math.abs(rows[rows.length - 1][ci.c]) : 1, prec = lc >= 1000 ? 2 : lc >= 1 ? 4 : lc >= 0.01 ? 6 : 8;
   const pf = { type: "price", precision: prec, minMove: Math.pow(10, -prec) };
@@ -1920,10 +1939,12 @@ async function renderPair() {
   charts = [main, rsiC, mc]; let syncing = false;
   charts.forEach(c => c.timeScale().subscribeVisibleLogicalRangeChange(rg => { if (syncing || !rg) return; syncing = true; charts.forEach(o => o !== c && o.timeScale().setVisibleLogicalRange(rg)); syncing = false; }));
   const last = rows[rows.length - 1];
-  const span = { "4h": "last 60 days of 4-hour candles (UTC times)", "1d": "last 2 years of daily candles", "1w": "last 3 years of weekly candles", "1M": "every monthly candle since listing" }[S.pairTf];
+  const full = !!venueOf(S.pair), dur = rows.length && INTRA[S.pairTf] ? Math.round(rows.length / INTRA[S.pairTf].day) + " days" : "";
+  const span = { "1h": "last " + dur + " of 1-hour candles (UTC times)", "4h": "last " + dur + " of 4-hour candles (UTC times)",
+    "1d": full ? "complete daily history since listing" : "last 2 years of daily candles", "1w": full ? "complete weekly history" : "last 3 years of weekly candles", "1M": "every monthly candle since listing" }[S.pairTf];
   $("#pairNote").textContent = "Showing the " + span + "." + (last && !(last[ci.x] & 1) ? " The last candle hasn't closed yet, so its values can still change." : "") + " Orange volume bars mark RVOL ≥ 3×." +
     (S.ov_on.has("mk") ? " Markers: ▼ possible top, ▲ possible bottom or breakout, LS / H / RS a head-and-shoulders top (orange dashed line = neckline, red line = measured target), L / S trade ideas, B / X bot buys and sells (paper), small b / x backtest trades, D divergences." : "");
-  const ps = $("#pairSig"); ps.replaceChildren(); S.sig.filter(s => s.symbol === S.pair && s.tf === (S.pairTf === "4h" ? "1d" : S.pairTf)).slice(0, 60).forEach(s => ps.append(sigRow(s, false)));
+  const ps = $("#pairSig"); ps.replaceChildren(); S.sig.filter(s => s.symbol === S.pair && s.tf === (INTRA[S.pairTf] ? "1d" : S.pairTf)).slice(0, 60).forEach(s => ps.append(sigRow(s, false)));
   if (!ps.children.length) ps.innerHTML = '<tr><td colspan="5" class="empty">No recent events on this timeframe.</td></tr>';
 }
 
@@ -1941,7 +1962,7 @@ function renderTop50() {
     if (x.bot_holds) bot.append(chip("Holding", "up")); else if (x.bot_tradable) bot.append(chip("Tradable", "neutral"));
     if (x.breakout_today) bot.append(chip("20-day high", "warn"));
     t.append(td(String(k + 1), "num"), tdNode(symNode(x.symbol)), tdNode(chip(x.score + "/10", x.score >= 8 ? "up" : x.score <= 3 ? "down" : "neutral")), tdNode(dots),
-      td("#" + x.liq_rank + " · " + fUsd(x.adv_usd), "num"), td(fUsd((S.scr.find(r => r.symbol === x.symbol) || {}).mcap_est), "num", "Estimate: price × today's circulating supply"), td(fPx(x.close), "num"), td(fPct(x.ret_7d), "num " + cls(x.ret_7d)), td(fPct(x.ret_30d), "num " + cls(x.ret_30d)),
+      td("#" + x.liq_rank + " · " + fUsd(x.adv_usd), "num"), td(fUsd((S.scr.find(r => r.symbol === x.symbol) || {}).mcap_est), "num", "Estimate: price × today's circulating supply"), td(fPx((livePx(x.symbol) || [x.close])[0]), "num"), td(fPct(x.ret_7d), "num " + cls(x.ret_7d)), td(fPct(x.ret_30d), "num " + cls(x.ret_30d)),
       td(fPct(x.ret_90d), "num " + cls(x.ret_90d)), tdNode(bot));
     frag.append(t); });
   b.append(frag);
@@ -2082,7 +2103,7 @@ const VIEWS = ["me", "overview", "shortlist", "top50", "bot", "record", "lab", "
 function show(v) {
   const parts = String(v || "").split("/");
   if (parts[0] === "pair" && parts[1]) { const sym = decodeURIComponent(parts[1]).toUpperCase(); if (S.index && S.index[sym]) S.pair = sym;
-    if (["4h", "1d", "1w", "1M"].includes(parts[2])) S.pairTf = parts[2]; v = "pair"; }
+    if (["1h", "4h", "1d", "1w", "1M"].includes(parts[2])) S.pairTf = parts[2]; v = "pair"; }
   if (!VIEWS.includes(v) || (v === "shortlist" && !SL.owner && !S.pubSL)) v = "overview"; VIEWS.forEach(x => { $("#v-" + x).hidden = x !== v; });
   $$("nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.view === v ? "page" : "false"));
   ({ me: () => { if (!ME.user) { if (AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); return; } renderMe(); }, overview: renderOverview, shortlist: renderShortlist, top50: renderTop50, bot: renderBot, record: renderRecord, lab: renderLab, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch, signals: renderSignals, library: renderLibrary, listings: renderListings, pair: renderPair })[v](); }

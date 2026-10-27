@@ -457,7 +457,7 @@ def run_sync(con, force):
 
 
 # ---------------------------------------------------------------- circulating supply (for estimated market cap)
-ENGINE_VERSION = "15"     # bump when engine/bot/export code changes so the next hourly run rebuilds once
+ENGINE_VERSION = "16"     # bump when engine/bot/export code changes so the next hourly run rebuilds once
 SUPPLY_URL = "https://www.binance.com/bapi/asset/v2/public/asset-service/product/get-products?includeEtf=false"
 
 
@@ -876,6 +876,13 @@ def main():
                  "{errors} errors, audit {audit_checked} days checked, {audit_bad} mismatched, {seconds}s".format(**r1))
         if r1["audit_bad"]:
             problems.append("1h candles disagree with daily candles")
+        if r1["added"] and os.path.isdir(os.path.join(ROOT, "web_export")):      # fresh hourly candles: 1h charts
+            import h4_export
+            uni = [s_ for (s_,) in con.execute("SELECT symbol FROM v_universe")]
+            n1 = h4_export.write_h1(con, uni, os.path.join(ROOT, "web_export"), int(time.time() * 1000))
+            log.info(f"1h charts refreshed for {n1} pairs")
+            if n1:
+                light_publish = True
     except Exception as e:
         log.exception(f"1h candles skipped: {e}")
     try:                                       # Bee's Shortlist: automatic picks, once per new daily close
