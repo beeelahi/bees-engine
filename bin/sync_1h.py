@@ -24,7 +24,7 @@ DAY_MS = 86_400_000
 H1_BUDGET_S = 420         # max seconds of first-time 1h downloading per 15-minute run
 H1_MIN_DAY_VOL = 100_000
 AUDIT_SAMPLE = 30
-PARALLEL = 6               # concurrent requests for top-ups
+PARALLEL = 12              # concurrent requests for top-ups (~1,100 weight a minute of the 6,000 allowed)
 
 SCHEMA_1H = """
 CREATE TABLE IF NOT EXISTS candles_1h(
