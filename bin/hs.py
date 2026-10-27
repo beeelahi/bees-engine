@@ -165,6 +165,7 @@ def run(con, stats_path=None):
     import os
     from binance_sync import STABLE_BASES
     from bot_core import excluded_tokens
+    import venues
     p = stats_path or os.path.join(os.path.dirname(os.path.abspath(__file__)), "hs_stats.json")
     stats = {}
     if os.path.exists(p):
@@ -177,11 +178,11 @@ def run(con, stats_path=None):
         if tokens.get(sym) in excl:
             continue
         r = con.execute("SELECT AVG(volume_usdt) FROM (SELECT volume_usdt FROM daily WHERE symbol=? ORDER BY date DESC LIMIT 20)", (sym,)).fetchone()
-        if r[0] and r[0] >= MIN_ADV:
+        if r[0] and (r[0] >= MIN_ADV or venues.is_external(sym)):            # pairs added on purpose always scanned
             liq.append((r[0], sym))
     liq.sort(reverse=True)
     rows = []
-    for rank, (_, sym) in enumerate(liq[:TOP], 1):
+    for rank, (_, sym) in [z for z in enumerate(liq, 1) if z[0] <= TOP or venues.is_external(z[1][1])]:
         d = con.execute("SELECT date, open, high, low, close FROM daily WHERE symbol=? ORDER BY date DESC LIMIT ?", (sym, BARS)).fetchall()[::-1]
         if len(d) < 120:
             continue

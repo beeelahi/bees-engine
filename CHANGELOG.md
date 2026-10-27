@@ -8,7 +8,8 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 - ZIG/USDT tracked from MEXC like any Binance pair (`venues.py`): daily, 4h and 1h candles, the 24h ticker and the
   listing status come from MEXC's public API, reshaped into Binance rows (paged in explicit windows; trade count
   and taker volume left empty, never invented). Indicators, signals, channels, patterns and the website include it,
-  labelled MEXC. The Binance bots never trade it and the Binance audits skip it.
+  labelled MEXC. The Binance bots never trade it and the Binance audits skip it. Channels and head-and-shoulders
+  scans always include it (it is below the $2M a day liquidity bar the other coins must clear).
 - Paper trading for the market maker (`mm_paper.py`, service `bees-mm-paper`): the exact live grid / quote code on a
   simulated MEXC account filled from real public trades and the order book (conservative: through-price fills,
   queue at the price, post-only rejections, taker fees). Base / tight / wide spacing run side by side. No API key is
