@@ -110,7 +110,10 @@ def audit(con, stamp, n=AUDIT_SAMPLE):
     days = con.execute("""SELECT symbol, open_ms / 86400000 AS dd, COUNT(*) FROM candles_4h
                           GROUP BY symbol, dd HAVING COUNT(*) = 6 ORDER BY RANDOM() LIMIT ?""", (n,)).fetchall()
     bad = checked = 0
+    import venues
     for sym, dd, _ in days:
+        if venues.is_external(sym):          # this audit checks Binance's own consistency; other venues round differently
+            continue
         c4 = con.execute("SELECT open, high, low, close, volume_usdt FROM candles_4h WHERE symbol=? AND open_ms >= ? AND open_ms < ? ORDER BY open_ms",
                          (sym, dd * DAY_MS, (dd + 1) * DAY_MS)).fetchall()
         d = datetime.fromtimestamp(dd * 86400, tz=timezone.utc).strftime("%Y-%m-%d")
