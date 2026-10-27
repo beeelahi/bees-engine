@@ -71,3 +71,34 @@ class VenuesTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AnalyticsWithExternalPair(unittest.TestCase):
+    """A pair without trade counts / taker volume (MEXC) goes through the whole analytics build."""
+
+    def test_runs(self):
+        import random
+        import sqlite3
+        from datetime import date, timedelta
+        import binance_sync as B
+        import analytics as A
+        con = sqlite3.connect(":memory:")
+        con.executescript(B.SCHEMA)
+        con.execute("INSERT INTO meta VALUES('history_start','2017-01-01')")
+        d0, rnd = date(2024, 1, 1), random.Random(1)
+        for sym, ext in (("BTCUSDT", False), ("ZIGUSDT", True)):
+            con.execute("INSERT INTO pairs(symbol, token, status, first_seen, backfilled, first_candle) VALUES(?,?,?,?,1,?)",
+                        (sym, sym[:-4], "TRADING", "2024-01-01", "2024-01-01"))
+            p = 100.0
+            for i in range(400):
+                d = d0 + timedelta(days=i)
+                o, p = p, p * (1 + rnd.gauss(0, 0.03))
+                ms = int(B.d2ms(d.isoformat()))
+                con.execute("INSERT INTO daily VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                            (sym, d.isoformat(), o, max(o, p), min(o, p), p, 1e6, 5e6, None if ext else 1000,
+                             None if ext else 2e5, None if ext else 2.5e6, ms, ms + D - 1, "x"))
+        con.commit()
+        A.run(con, verbose=False)
+        n = con.execute("SELECT COUNT(*) FROM candles WHERE symbol='ZIGUSDT' AND tf='1w' AND trades IS NULL").fetchone()[0]
+        self.assertGreater(n, 50)                                  # weekly candles built, trade count left empty
+        self.assertEqual(con.execute("SELECT COUNT(*) FROM latest WHERE symbol='ZIGUSDT'").fetchone()[0], 1)

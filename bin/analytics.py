@@ -164,15 +164,16 @@ def resample(rows, tf, last_date, drop_partial_first):
         if cur is None or cur[0] != k:
             if cur:
                 out.append(cur)
-            cur = [k, o, h, l, c, vb, vq, n, tb or 0.0, 1]
+            cur = [k, o, h, l, c, vb, vq, n, None if n is None else (tb or 0.0), 1]   # n None: venue without
+            #                                                     trade counts / taker volume (venues.py); kept empty
         else:
             cur[2] = max(cur[2], h)
             cur[3] = min(cur[3], l)
             cur[4] = c
             cur[5] += vb
             cur[6] += vq
-            cur[7] += n
-            cur[8] += tb or 0.0
+            cur[7] = None if n is None or cur[7] is None else cur[7] + n
+            cur[8] = None if n is None or cur[8] is None else cur[8] + (tb or 0.0)
             cur[9] += 1
     if cur:
         out.append(cur)
