@@ -114,6 +114,19 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .stat-row div { background: var(--panel-2); border-radius: 6px; padding: 8px 10px; }
 .stat-row b { display: block; font-family: var(--font-num); font-weight: 500; margin-top: 2px; }
 .hl-list { display: grid; gap: 0; }
+.hl-head .hl-lead { margin: 0 0 14px; max-width: 900px; }
+.hl-nav { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px 0; }
+.hl-nav::-webkit-scrollbar { display: none; }
+.hl-nav button { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); background: rgba(255,255,255,0.03); color: var(--muted); border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+.hl-nav button:hover { color: var(--fg); border-color: rgba(255,255,255,0.22); }
+.hl-nav button[aria-selected="true"] { background: rgba(4,183,248,0.16); border-color: rgba(4,183,248,0.55); color: var(--fg); }
+.hl-nav button i { font-style: normal; font-size: 11px; font-weight: 600; min-width: 18px; text-align: center; padding: 1px 6px; border-radius: 999px; background: rgba(255,255,255,0.10); color: var(--fg); }
+.hl-nav button i:empty { display: none; }
+.hl-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.hl-day { font-size: 11.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; padding: 16px 4px 6px; border-bottom: 1px solid var(--line); }
+.hl-day:first-child { padding-top: 2px; }
+.hl-how summary { cursor: pointer; font-weight: 600; list-style: revert; }
+.hl-panel > .card:first-child { margin-top: 0; }
 .lab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 16px; }
 .lab-box { display: grid; gap: 8px; align-content: start; min-width: 0; }
 #labConds { display: grid; gap: 8px; }
@@ -218,11 +231,10 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
     <nav class="tabs" aria-label="Views">
       <a href="#me" data-view="me" id="navMe" hidden>★ My dashboard</a>
       <a href="#overview" data-view="overview">Overview</a>
-      <a href="#shortlist" data-view="shortlist" id="navShort" hidden>Bee's Shortlist</a>
+      <a href="#highlights" data-view="highlights">Highlights<span class="badge" id="hlBadge" hidden></span></a>
       <a href="#top50" data-view="top50">Top 50</a>
       <a href="#bot" data-view="bot">Bot</a>
       <a href="#record" data-view="record">Track record</a>
-      <a href="#highlights" data-view="highlights">Highlights<span class="badge" id="hlBadge" hidden></span></a>
       <a href="#screener" data-view="screener">Screener</a>
       <a href="#watchlist" data-view="watchlist">Watchlist</a>
       <a href="#signals" data-view="signals">Signals</a>
@@ -271,29 +283,6 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
     </div>
   </section>
 
-  <section class="view" id="v-shortlist" hidden>
-    <div class="card">
-      <div class="card-head"><h2>Bee's Shortlist</h2><span class="note" id="slNote"></span></div>
-      <p class="note" style="margin:0 0 12px" id="slIntro">Only you can see or change this list: it's stored owner-only and never published to the public site. <b>Entry</b> is the close of the latest closed daily candle on the day you approve. <b>Stop</b> = entry − 2 × ATR(14, daily), locked at approval. <b>R</b> = (price − entry) ÷ (entry − stop). <b>Stop hit</b>: a daily low since approval went below the stop. <b>Review</b>: a proven bearish signal (consistent edge, 100+ cases) fired on the pair since approval.</p>
-      <div class="tbl-wrap"><table><thead><tr><th>Pair</th><th>Status</th><th>Picked</th><th>Entry</th><th>Stop</th><th>Price</th><th>Since entry</th><th>R</th><th>Confluence</th><th>Signals</th><th id="slThNote">Note</th><th id="slThAct"></th></tr></thead><tbody id="slActive"></tbody></table></div>
-    </div>
-    <div class="card">
-      <div class="card-head" id="slCandHead"><h2>Suggested for review</h2><span class="note" id="slCandNote"></span></div>
-      <p class="note" style="margin:0 0 12px">Pairs with confluence ≥ 7 of 10 that fired at least one <b>proven</b> bullish signal (consistent edge in both 2017–21 and 2022+, at least 100 cases) on the last 3 daily candles or the last closed week. Ranked by number of proven signals, volume confirmation, confluence and strength vs BTC. Nothing is added until you approve it.</p>
-      <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Proven signals</th><th>Confluence</th><th>vs BTC 30</th><th>RSI</th><th>Price</th><th>Stop if approved</th><th>Risk</th><th></th></tr></thead><tbody id="slCand"></tbody></table></div>
-    </div>
-    <div class="card" id="slConfirm" hidden>
-      <div class="card-head"><h2 id="slConfTitle">Approve</h2></div>
-      <div class="stat-row" id="slConfStats" style="margin-bottom:12px"></div>
-      <label class="label" for="slNoteIn">Note (optional)</label>
-      <textarea id="slNoteIn" maxlength="500" placeholder="Why this one, plan, size…"></textarea>
-      <div class="row-end" style="margin-top:10px"><span class="note" id="slConfStatus"></span><button class="btn" id="slCancel" type="button">Cancel</button><button class="btn primary" id="slDo" type="button">Approve</button></div>
-    </div>
-    <div class="card">
-      <div class="card-head"><h2>Closed</h2><span class="note">Removed from the shortlist, with result at removal</span></div>
-      <div class="tbl-wrap" style="max-height: 40vh"><table><thead><tr><th>Pair</th><th>Approved</th><th>Entry</th><th>Closed</th><th>Exit</th><th>Result</th><th>R</th><th>Reason</th></tr></thead><tbody id="slClosed"></tbody></table></div>
-    </div>
-  </section>
 
   <section class="view" id="v-top50" hidden>
     <div class="card">
@@ -394,67 +383,132 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
   </section>
 
   <section class="view" id="v-highlights" hidden>
-    <div class="card">
-      <div class="card-head"><h2>Bot trades</h2><span class="note" id="hlBotNote"></span></div>
-      <div class="hl-list" id="hlBot"></div>
-    </div>
-    <div class="card">
-      <div class="card-head"><h2>Trade ideas</h2>
-        <div class="seg" id="ideaSide"><button type="button" data-v="" aria-pressed="true">Long and short</button><button type="button" data-v="long" aria-pressed="false">Long</button><button type="button" data-v="short" aria-pressed="false">Short</button></div>
+    <div class="card hl-head">
+      <div class="card-head"><h2>Highlights</h2><span class="note" id="hlHeadNote"></span></div>
+      <p class="note hl-lead">Everything the dashboard flagged, in one place. <b>Latest</b> is the full feed, newest first; each section has the details and its measured track record. Tap any line to open its chart. Information only, not financial advice.</p>
+      <div class="hl-nav" id="hlNav" role="tablist" aria-label="Highlights sections">
+        <button type="button" role="tab" data-p="latest">Latest<i></i></button>
+        <button type="button" role="tab" data-p="shortlist" id="hlNavSL" hidden>Bee's Shortlist<i></i></button>
+        <button type="button" role="tab" data-p="calls">Channel calls<i></i></button>
+        <button type="button" role="tab" data-p="breakouts">Long-term breakouts<i></i></button>
+        <button type="button" role="tab" data-p="patterns">Patterns<i></i></button>
+        <button type="button" role="tab" data-p="moves">Big 4h moves<i></i></button>
+        <button type="button" role="tab" data-p="ideas">Trade ideas<i></i></button>
+        <button type="button" role="tab" data-p="channels">Channels<i></i></button>
+        <button type="button" role="tab" data-p="bots">Bots<i></i></button>
       </div>
-      <p class="note" style="margin:0 0 12px" id="ideaIntro"></p>
-      <div class="mk-grid" id="ideaScore" style="margin:0 0 14px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr))"></div>
-      <div class="tbl-wrap" style="max-height: 72vh"><table><thead><tr><th>Pair</th><th>Idea</th><th>Signals agreeing</th><th>Track record</th><th>Entry ref.</th><th>Stop</th><th title="How the idea has done since: entry at the next day's open, out at the stop if touched, else marked at the latest close (closed after 30 days). No fees.">So far</th><th>Confluence</th><th>RSI</th><th>Mkt cap (est.)</th><th>Liquidity</th></tr></thead><tbody id="ideaBody"></tbody></table></div>
     </div>
-    <div class="card" id="setupCard">
-      <div class="card-head"><h2>Possible tops and bottoms</h2>
-        <div class="seg" id="setupKind"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="top" aria-pressed="false">Tops</button><button type="button" data-v="bottom" aria-pressed="false">Bottoms</button><button type="button" data-v="hs_top" aria-pressed="false">Head &amp; shoulders</button><button type="button" data-v="accum_breakout" aria-pressed="false">Breakouts</button></div>
-      </div>
-      <p class="note" style="margin:0 0 12px" id="setupIntro"></p>
-      <div class="note" id="setupCluster" style="margin:0 0 12px; padding:10px 12px; border:1px solid var(--line); border-radius:10px" hidden></div>
-      <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Setup</th><th>Side</th><th title="Median result 30 days after the setup (entry next open, no stop), before 2022">30d median ≤2021</th><th>Win ≤2021</th><th title="Same, from 2022 on">30d median 2022+</th><th>Win 2022+</th><th>Cases</th><th id="setupRegHead" title="Same setup, only on days with today's market regime (all years)">Today's regime</th></tr></thead><tbody id="setupStats"></tbody></table></div>
-      <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Setup</th><th>Chart</th><th>Close</th><th title="Where the setup is wrong: beyond the swing high/low (+/- 0.5 ATR), or 1.5 ATR under a breakout">Invalidation</th><th title="Entry at the next open, out at the invalidation level if touched, else marked at the latest close (closed after 30 days). No fees.">So far</th><th>Liquidity</th></tr></thead><tbody id="setupBody"></tbody></table></div>
-    </div>
-    <div class="card" id="ltCardH">
-      <div class="card-head"><h2>Long-term channel breakouts</h2><span class="note" id="ltNoteH"></span></div>
-      <div class="tbl-wrap" style="max-height: 70vh"><table><thead><tr><th>Grade</th><th>Pair</th><th>Broke out</th><th>Long-term channel</th><th title="The three checks that separated winners from losers in testing">Graded checks</th><th title="The first weekly close after the breakout must stay above the line">Weekly close</th><th title="From the breakout close: now, and the best so far">Since breakout · best</th><th>Top line now</th><th title="Channel width projected above the top line">Width target</th><th title="Since 2022, breakouts with this grade: median 90-day result, share that gained 50%+ and that doubled within 180 days">History of this grade</th></tr></thead><tbody id="ltBodyH"></tbody></table></div>
-    </div>
-    <div class="card" id="hsCardH">
-      <div class="card-head"><h2>Head and shoulders: neckline action</h2><span class="note" id="hsNoteH"></span></div>
-      <div class="tbl-wrap" style="max-height: 45vh; margin-bottom:12px"><table><thead><tr><th>Pair</th><th>Pattern</th><th>Status</th><th title="Neckline today (extended), and the distance from the close">Neckline</th><th title="Measured move: neckline −/+ the pattern height">Target</th><th title="Where the pattern fails: beyond the right shoulder before the break; after it, back through the neckline by 35% of the height">Invalid at</th><th title="Left shoulder → head → right shoulder → today">Pattern</th><th>Broke / retested</th><th title="Since 2022: median 30-day move in the pattern's direction, how often it went that way, and vs the average coin">History (2022+)</th><th>Liquidity</th></tr></thead><tbody id="hsBodyH"></tbody></table></div>
-      <div class="card-head" style="margin-top:4px"><h2 style="font-size:1rem">Posted to highlights</h2><span class="note">each new near-neckline, break and retest, when it happened</span></div>
-      <div class="hl-list" id="hlHs"></div>
-    </div>
-    <div class="card" id="movesCard">
-      <div class="card-head"><h2>Big 4-hour moves</h2>
-        <div class="seg" id="mvKind"><button type="button" data-v="" aria-pressed="true">Big moves</button><button type="button" data-v="hl" aria-pressed="false">30-day highs / lows</button><button type="button" data-v="all" aria-pressed="false">All</button></div>
-      </div>
-      <p class="note" style="margin:0 0 12px" id="mvIntro"></p>
-      <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Move</th><th title="Since late 2023, liquid coins">Cases</th><th title="Median change one day later, from the next 4h open">1 day later</th><th>Higher after 1 day</th><th title="Median change three days later">3 days later</th><th>Higher after 3 days</th><th title="Median of the coin's 3-day change minus the median liquid coin's">vs the average coin, 3d</th></tr></thead><tbody id="mvStats"></tbody></table></div>
-      <div class="tbl-wrap" style="max-height: 50vh"><table><thead><tr><th>Candle closed</th><th>Pair</th><th>Move</th><th>4h change</th><th title="Volume vs the average of the previous 30 candles">Volume</th><th>Close</th><th title="From that candle's close to the latest closed 4h candle">Since</th><th>Liquidity</th></tr></thead><tbody id="mvBody"></tbody></table></div>
-    </div>
-    <div class="card" id="callsCardH">
-      <div class="card-head"><h2>Channel calls</h2><span class="note" id="callsNoteH"></span></div>
-      <p class="note" style="margin:0 0 12px" id="callsIntroH"></p>
-      <div class="tbl-wrap" style="max-height: 50vh; margin-bottom:12px"><table><thead><tr><th>Grade</th><th>Pair</th><th>Side</th><th>Channel status</th><th>Channel</th><th title="Proven signals in the same direction: daily in the last 3 days or the latest weekly candle">Agreeing signals</th><th title="0-10 confluence of trend and momentum (daily)">Bull score</th><th>Close</th><th title="Longs: 10% of the channel width under the bottom line. Shorts: back above the line that was lost, +10% of the width">Stop / invalid</th><th>Target 1</th><th>Target 2</th><th title="Reward to target 1 ÷ risk to the stop">R:R</th><th title="Since 2022: this channel status's median 30-day result vs the average coin, and how often it beat the market">History vs market</th><th>Liquidity</th></tr></thead><tbody id="callsBodyH"></tbody></table></div>
-      <div class="card-head" style="margin-top:4px"><h2 style="font-size:1rem">Posted to highlights</h2><span class="note">each new call, when it happened (last 90 days)</span></div>
-      <div class="hl-list" id="hlCalls"></div>
-    </div>
-    <div class="card" id="chanCard">
-      <div class="card-head"><h2>Channels</h2>
-        <div style="display:flex; gap:8px; flex-wrap:wrap">
-          <div class="seg" id="chanKind"><button type="button" data-v="" aria-pressed="true">Watch list</button><button type="button" data-v="long" aria-pressed="false">Long-term</button><button type="button" data-v="bottom" aria-pressed="false">Bottom</button><button type="button" data-v="mid" aria-pressed="false">Midline</button><button type="button" data-v="top" aria-pressed="false">Top</button><button type="button" data-v="break" aria-pressed="false">Breaks</button><button type="button" data-v="all" aria-pressed="false">All channels</button></div>
-          <div class="seg" id="chanTf"><button type="button" data-v="" aria-pressed="true">Daily + 4h</button><button type="button" data-v="1d" aria-pressed="false">Daily</button><button type="button" data-v="4h" aria-pressed="false">4h</button></div>
+    <div class="hl-panel" data-panel="latest" hidden>
+      <div class="card">
+        <div class="card-head"><h2>Latest</h2>
+          <div class="hl-filters">
+            <div class="seg" id="hlFeedDir"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="bullish" aria-pressed="false">Bullish</button><button type="button" data-v="bearish" aria-pressed="false">Bearish</button></div>
+            <select id="hlFeedKind" class="search" aria-label="Kind of highlight"><option value="">Every kind</option><option value="sl">Bee's Shortlist</option><option value="chan_call">Channel calls</option><option value="ltbo">Long-term breakouts</option><option value="hs_event">Head and shoulders</option><option value="moves">Big 4h moves</option><option value="bot">Bots</option><option value="sig">Signals</option></select>
+            <input id="hlFeedQ" class="search" type="search" placeholder="Coin…" aria-label="Filter by coin" autocomplete="off">
+          </div>
         </div>
+        <div class="hl-list" id="hlFeed"></div>
+        <div class="row-end" style="margin-top:10px"><span class="note" id="hlFeedNote"></span><button class="btn small" id="hlMore" type="button" hidden>Show more</button></div>
       </div>
-      <p class="note" style="margin:0 0 12px" id="chanIntro"></p>
-      <p class="note" style="margin:0 0 8px" id="chanStatsNote"></p>
-      <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Status</th><th title="Daily-chart cases since 2022 (and up to 2021)">Cases 2022+</th><th title="Median price change over 30 days from the next day's open">Price 30d later</th><th title="Share of cases where the price was higher 30 days later">Higher after 30d</th><th title="Median of (the coin's 30-day change − the average liquid coin's change over the same days). Positive = the coin did better than the market">Coin vs the average coin</th><th title="Share of cases where the coin did better than the average liquid coin over 30 days">Beat the average coin</th><th title="Long trades: stop 10% of the width under the bottom line, target 10% under the top line, first one hit within 120 days. Average result in R (R = the amount risked).">Long trade: target hit / avg R</th><th title="Same comparison, only channels 365+ days long">Long-term channels: coin vs average</th></tr></thead><tbody id="chanStats"></tbody></table></div>
-      <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Chart</th><th>Status</th><th title="0% = on the bottom line, 50% = midline, 100% = on the top line">Where in channel</th><th>Channel</th><th>Width</th><th title="Touches on the bottom / top line, and reactions at the midline">Touches (mid)</th><th title="Touches on the lines, midline reactions, and length">Quality</th><th>Bottom line</th><th>Midline</th><th>Top line</th><th title="Since 2022, daily charts: median 30-day result of coins in this status (in this kind of channel: long-term, narrow or all) vs the average liquid coin, and how often they beat it">History vs market</th><th title="Events only: from the next candle's open to the latest close, in the event's direction. No fees.">Since event</th><th>Liquidity</th></tr></thead><tbody id="chanBody"></tbody></table></div>
+      <details class="card hl-how">
+        <summary>How these are chosen</summary>
+        <p class="note" id="hlRules" style="margin:10px 0 0"></p>
+      </details>
     </div>
-    <div class="card">
-      <div class="card-head"><h2>How these are chosen</h2></div>
-      <p class="note" id="hlRules" style="margin:0"></p>
+    <div class="hl-panel" data-panel="shortlist" id="v-shortlist" hidden>
+      <div class="card">
+        <div class="card-head"><h2>Bee's Shortlist</h2><span class="note" id="slNote"></span></div>
+        <details class="hl-how" style="margin:0 0 12px"><summary class="note">How picks are made and closed</summary><p class="note" style="margin:8px 0 0" id="slIntro">Only you can see or change this list: it's stored owner-only and never published to the public site. <b>Entry</b> is the close of the latest closed daily candle on the day you approve. <b>Stop</b> = entry − 2 × ATR(14, daily), locked at approval. <b>R</b> = (price − entry) ÷ (entry − stop). <b>Stop hit</b>: a daily low since approval went below the stop. <b>Review</b>: a proven bearish signal (consistent edge, 100+ cases) fired on the pair since approval.</p></details>
+        <div class="tbl-wrap"><table><thead><tr><th>Pair</th><th>Status</th><th>Picked</th><th>Entry</th><th>Stop</th><th>Price</th><th>Since entry</th><th>R</th><th>Confluence</th><th>Signals</th><th id="slThNote">Note</th><th id="slThAct"></th></tr></thead><tbody id="slActive"></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="card-head" id="slCandHead"><h2>Suggested for review</h2><span class="note" id="slCandNote"></span></div>
+        <p class="note" style="margin:0 0 12px">Pairs with confluence ≥ 7 of 10 that fired at least one <b>proven</b> bullish signal (consistent edge in both 2017–21 and 2022+, at least 100 cases) on the last 3 daily candles or the last closed week. Ranked by number of proven signals, volume confirmation, confluence and strength vs BTC. Nothing is added until you approve it.</p>
+        <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Proven signals</th><th>Confluence</th><th>vs BTC 30</th><th>RSI</th><th>Price</th><th>Stop if approved</th><th>Risk</th><th></th></tr></thead><tbody id="slCand"></tbody></table></div>
+      </div>
+      <div class="card" id="slConfirm" hidden>
+        <div class="card-head"><h2 id="slConfTitle">Approve</h2></div>
+        <div class="stat-row" id="slConfStats" style="margin-bottom:12px"></div>
+        <label class="label" for="slNoteIn">Note (optional)</label>
+        <textarea id="slNoteIn" maxlength="500" placeholder="Why this one, plan, size…"></textarea>
+        <div class="row-end" style="margin-top:10px"><span class="note" id="slConfStatus"></span><button class="btn" id="slCancel" type="button">Cancel</button><button class="btn primary" id="slDo" type="button">Approve</button></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Closed</h2><span class="note">Removed from the shortlist, with result at removal</span></div>
+        <div class="tbl-wrap" style="max-height: 40vh"><table><thead><tr><th>Pair</th><th>Approved</th><th>Entry</th><th>Closed</th><th>Exit</th><th>Result</th><th>R</th><th>Reason</th></tr></thead><tbody id="slClosed"></tbody></table></div>
+      </div>
+    </div>
+    <div class="hl-panel" data-panel="calls" hidden>
+      <div class="card" id="callsCardH">
+        <div class="card-head"><h2>Channel calls</h2><span class="note" id="callsNoteH"></span></div>
+        <p class="note" style="margin:0 0 12px" id="callsIntroH"></p>
+        <div class="tbl-wrap" style="max-height: 50vh; margin-bottom:12px"><table><thead><tr><th>Grade</th><th>Pair</th><th>Side</th><th>Channel status</th><th>Channel</th><th title="Proven signals in the same direction: daily in the last 3 days or the latest weekly candle">Agreeing signals</th><th title="0-10 confluence of trend and momentum (daily)">Bull score</th><th>Close</th><th title="Longs: 10% of the channel width under the bottom line. Shorts: back above the line that was lost, +10% of the width">Stop / invalid</th><th>Target 1</th><th>Target 2</th><th title="Reward to target 1 ÷ risk to the stop">R:R</th><th title="Since 2022: this channel status's median 30-day result vs the average coin, and how often it beat the market">History vs market</th><th>Liquidity</th></tr></thead><tbody id="callsBodyH"></tbody></table></div>
+        <div class="card-head" style="margin-top:4px"><h2 style="font-size:1rem">Posted to highlights</h2><span class="note">each new call, when it happened (last 90 days)</span></div>
+        <div class="hl-list" id="hlCalls"></div>
+      </div>
+    </div>
+    <div class="hl-panel" data-panel="breakouts" hidden>
+      <div class="card" id="ltCardH">
+        <div class="card-head"><h2>Long-term channel breakouts</h2><span class="note" id="ltNoteH"></span></div>
+        <div class="tbl-wrap" style="max-height: 70vh"><table><thead><tr><th>Grade</th><th>Pair</th><th>Broke out</th><th>Long-term channel</th><th title="The three checks that separated winners from losers in testing">Graded checks</th><th title="The first weekly close after the breakout must stay above the line">Weekly close</th><th title="From the breakout close: now, and the best so far">Since breakout · best</th><th>Top line now</th><th title="Channel width projected above the top line">Width target</th><th title="Since 2022, breakouts with this grade: median 90-day result, share that gained 50%+ and that doubled within 180 days">History of this grade</th></tr></thead><tbody id="ltBodyH"></tbody></table></div>
+      </div>
+    </div>
+    <div class="hl-panel" data-panel="patterns" hidden>
+      <div class="card" id="hsCardH">
+        <div class="card-head"><h2>Head and shoulders: neckline action</h2><span class="note" id="hsNoteH"></span></div>
+        <div class="tbl-wrap" style="max-height: 45vh; margin-bottom:12px"><table><thead><tr><th>Pair</th><th>Pattern</th><th>Status</th><th title="Neckline today (extended), and the distance from the close">Neckline</th><th title="Measured move: neckline −/+ the pattern height">Target</th><th title="Where the pattern fails: beyond the right shoulder before the break; after it, back through the neckline by 35% of the height">Invalid at</th><th title="Left shoulder → head → right shoulder → today">Pattern</th><th>Broke / retested</th><th title="Since 2022: median 30-day move in the pattern's direction, how often it went that way, and vs the average coin">History (2022+)</th><th>Liquidity</th></tr></thead><tbody id="hsBodyH"></tbody></table></div>
+        <div class="card-head" style="margin-top:4px"><h2 style="font-size:1rem">Posted to highlights</h2><span class="note">each new near-neckline, break and retest, when it happened</span></div>
+        <div class="hl-list" id="hlHs"></div>
+      </div>
+      <div class="card" id="setupCard">
+        <div class="card-head"><h2>Possible tops and bottoms</h2>
+          <div class="seg" id="setupKind"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="top" aria-pressed="false">Tops</button><button type="button" data-v="bottom" aria-pressed="false">Bottoms</button><button type="button" data-v="hs_top" aria-pressed="false">Head &amp; shoulders</button><button type="button" data-v="accum_breakout" aria-pressed="false">Breakouts</button></div>
+        </div>
+        <p class="note" style="margin:0 0 12px" id="setupIntro"></p>
+        <div class="note" id="setupCluster" style="margin:0 0 12px; padding:10px 12px; border:1px solid var(--line); border-radius:10px" hidden></div>
+        <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Setup</th><th>Side</th><th title="Median result 30 days after the setup (entry next open, no stop), before 2022">30d median ≤2021</th><th>Win ≤2021</th><th title="Same, from 2022 on">30d median 2022+</th><th>Win 2022+</th><th>Cases</th><th id="setupRegHead" title="Same setup, only on days with today's market regime (all years)">Today's regime</th></tr></thead><tbody id="setupStats"></tbody></table></div>
+        <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Setup</th><th>Chart</th><th>Close</th><th title="Where the setup is wrong: beyond the swing high/low (+/- 0.5 ATR), or 1.5 ATR under a breakout">Invalidation</th><th title="Entry at the next open, out at the invalidation level if touched, else marked at the latest close (closed after 30 days). No fees.">So far</th><th>Liquidity</th></tr></thead><tbody id="setupBody"></tbody></table></div>
+      </div>
+    </div>
+    <div class="hl-panel" data-panel="moves" hidden>
+      <div class="card" id="movesCard">
+        <div class="card-head"><h2>Big 4-hour moves</h2>
+          <div class="seg" id="mvKind"><button type="button" data-v="" aria-pressed="true">Big moves</button><button type="button" data-v="hl" aria-pressed="false">30-day highs / lows</button><button type="button" data-v="all" aria-pressed="false">All</button></div>
+        </div>
+        <p class="note" style="margin:0 0 12px" id="mvIntro"></p>
+        <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Move</th><th title="Since late 2023, liquid coins">Cases</th><th title="Median change one day later, from the next 4h open">1 day later</th><th>Higher after 1 day</th><th title="Median change three days later">3 days later</th><th>Higher after 3 days</th><th title="Median of the coin's 3-day change minus the median liquid coin's">vs the average coin, 3d</th></tr></thead><tbody id="mvStats"></tbody></table></div>
+        <div class="tbl-wrap" style="max-height: 50vh"><table><thead><tr><th>Candle closed</th><th>Pair</th><th>Move</th><th>4h change</th><th title="Volume vs the average of the previous 30 candles">Volume</th><th>Close</th><th title="From that candle's close to the latest closed 4h candle">Since</th><th>Liquidity</th></tr></thead><tbody id="mvBody"></tbody></table></div>
+      </div>
+    </div>
+    <div class="hl-panel" data-panel="ideas" hidden>
+      <div class="card">
+        <div class="card-head"><h2>Trade ideas</h2>
+          <div class="seg" id="ideaSide"><button type="button" data-v="" aria-pressed="true">Long and short</button><button type="button" data-v="long" aria-pressed="false">Long</button><button type="button" data-v="short" aria-pressed="false">Short</button></div>
+        </div>
+        <p class="note" style="margin:0 0 12px" id="ideaIntro"></p>
+        <div class="mk-grid" id="ideaScore" style="margin:0 0 14px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr))"></div>
+        <div class="tbl-wrap" style="max-height: 72vh"><table><thead><tr><th>Pair</th><th>Idea</th><th>Signals agreeing</th><th>Track record</th><th>Entry ref.</th><th>Stop</th><th title="How the idea has done since: entry at the next day's open, out at the stop if touched, else marked at the latest close (closed after 30 days). No fees.">So far</th><th>Confluence</th><th>RSI</th><th>Mkt cap (est.)</th><th>Liquidity</th></tr></thead><tbody id="ideaBody"></tbody></table></div>
+      </div>
+    </div>
+    <div class="hl-panel" data-panel="channels" hidden>
+      <div class="card" id="chanCard">
+        <div class="card-head"><h2>Channels</h2>
+          <div style="display:flex; gap:8px; flex-wrap:wrap">
+            <div class="seg" id="chanKind"><button type="button" data-v="" aria-pressed="true">Watch list</button><button type="button" data-v="long" aria-pressed="false">Long-term</button><button type="button" data-v="bottom" aria-pressed="false">Bottom</button><button type="button" data-v="mid" aria-pressed="false">Midline</button><button type="button" data-v="top" aria-pressed="false">Top</button><button type="button" data-v="break" aria-pressed="false">Breaks</button><button type="button" data-v="all" aria-pressed="false">All channels</button></div>
+            <div class="seg" id="chanTf"><button type="button" data-v="" aria-pressed="true">Daily + 4h</button><button type="button" data-v="1d" aria-pressed="false">Daily</button><button type="button" data-v="4h" aria-pressed="false">4h</button></div>
+          </div>
+        </div>
+        <p class="note" style="margin:0 0 12px" id="chanIntro"></p>
+        <p class="note" style="margin:0 0 8px" id="chanStatsNote"></p>
+        <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Status</th><th title="Daily-chart cases since 2022 (and up to 2021)">Cases 2022+</th><th title="Median price change over 30 days from the next day's open">Price 30d later</th><th title="Share of cases where the price was higher 30 days later">Higher after 30d</th><th title="Median of (the coin's 30-day change − the average liquid coin's change over the same days). Positive = the coin did better than the market">Coin vs the average coin</th><th title="Share of cases where the coin did better than the average liquid coin over 30 days">Beat the average coin</th><th title="Long trades: stop 10% of the width under the bottom line, target 10% under the top line, first one hit within 120 days. Average result in R (R = the amount risked).">Long trade: target hit / avg R</th><th title="Same comparison, only channels 365+ days long">Long-term channels: coin vs average</th></tr></thead><tbody id="chanStats"></tbody></table></div>
+        <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Chart</th><th>Status</th><th title="0% = on the bottom line, 50% = midline, 100% = on the top line">Where in channel</th><th>Channel</th><th>Width</th><th title="Touches on the bottom / top line, and reactions at the midline">Touches (mid)</th><th title="Touches on the lines, midline reactions, and length">Quality</th><th>Bottom line</th><th>Midline</th><th>Top line</th><th title="Since 2022, daily charts: median 30-day result of coins in this status (in this kind of channel: long-term, narrow or all) vs the average liquid coin, and how often they beat it">History vs market</th><th title="Events only: from the next candle's open to the latest close, in the event's direction. No fees.">Since event</th><th>Liquidity</th></tr></thead><tbody id="chanBody"></tbody></table></div>
+      </div>
+    </div>
+    <div class="hl-panel" data-panel="bots" hidden>
+      <div class="card">
+        <div class="card-head"><h2>Bot trades</h2><span class="note" id="hlBotNote"></span></div>
+        <div class="hl-list" id="hlBot"></div>
+      </div>
     </div>
   </section>
 
@@ -1169,7 +1223,97 @@ function renderChannels() {
   if (!rows.length) body.innerHTML = '<tr><td colspan="14" class="empty">No coin matches this filter right now.</td></tr>';
   renderCallsAll(); renderMoves(); renderHs(); renderLtbo();
 }
+// ---------- Highlights: one feed + sections (#highlights/<section>)
+const HL_PANELS = ["latest", "shortlist", "calls", "breakouts", "patterns", "moves", "ideas", "channels", "bots"];
+const slRows = () => (S.pubSL && S.pubSL.rows) || (SL.owner ? SL.docs : []) || [];
+function hlFeedItems() {
+  const cat = h => isBotHl(h) ? "bot" : ["chan_call", "ltbo", "hs_event"].includes(h.kind) ? h.kind : "sig";
+  const out = S.hl.map(h => ({ h, d: h.period_start, t: h.first_seen_utc || "", cat: cat(h), dir: h.direction, sym: h.symbol }));
+  slRows().forEach(d => { const dir = d.side === "short" ? "bearish" : "bullish";
+    if (d.entry_date) out.push({ sl: d, ev: "pick", d: d.entry_date, t: d.approved_at || "", cat: "sl", dir, sym: d.symbol });
+    if (d.status === "closed" && d.exit_date) out.push({ sl: d, ev: "close", d: d.exit_date, t: d.closed_at || "", cat: "sl", dir, sym: d.symbol }); });
+  ((S.mv && S.mv.rows) || []).filter(x => /^(pump|dump)/.test(x.kind)).forEach(x => { const end = new Date((x.t + 14400) * 1000).toISOString();
+    out.push({ mv: x, d: end.slice(0, 10), t: end.slice(0, 19) + "Z", cat: "moves", dir: /pump/.test(x.kind) ? "bullish" : "bearish", sym: x.symbol }); });
+  return out.sort((a, b) => (b.d || "").localeCompare(a.d || "") || (b.t || "").localeCompare(a.t || ""));
+}
+function mvFeedRow(x) {
+  const m = x.mv, up = /pump/.test(m.kind), el = document.createElement("div"); el.className = "hl nodate";
+  const when = document.createElement("div"); when.className = "when num";
+  const what = document.createElement("div"); what.className = "what";
+  const b = document.createElement("b"); b.textContent = m.symbol.replace(/USDT$/, "") + " "; const sp = document.createElement("span");
+  sp.textContent = (up ? "Jumped " : "Dropped ") + fPct(m.ret_pct, 1) + " in one 4-hour candle";
+  const ev = document.createElement("small"); ev.className = "ev";
+  ev.textContent = `Candle closed ${fmtLocal(new Date((m.t + 14400) * 1000).toISOString())} · volume ${isNum(m.rvol) ? fN(m.rvol, 1) + "×" : "—"} normal · close ${fPx(m.close)}` +
+    (isNum(m.since_pct) ? ` · ${fPct(m.since_pct, 1)} since` : "") + ` · #${m.liq_rank} by liquidity` + (up ? ". Pumps like this have mostly faded in testing." : ".");
+  what.append(b, sp, ev);
+  const right = document.createElement("div"); right.style.display = "flex"; right.style.gap = "6px";
+  if (S.prevVisit && x.t > S.prevVisit) right.append(chip("New", "new"));
+  right.append(chip("4h move", "neutral"), chip(up ? "Up" : "Down", up ? "up" : "down"));
+  el.append(when, what, right); el.onclick = () => openPair(m.symbol, "4h"); return el;
+}
+function slFeedRow(x) {
+  const d = x.sl, short = d.side === "short", el = document.createElement("div"); el.className = "hl nodate";
+  const when = document.createElement("div"); when.className = "when num";
+  const what = document.createElement("div"); what.className = "what";
+  const b = document.createElement("b"); b.textContent = d.symbol.replace(/USDT$/, "") + " "; const sp = document.createElement("span");
+  const ev = document.createElement("small"); ev.className = "ev";
+  if (x.ev === "pick") { sp.textContent = "Added to Bee's Shortlist (" + (short ? "short" : "long") + ")";
+    ev.textContent = `Entry ${fPx(d.entry)} (${d.entry_date} close) · stop ${fPx(d.stop)}` + (isNum(d.risk_pct) ? ` (${fN(d.risk_pct, 1)}% away)` : "") + (Array.isArray(d.why) && d.why.length ? " · " + d.why.slice(0, 3).map(k => sigLabel(k.split(":")[1], short ? "bearish" : "bullish")).join(", ") : "") + ". Not advice."; }
+  else { const res = (short ? -1 : 1) * (d.exit / d.entry - 1) * 100; sp.textContent = "Closed on Bee's Shortlist: " + fPct(res);
+    ev.textContent = `Entry ${fPx(d.entry)} → exit ${fPx(d.exit)}` + (d.close_reason ? " · " + d.close_reason : ""); }
+  what.append(b, sp, ev);
+  const right = document.createElement("div"); right.style.display = "flex"; right.style.gap = "6px";
+  if (S.prevVisit && x.t > S.prevVisit) right.append(chip("New", "new"));
+  right.append(chip("Shortlist", "warn"), chip(short ? "Short" : "Long", short ? "down" : "up"));
+  el.append(when, what, right); el.onclick = () => openPair(d.symbol, "1d"); return el;
+}
+function hlDay(d) {
+  if (S.ov && d === S.ov.last_date) return "Latest daily close · " + d;
+  const t = Date.parse(d + "T00:00:00Z"); if (isNaN(t)) return d;
+  return new Date(t).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+}
+function renderFeed() {
+  const dir = S.feedDir || "", kind = S.feedKind || "", q = (S.feedQ || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/USDT$/, "");
+  const items = hlFeedItems().filter(x => (!dir || x.dir === dir) && (!kind || x.cat === kind) && (!q || x.sym.replace(/USDT$/, "").includes(q)));
+  const L = $("#hlFeed"), lim = S.feedLim || 80; L.replaceChildren();
+  const frag = document.createDocumentFragment(); let day = null;
+  items.slice(0, lim).forEach(x => { if (x.d !== day) { day = x.d; const h = document.createElement("div"); h.className = "hl-day"; h.textContent = hlDay(day); frag.append(h); }
+    frag.append(x.h ? hlRow(x.h, true, true) : x.mv ? mvFeedRow(x) : slFeedRow(x)); });
+  L.append(frag);
+  if (!items.length) L.innerHTML = '<div class="empty">Nothing matches these filters.</div>';
+  const oldest = items.length ? items[items.length - 1].d : null;
+  $("#hlFeedNote").textContent = items.length ? `Showing ${Math.min(lim, items.length)} of ${items.length}` + (oldest ? ` · since ${oldest}` : "") : "";
+  $("#hlMore").hidden = items.length <= lim;
+}
+function hlCounts() {
+  const n = {}, set = (k, v) => { n[k] = v || 0; };
+  set("latest", S.prevVisit ? hlFeedItems().filter(x => x.t > S.prevVisit).length : 0);
+  set("shortlist", slRows().filter(d => d.status === "active").length);
+  set("calls", (callData().rows || []).length);
+  set("breakouts", (ltData().rows || []).filter(x => x.days_since <= 30).length);
+  set("patterns", (hsData().rows || []).filter(x => x.status !== "after_break").length);
+  set("moves", ((S.mv && S.mv.rows) || []).filter(x => !/_30d$/.test(x.kind) && x.t * 1000 > Date.now() - 864e5).length);
+  const ld = latestIdeaDay(); set("ideas", ideas().filter(x => x.date === ld).length);
+  set("bots", S.hl.filter(isBotHl).filter(h => S.ov && h.period_start >= S.ov.last_date).length);
+  $$("#hlNav button").forEach(b => { const v = n[b.dataset.p]; b.querySelector("i").textContent = v ? String(v) : "";
+    b.title = { latest: "new since your last visit", shortlist: "active picks", calls: "current channel calls", breakouts: "in the last 30 days", patterns: "active head-and-shoulders patterns",
+      moves: "in the last 24 hours", ideas: "from the latest daily close", bots: "bot actions at the latest daily close" }[b.dataset.p] || ""; });
+}
+function setHlPanel(p) {
+  if (!HL_PANELS.includes(p) || (p === "shortlist" && $("#hlNavSL").hidden)) p = "latest";
+  S.hlPanel = p;
+  $$("#hlNav button").forEach(b => { const on = b.dataset.p === p; b.setAttribute("aria-selected", String(on)); if (on && b.scrollIntoView && !$("#v-highlights").hidden) b.scrollIntoView({ block: "nearest", inline: "nearest" }); });
+  $$("#v-highlights .hl-panel").forEach(x => { x.hidden = x.dataset.panel !== p; });
+  if (p === "shortlist") renderShortlist();
+}
+$$("#hlNav button").forEach(b => b.onclick = () => { location.hash = "highlights/" + b.dataset.p; });
+segment("hlFeedDir", "v", v => { S.feedDir = v; S.feedLim = 80; renderFeed(); });
+$("#hlFeedKind").onchange = e => { S.feedKind = e.target.value; S.feedLim = 80; renderFeed(); };
+$("#hlFeedQ").oninput = e => { S.feedQ = e.target.value; S.feedLim = 80; renderFeed(); };
+$("#hlMore").onclick = () => { S.feedLim = (S.feedLim || 80) + 120; renderFeed(); };
 function renderHighlights() {
+  renderFeed(); hlCounts();
+  $("#hlHeadNote").textContent = S.ov ? "Daily close " + S.ov.last_date + " · 4h and live data every 15 minutes" : "";
   const bots = S.hl.filter(isBotHl), list = $("#hlBot"); list.replaceChildren();
   bots.slice(0, 120).forEach(h => list.append(hlRow(h, true)));
   if (!bots.length) list.innerHTML = '<div class="empty">No bot activity yet. Every entry signal, buy, partial profit and sale will appear here.</div>';
@@ -1194,6 +1338,7 @@ function renderHighlights() {
     frag.append(t); });
   body.append(frag);
   if (!rows.length) body.innerHTML = `<tr><td colspan="11" class="empty">No ${side === "short" ? "short ideas" : side === "long" ? "long ideas" : "ideas"} in the last ${ru.days || 30} days.</td></tr>`;
+  setHlPanel(S.hlPanel || "latest");
   $("#hlRules").textContent = `Bot trades: every action the bots take, plus the BTC 200-day filter switching the breakout bots on or off. Trade ideas: a signal counts only if it has a proven record (${ru.min_cases || 100}+ past cases, ${ru.min_cases_per_period || 30}+ both before and after 2022, the same direction of edge in both periods, average 30-day edge of at least ${ru.min_edge_30d_pct || 2}% vs the average pair; the volume-confirmed record is used when the day had a volume surge), on one of the ${ru.top_liquid || 50} most liquid pairs with ${ru.min_history_days || 365}+ days of history. Stablecoins and pegged assets are excluded. Per day: at most ${ru.max_long_per_day || 6} long and ${ru.max_short_per_day || 6} short ideas, ranked by how many proven signals agree, then by strength. Possible tops and bottoms: RSI(14) divergences confirmed 5 days after a daily swing (2 weeks after a weekly one), only at a 90-day (or 26-week) extreme, with the earlier swing overbought (above 70) or oversold (below 30), and skipped once price is already more than 3 ATR away from the swing; accumulation breakouts need the first close above a 90-day range no wider than 2x, on at least 2x normal volume. Everything else stays in the database and the Signals tab.`;
 }
 
@@ -1287,22 +1432,22 @@ function renderToday() {
       (dm && isNum(dm.median_funding_apr) ? ` Futures: median funding ${fPct(dm.median_funding_apr, 1)} a year, ${dm.hot} coins with hot funding (30%+), ${dm.negative} negative.` : ""), () => { $("#mkCard").scrollIntoView({ behavior: "smooth" }); }); }
   const sr = (setupData().rows || []), sLast = sr.reduce((m, x) => x.date > m ? x.date : m, ""), fresh = sr.filter(x => sLast && Date.parse(sLast) - Date.parse(x.date) <= 2 * 864e5);
   const wt = fresh.filter(x => x.kind === "top_w_div");
-  if (wt.length) add("!", "down", `Major top warning (weekly) on ${wt.map(x => x.symbol.replace(/USDT$/, "")).join(", ")}`, "The strongest leading signal in our tests. See its invalidation level before acting.", () => { location.hash = "highlights"; });
+  if (wt.length) add("!", "down", `Major top warning (weekly) on ${wt.map(x => x.symbol.replace(/USDT$/, "")).join(", ")}`, "The strongest leading signal in our tests. See its invalidation level before acting.", () => { location.hash = "highlights/patterns"; });
   const BCt = setupData().bottom_cluster;
-  if (BCt && BCt.now >= BCt.threshold) add(String(BCt.now), "up", `Bottom breakouts are clustering: ${BCt.now} in ${BCt.window_days} days`, "Many deeply-fallen coins breaking out of tight bases at once has marked market turns (2023, 2026). See Highlights.", () => { location.hash = "highlights"; });
+  if (BCt && BCt.now >= BCt.threshold) add(String(BCt.now), "up", `Bottom breakouts are clustering: ${BCt.now} in ${BCt.window_days} days`, "Many deeply-fallen coins breaking out of tight bases at once has marked market turns (2023, 2026). See Highlights.", () => { location.hash = "highlights/patterns"; });
   const other = fresh.filter(x => x.kind !== "top_w_div");
-  if (other.length) add(String(other.length), "neutral", `${other.length} new possible top / bottom / breakout setup${other.length > 1 ? "s" : ""}`, other.slice(0, 4).map(x => x.symbol.replace(/USDT$/, "") + " " + ((x.kind.startsWith("top") || x.kind === "hs_top") ? "top?" : x.kind.startsWith("bottom") ? "bottom?" : "breakout")).join(" · "), () => { location.hash = "highlights"; });
+  if (other.length) add(String(other.length), "neutral", `${other.length} new possible top / bottom / breakout setup${other.length > 1 ? "s" : ""}`, other.slice(0, 4).map(x => x.symbol.replace(/USDT$/, "") + " " + ((x.kind.startsWith("top") || x.kind === "hs_top") ? "top?" : x.kind.startsWith("bottom") ? "bottom?" : "breakout")).join(" · "), () => { location.hash = "highlights/patterns"; });
   const cr = (chanData().rows || []).filter(x => x.tf === "1d"), cb = cr.filter(x => /^break|^mid_/.test(x.status)), ce = cr.filter(x => x.days >= 365 && /near_|bottom_bounce|top_reject/.test(x.status));
   const CHV = { breakout: "broke out", breakdown: "broke down", mid_reclaim: "reclaimed the midline", mid_loss: "lost the midline", mid_retest: "midline retest held", near_bottom: "near a long-term bottom", near_top: "near a long-term top", bottom_bounce: "bounced off a long-term bottom", top_reject: "rejected at a long-term top" };
   if (cb.length || ce.length) add(String(cb.length + ce.length), cb.some(x => x.status === "breakdown" || x.status === "mid_loss") ? "down" : "neutral", `Daily channels: ${cb.length} break or midline event${cb.length === 1 ? "" : "s"}, ${ce.length} at the edge of a long-term channel`,
-    [...cb, ...ce].sort((a, b) => b.quality - a.quality).slice(0, 4).map(x => x.symbol.replace(/USDT$/, "") + " " + CHV[x.status]).join(" · "), () => { location.hash = "highlights"; setTimeout(() => $("#chanCard").scrollIntoView({ behavior: "smooth" }), 300); });
+    [...cb, ...ce].sort((a, b) => b.quality - a.quality).slice(0, 4).map(x => x.symbol.replace(/USDT$/, "") + " " + CHV[x.status]).join(" · "), () => { location.hash = "highlights/channels"; });
   const mv = ((S.mv && S.mv.rows) || []).filter(x => !/_30d$/.test(x.kind) && x.t * 1000 > Date.now() - 864e5);
   if (mv.length) add(String(mv.length), mv.some(x => /pump/.test(x.kind)) ? "warn" : "neutral", `Big 4-hour moves in the last 24 hours`,
-    mv.slice(0, 4).map(x => x.symbol.replace(/USDT$/, "") + " " + fPct(x.ret_pct, 0)).join(" · ") + " · pumps like these have mostly faded", () => { location.hash = "highlights"; setTimeout(() => $("#movesCard").scrollIntoView({ behavior: "smooth" }), 300); });
+    mv.slice(0, 4).map(x => x.symbol.replace(/USDT$/, "") + " " + fPct(x.ret_pct, 0)).join(" · ") + " · pumps like these have mostly faded", () => { location.hash = "highlights/moves"; });
   const bots = S.hl.filter(isBotHl).filter(h => S.ov && h.period_start >= S.ov.last_date);
   if (bots.length) add("B", "warn", `${bots.length} bot action${bots.length > 1 ? "s" : ""} today`, bots.slice(0, 3).map(h => h.symbol.replace(/USDT$/, "") + " " + (KIND[h.kind] ? KIND[h.kind][0] : h.kind)).join(" · "), () => { location.hash = "record"; });
   const ld = latestIdeaDay(), td_ = ideas().filter(x => x.date === ld);
-  if (td_.length) add(String(td_.length), "neutral", `${td_.length} trade idea${td_.length > 1 ? "s" : ""}: ${td_.filter(x => x.side === "long").length} long, ${td_.filter(x => x.side === "short").length} short`, "From proven lagging signals on the 50 most liquid coins. Past ideas are scored honestly on the Highlights tab.", () => { location.hash = "highlights"; });
+  if (td_.length) add(String(td_.length), "neutral", `${td_.length} trade idea${td_.length > 1 ? "s" : ""}: ${td_.filter(x => x.side === "long").length} long, ${td_.filter(x => x.side === "short").length} short`, "From proven lagging signals on the 50 most liquid coins. Past ideas are scored honestly on the Highlights tab.", () => { location.hash = "highlights/ideas"; });
   const bp = S.bot && S.bot.portfolio;
   if (bp) { const ret = 100 * (bp.equity / bp.start_equity - 1); add("$", ret >= 0 ? "up" : "down", `Bots portfolio ${fPct(ret)} since ${S.bot.inception} (paper)`, `${bp.open} open position${bp.open === 1 ? "" : "s"} · ${bp.orders} order${bp.orders === 1 ? "" : "s"} for the next open`, () => { location.hash = "record"; }); }
   items.slice(0, 5).forEach(x => { const li = document.createElement("li"); li.tabIndex = 0; li.onclick = x.go; li.onkeydown = e => { if (e.key === "Enter") x.go(); };
@@ -1319,7 +1464,7 @@ function renderOverview() {
   $("#kUniverseNote").textContent = c.pairs_trading + " trading USDT pairs, ≥ $100k 24h volume";
   const ld = latestIdeaDay(), today = ideas().filter(x => x.date === ld);
   $("#kNew").textContent = today.length; $("#kNewNote").textContent = ld ? `${today.filter(x => x.side === "long").length} long · ${today.filter(x => x.side === "short").length} short · ${ld}` : "None yet";
-  $("#kIdeaCard").onclick = () => { location.hash = "highlights"; };
+  $("#kIdeaCard").onclick = () => { location.hash = "highlights/ideas"; };
   const bp = S.bot && S.bot.portfolio;
   $("#kBot").textContent = bp ? fPct(100 * (bp.equity / bp.start_equity - 1)) : "—";
   $("#kBotNote").textContent = bp ? `${S.bot.bots.length} bots · ${bp.open} open · ${bp.closed} closed · $${(bp.start_equity / 1000).toFixed(0)}k since ${S.bot.inception}` : "Starts after the next sync";
@@ -1338,7 +1483,7 @@ function renderOverview() {
     const w0 = document.createElement("div"); w0.className = "when"; d.append(w0, what, right); ovh.append(d); });
   const sr = (setupData().rows || []), sLast = sr.reduce((m, x) => x.date > m ? x.date : m, "");
   sr.filter(x => sLast && (Date.parse(sLast) - Date.parse(x.date)) <= 2 * 864e5).slice(0, 3).forEach(x => {
-    const d = document.createElement("div"); d.className = "hl nodate"; d.onclick = () => { location.hash = "highlights"; };
+    const d = document.createElement("div"); d.className = "hl nodate"; d.onclick = () => { location.hash = "highlights/patterns"; };
     const what = document.createElement("div"); what.className = "what"; const b = document.createElement("b"); b.textContent = x.symbol.replace(/USDT$/, "") + " ";
     const sp = document.createElement("span"); sp.textContent = setupLabel(x.kind); const ev = document.createElement("small"); ev.className = "ev";
     ev.textContent = `${x.date} · ${x.tf === "1w" ? "weekly" : "daily"} chart · close ${fPx(x.close)}, invalid beyond ${fPx(x.stop)}`;
@@ -1532,6 +1677,7 @@ async function lowsSince(sym, fromDate) {
 }
 const slSort = (a, b) => (b.approved_at || "").localeCompare(a.approved_at || "");
 async function renderShortlist() {
+  const tok = S.slTok = (S.slTok || 0) + 1;      // a newer render supersedes this one (no duplicated rows)
   const pub = !!S.pubSL || !SL.owner;          // the published list is the record; the owner sees it too
   if (pub && !S.pubSL) { $("#v-shortlist").innerHTML = '<div class="card empty">The shortlist is not published yet.</div>'; return; }
   const docs = pub ? (S.pubSL.rows || []) : SL.docs;
@@ -1543,13 +1689,13 @@ async function renderShortlist() {
     : "Only you can approve or remove entries. The list (pair, dates, entry, stop, status and result; never your notes or the suggestions) is also published read-only on the public site. Entry is the close of the latest closed daily candle on the day you approve. Stop = entry − 2 × ATR(14, daily), locked at approval. R = (price − entry) ÷ (entry − stop). Stop hit: a daily low since approval went below the stop. Review: a proven bearish signal (consistent edge, 100+ cases) fired on the pair since approval.";
   const last = S.ov.last_date, P = provenSets(), scr = Object.fromEntries(S.scr.map(r => [r.symbol, r]));
   const active = docs.filter(d => d.status === "active").sort(slSort), closed = docs.filter(d => d.status === "closed").sort((a, b) => (b.closed_at || "").localeCompare(a.closed_at || ""));
-  $("#slNote").textContent = active.length + " active · prices as of the " + last + " daily close";
+  $("#slNote").textContent = active.length + " active · " + (S.px && S.px.as_of ? "prices as of " + fmtLocal(S.px.as_of) : "prices as of the " + last + " daily close");
   const tb = $("#slActive"); tb.replaceChildren();
   for (const d of active) {
     const short = d.side === "short", sgn = short ? -1 : 1;
-    const r = scr[d.symbol], px = r ? r.last_close : null, ret = isNum(px) ? sgn * (px / d.entry - 1) * 100 : null, R = isNum(px) ? (px - d.entry) / (d.entry - d.stop) : null;
+    const r = scr[d.symbol], px = (livePx(d.symbol) || [r ? r.last_close : null])[0], ret = isNum(px) ? sgn * (px / d.entry - 1) * 100 : null, R = isNum(px) ? (px - d.entry) / (d.entry - d.stop) : null;
     let hit = false, lo = null;
-    if (!short) { if (!SL.lows[d.id || d.symbol + d.entry_date]) SL.lows[d.id || d.symbol + d.entry_date] = lowsSince(d.symbol, d.entry_date); lo = await SL.lows[d.id || d.symbol + d.entry_date]; hit = lo && lo.v < d.stop; }
+    if (!short) { if (!SL.lows[d.id || d.symbol + d.entry_date]) SL.lows[d.id || d.symbol + d.entry_date] = lowsSince(d.symbol, d.entry_date); lo = await SL.lows[d.id || d.symbol + d.entry_date]; if (tok !== S.slTok) return; hit = lo && lo.v < d.stop; }
     const bears = S.sig.filter(x => x.symbol === d.symbol && x.period_start > d.entry_date && (short ? P.bull : P.bear).has(x.tf + "|" + x.signal + "|" + x.direction));
     const warn = document.createElement("span"); warn.className = "controls"; warn.style.gap = "4px";
     bears.slice(0, 3).forEach(x => { const c = chip(sigLabel(x.signal, x.direction) + (x.tf === "1w" ? " (weekly)" : ""), short ? "up" : "down"); c.title = x.period_start; warn.append(c); });
@@ -1637,7 +1783,7 @@ async function initShortlist() {
   SL.owner = await user.isOwner().catch(() => false);
   if (!SL.owner) return;
   SL.db = db; SL.uid = await user.id().catch(() => null);
-  $("#navShort").hidden = false;
+  $("#hlNavSL").hidden = false;
   db.collection("shortlist").onSnapshot(snap => { SL.docs = snap.docs.map(x => ({ id: x.id, ...x.data() })); SL.lows = {}; if (!$("#v-shortlist").hidden) renderShortlist(); },
     () => { $("#slNote").textContent = "Couldn't load the shortlist. Reload the page."; });
   $("#slCancel").onclick = () => { $("#slConfirm").hidden = true; SL.pending = null; };
@@ -1645,7 +1791,7 @@ async function initShortlist() {
     try { await SL.pending(); $("#slConfirm").hidden = true; SL.pending = null; }
     catch (e) { $("#slConfStatus").textContent = "Not saved: " + (e && e.code === "invalid_argument" ? "only the owner can change the shortlist." : "please try again."); }
     finally { $("#slDo").disabled = false; } };
-  if (location.hash === "#shortlist") show("shortlist");
+  if (/^#(shortlist|highlights\/shortlist)$/.test(location.hash)) show("highlights/shortlist");
 }
 
 // ---------- Setup Lab (in-browser backtest on the daily pair shards)
@@ -1852,7 +1998,7 @@ async function renderPair() {
   if (r) chg.append(chip(fPct(r.ret_1d) + " last day", r.ret_1d >= 0 ? "up" : "down"));
   const ab = $("#pairApprove"); const onList = SL.docs.some(d => d.status === "active" && d.symbol === S.pair);
   ab.hidden = !SL.owner || !!S.pubSL || !r || !isNum(r.d_atr14_pct) || onList;
-  ab.onclick = () => { location.hash = "shortlist"; setTimeout(() => askApprove(r, []), 300); };
+  ab.onclick = () => { location.hash = "highlights/shortlist"; setTimeout(() => askApprove(r, []), 300); };
   const st = $("#pairStats"); st.replaceChildren();
   if (r) { const g = k => r[p + "_" + k];
     [["7D", fPct(r.ret_7d)], ["30D", fPct(r.ret_30d)], ["1Y", fPct(r.ret_365d)], ["vs BTC 30 bars", fPct(g("rs30"))], ["RSI 14", fN(g("rsi14"))], ["ADX 14", fN(g("adx14"))],
@@ -2099,14 +2245,16 @@ function renderBot() {
 const fUsd2 = v => isNum(v) ? (v < 0 ? "−$" : "$") + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
 
 // ---------- routing + controls
-const VIEWS = ["me", "overview", "shortlist", "top50", "bot", "record", "lab", "highlights", "screener", "watchlist", "signals", "library", "listings", "pair"];
+const VIEWS = ["me", "overview", "top50", "bot", "record", "lab", "highlights", "screener", "watchlist", "signals", "library", "listings", "pair"];
 function show(v) {
-  const parts = String(v || "").split("/");
+  let parts = String(v || "").split("/");
+  if (parts[0] === "shortlist") { parts = ["highlights", "shortlist"]; try { history.replaceState(null, "", "#highlights/shortlist"); } catch (e) {} }   // the Shortlist now lives in Highlights
+  if (parts[0] === "highlights") { S.hlPanel = HL_PANELS.includes(parts[1]) ? parts[1] : "latest"; v = "highlights"; }
   if (parts[0] === "pair" && parts[1]) { const sym = decodeURIComponent(parts[1]).toUpperCase(); if (S.index && S.index[sym]) S.pair = sym;
     if (["1h", "4h", "1d", "1w", "1M"].includes(parts[2])) S.pairTf = parts[2]; v = "pair"; }
-  if (!VIEWS.includes(v) || (v === "shortlist" && !SL.owner && !S.pubSL)) v = "overview"; VIEWS.forEach(x => { $("#v-" + x).hidden = x !== v; });
+  if (!VIEWS.includes(v)) v = "overview"; VIEWS.forEach(x => { $("#v-" + x).hidden = x !== v; });
   $$("nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.view === v ? "page" : "false"));
-  ({ me: () => { if (!ME.user) { if (AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); return; } renderMe(); }, overview: renderOverview, shortlist: renderShortlist, top50: renderTop50, bot: renderBot, record: renderRecord, lab: renderLab, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch, signals: renderSignals, library: renderLibrary, listings: renderListings, pair: renderPair })[v](); }
+  ({ me: () => { if (!ME.user) { if (AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); return; } renderMe(); }, overview: renderOverview, top50: renderTop50, bot: renderBot, record: renderRecord, lab: renderLab, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch, signals: renderSignals, library: renderLibrary, listings: renderListings, pair: renderPair })[v](); }
 // ---------- Back: return to the exact spot you clicked from (same page, same row), with the button or the browser
 const VIEW_NAME = { overview: "Overview", shortlist: "Bee's Shortlist", top50: "Top 50", bot: "Bot", record: "Track record", lab: "Setup Lab", highlights: "Highlights", screener: "Screener", watchlist: "Watchlist", signals: "Signals", library: "Signal library", listings: "Listings", pair: "Pair chart" };
 const backStack = []; let lastClick = null, restoring = false;
@@ -2517,6 +2665,6 @@ async function authInit() {
   const { data } = await ME.sb.auth.getSession(); await setUser(data && data.session ? data.session.user : null);
   if (!ME.user && store.get("guest") !== "1" && $("#authDlg").hidden) openWelcome();
 }
-(async () => { if (!(await loadAll())) return; renderFresh(); initScreenerControls(); if (S.pubSL) $("#navShort").hidden = false; initShortlist(); show(location.hash.slice(1)); authInit(); })();
+(async () => { if (!(await loadAll())) return; renderFresh(); initScreenerControls(); if (S.pubSL) $("#hlNavSL").hidden = false; initShortlist(); show(location.hash.slice(1)); authInit(); })();
 })();
 </script>

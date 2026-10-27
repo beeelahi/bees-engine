@@ -4,6 +4,13 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Changed
+- Highlights redesigned and moved next to Overview: one header with section chips (Latest, Bee's Shortlist, Channel
+  calls, Long-term breakouts, Patterns, Big 4h moves, Trade ideas, Channels, Bots), each with a live count; one section
+  shows at a time and has its own link (#highlights/<section>). Latest is a single feed, newest first, grouped by day,
+  with Bullish / Bearish, kind and coin filters: every posted highlight, every Bee's Shortlist pick and close, and
+  every big 4-hour move. Bee's Shortlist is now a Highlights section (old #shortlist links still work) with live prices.
+
 ### Added
 - 1-hour charts (1H) for the 30 most liquid pairs and ZIG (90 days for ZIG), refreshed every hour; ZIG's 4H chart
   shows 200 days and its daily / weekly charts its complete history.
