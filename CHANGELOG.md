@@ -5,6 +5,11 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- Paper trading for the market maker (`mm_paper.py`, service `bees-mm-paper`): the exact live grid / quote code on a
+  simulated MEXC account filled from real public trades and the order book (conservative: through-price fills,
+  queue at the price, post-only rejections, taker fees). Base / tight / wide spacing run side by side. No API key is
+  read; the MEXC client has a public-only mode that refuses every signed call. Ops: `mm-paper-start`,
+  `mm-paper-report`, `mm-paper-log`, `mm-paper-stop`.
 - Google sign-in that names beesells.xyz on Google's screen: a direct OpenID Connect ID-token request (random
   state, hashed nonce, no Google script, CSP unchanged) and `signInWithIdToken`. On once `google_client_id` is set in
   `web/auth.json`; until then the Supabase redirect is used.

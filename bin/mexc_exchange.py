@@ -47,7 +47,8 @@ def read_cred(path=CRED):
 
 class Mexc:
     def __init__(self, cred=None, transport=None):
-        self._key, self._secret = cred if cred else read_cred()
+        """cred=False: public market data only (paper trading). No key is read and every signed call is refused."""
+        self._key, self._secret = (None, None) if cred is False else (cred if cred else read_cred())
         self._t = transport or self._curl
         self._offset = 0
         self._info = {}
@@ -67,6 +68,8 @@ class Mexc:
     def _call(self, method, path, params=None, signed=False):
         params = dict(params or {})
         headers = {"Content-Type": "application/json"}
+        if signed and not self._key:
+            raise MexcError("public-only client: signed calls are disabled")
         if signed:
             params["timestamp"] = int(time.time() * 1000) + self._offset
             params["recvWindow"] = 5000
@@ -102,6 +105,12 @@ class Mexc:
     def book(self, symbol, limit=20):
         d = self._call("GET", "/api/v3/depth", {"symbol": symbol, "limit": limit})
         return [(float(p), float(q)) for p, q in d["bids"]], [(float(p), float(q)) for p, q in d["asks"]]
+
+    def trades(self, symbol, limit=1000):
+        """Recent public trades: [(time_ms, price, qty, taker_side)] oldest first; taker_side BUY = buyer took an ask."""
+        d = self._call("GET", "/api/v3/trades", {"symbol": symbol, "limit": limit})
+        out = [(int(t["time"]), float(t["price"]), float(t["qty"]), "SELL" if t.get("isBuyerMaker") else "BUY") for t in d]
+        return sorted(out, key=lambda x: x[0])
 
     def qty(self, symbol, q):
         st = self.info(symbol)["step"]

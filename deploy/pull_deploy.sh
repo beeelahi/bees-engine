@@ -60,6 +60,7 @@ switch_to() {  # $1 = unpacked release dir, $2 = sha
     sudo -n systemctl enable --now bees-sync.timer bees-deploy.timer >/dev/null 2>&1 || true
   fi
   if systemctl is-active --quiet bees-mm.service; then sudo -n systemctl restart bees-mm.service || true; fi
+  if systemctl is-active --quiet bees-mm-paper.service; then sudo -n systemctl restart bees-mm-paper.service || true; fi
 }
 
 if [ "${1:-}" = "--rollback" ]; then

@@ -1,0 +1,17 @@
+[Unit]
+Description=Bee's market maker, PAPER trading (MEXC public data only; no API key, no real orders)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bees
+WorkingDirectory=/home/bees/BinanceData
+ExecStart=/usr/bin/python3 /home/bees/BinanceData/bin/mm_paper.py
+Restart=on-failure
+RestartSec=30
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/bees/BinanceData
