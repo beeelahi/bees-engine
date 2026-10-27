@@ -50,8 +50,8 @@ def main():
     con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
     print("Loading daily candles, indicators and signals ...", flush=True)
     px = defaultdict(dict)
-    for s, d, lo, c, v in con.execute("SELECT symbol, date, low, close, volume_usdt FROM daily ORDER BY symbol, date"):
-        px[s][d] = (lo, c, v or 0.0)
+    for s, d, lo, c, v, hi in con.execute("SELECT symbol, date, low, close, volume_usdt, high FROM daily ORDER BY symbol, date"):
+        px[s][d] = (lo, c, v or 0.0, hi)
     adv = {}
     for s, m in px.items():
         ds = sorted(m)
@@ -87,8 +87,10 @@ def main():
                 known = ps if tf == "1d" else (date.fromisoformat(ps) + timedelta(days=6)).isoformat()
                 sigs[known].append((s, tf, sig, d))
         print(f"\n== {label}: {len(bull)} bullish and {len(bear)} bearish proven signals ({len(strong)} strong bearish)", flush=True)
-        for filt in (FILTERS if not early_only else ("live_rule", "btc_up", "btc_up+top20")):
-            res = simulate(days, px, adv, ind, sigs, rank, btc_up, bull, bear, strong, filt, early_only, split)
+        strong_bull = {(tf, sg_) for (tf, sg_) in bull if (con.execute(
+            "SELECT edge_30d FROM signal_stats WHERE variant='all' AND tf=? AND signal=? AND direction='bullish'", (tf, sg_)).fetchone() or [0])[0] >= 2}
+        for filt in FILTERS:
+            res = simulate(days, px, adv, ind, sigs, rank, btc_up, bull, bear, strong, filt, early_only, split, strong_bull)
             for v, L in res.items():
                 for per, f in (("up to 2021", lambda x: x[0] < split), ("2022 on", lambda x: x[0] >= split)):
                     T = [x for x in L if f(x)]
@@ -100,10 +102,16 @@ def main():
                           f"PF {sum(x for x in r if x > 0) / max(1e-9, -sum(x for x in r if x < 0)):.2f}", flush=True)
 
 
-FILTERS = ("live_rule", "btc_up", "top50", "btc_up+top50", "btc_up+top20", "2_signals", "bull9")
+FILTERS = ("top20", "btc_up+top20", "short_all", "short_top20", "short_btc_down+top20")
 
 
-def simulate(days, px, adv, ind, sigs, rank, btc_up, bull, bear, strong, filt, early_only, split):
+def simulate(days, px, adv, ind, sigs, rank, btc_up, bull, bear, strong, filt, early_only, split, strong_bull=()):
+    """Longs (default) or shorts ('short' filters: bull score <= 3, a proven BEARISH signal, stop = entry + 2 ATR,
+    exits on proven / strong proven bullish signals)."""
+    short = filt.startswith("short")
+    sg = -1 if short else 1
+    entry_set, exit_all, exit_strong = (bear, bull, strong_bull) if short else (bull, bear, strong)
+    want_dir, exit_dir = ("bearish", "bullish") if short else ("bullish", "bearish")
     res = {v: [] for v in ("live", "strong_exit", "stop_30d")}
     held = {v: {} for v in res}
     last_week = ""
@@ -117,46 +125,46 @@ def simulate(days, px, adv, ind, sigs, rank, btc_up, bull, bear, strong, filt, e
             for s, pos in list(H.items()):
                 bar = px[s].get(d)
                 out = None
-                if bar and bar[0] < pos["stop"]:
+                if bar and ((not short and bar[0] < pos["stop"]) or (short and bar[3] > pos["stop"])):
                     out = pos["stop"]
-                elif bar and v != "stop_30d" and any(x[0] == s and x[3] == "bearish" and (x[1], x[2]) in (bear if v == "live" else strong) for x in todays):
+                elif bar and v != "stop_30d" and any(x[0] == s and x[3] == exit_dir and (x[1], x[2]) in (exit_all if v == "live" else exit_strong) for x in todays):
                     out = bar[1]
                 elif bar and v == "stop_30d" and pos["n"] >= 30:
                     out = bar[1]
                 if bar:
                     pos["n"] += 1
                 if out:
-                    res[v].append((pos["d"], out / pos["entry"] - 1 - COST, pos["n"]))
+                    res[v].append((pos["d"], sg * (out / pos["entry"] - 1) - COST, pos["n"]))
                     del H[s]
         if "btc_up" in filt and not btc_up.get(d):
+            continue
+        if "btc_down" in filt and btc_up.get(d, True):
             continue
         window = set(days[max(0, di - 2):di + 1])
         cands = {}
         for dd in window:
             for s, tf, sig, dr in sigs.get(dd, []):
-                if dr == "bullish" and tf == "1d" and (tf, sig) in bull:
+                if dr == want_dir and tf == "1d" and (tf, sig) in entry_set:
                     cands.setdefault(s, set()).add(tf + sig)
         if last_week and last_week > (date.fromisoformat(d) - timedelta(days=7)).isoformat():
             for s, tf, sig, dr in sigs.get(last_week, []):
-                if dr == "bullish" and tf == "1w" and (tf, sig) in bull:
+                if dr == want_dir and tf == "1w" and (tf, sig) in entry_set:
                     cands.setdefault(s, set()).add(tf + sig)
         pick = []
         for s, why in cands.items():
             bs, atr = ind.get((s, d), (None, None))
-            if bs is None or bs < (9 if filt == "bull9" else 7) or not atr or d not in px.get(s, {}) or adv.get((s, d), 0) < 2e6:
-                continue
-            if filt == "2_signals" and len(why) < 2:
+            if bs is None or (bs < 7 if not short else bs > 3) or not atr or d not in px.get(s, {}) or adv.get((s, d), 0) < 2e6:
                 continue
             top = 20 if "top20" in filt else 50 if "top50" in filt else None
             if top and rank.get((s, d), 999) > top:
                 continue
-            pick.append((-len(why), -bs, s, atr))
+            pick.append((-len(why), sg * -bs, s, atr))
         pick.sort()
         for v, H in held.items():
             for _, _, s, atr in pick[:25]:
                 if s not in H:
                     c = px[s][d][1]
-                    H[s] = {"d": d, "entry": c, "stop": c * (1 - 2 * atr / 100), "n": 0}
+                    H[s] = {"d": d, "entry": c, "stop": c * (1 - sg * 2 * atr / 100), "n": 0}
     return res
 
 
