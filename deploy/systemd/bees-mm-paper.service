@@ -7,6 +7,7 @@ Wants=network-online.target
 Type=simple
 User=bees
 WorkingDirectory=/home/bees/BinanceData
+Environment=PYTHONUNBUFFERED=1
 ExecStart=/usr/bin/python3 /home/bees/BinanceData/bin/mm_paper.py
 Restart=on-failure
 RestartSec=30
