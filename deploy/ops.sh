@@ -42,5 +42,6 @@ case "$CMD" in
   trading-stop)    touch "$ROOT/STOP_TRADING"; echo "STOP_TRADING set: the live engine places no new entries" ;;
   trading-resume)  rm -f "$ROOT/STOP_TRADING"; echo "STOP_TRADING cleared" ;;
   carry-study)     nice -n 10 python3 "$ROOT/bin/carry_study.py" ;;
-  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop trading-stop trading-resume carry-study"; exit 2 ;;
+  shortlist-study) nice -n 10 python3 "$ROOT/bin/shortlist_study.py" ;;
+  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop trading-stop trading-resume carry-study shortlist-study"; exit 2 ;;
 esac
