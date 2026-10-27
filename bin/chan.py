@@ -236,10 +236,32 @@ def _r(x):
     return None if x is None else float(f"{x:.7g}")
 
 
+BREAK_LOOKBACK = (3, 10)      # candles back: channels as they stood before a break (a refit absorbs the break candle)
+
+
+def channels_now(h, l, c, i, tf="1d", o=None):
+    """Channels to report at bar i: the ones fitted on all data, plus channels fitted BREAK_LOOKBACK candles ago that
+    price has since broken out of or down from. Without the second set a break could never be seen: refitting on the
+    break candle itself either widens the channel to include it or rejects the channel."""
+    cur = find(h, l, c, i, tf)
+    extra = []
+    for back in BREAK_LOOKBACK:
+        if i - back < TF[tf]["min_bars"] + 10:
+            continue
+        for f in find(h, l, c, i - back, tf):
+            stt = state(f, o or c, h, l, c, i)
+            if not stt or stt["status"] not in ("breakout", "breakdown"):
+                continue
+            if any(g["first"] == f["first"] and g["anchor"] == f["anchor"] for g in extra):
+                continue
+            extra.append(f)
+    return cur + extra
+
+
 def rows_for(sym, tf, times, o, h, l, c, v, rank):
     i = len(c) - 1
     out = []
-    for k, f in enumerate(find(h, l, c, i, tf)):
+    for k, f in enumerate(channels_now(h, l, c, i, tf, o)):
         s = state(f, o, h, l, c, i)
         if not s:
             continue

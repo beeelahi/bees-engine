@@ -67,7 +67,7 @@ KEY_NEED_VOLUME = {"new_ath", "new_1y_high", "new_1y_low", "price_x_dc55", "sque
 KEY_MIN_HISTORY = 365      # days of continuous history on the pair (evidence from crypto history must apply)
 KEY_EXCLUDE = {"PAXG", "XAUT", "WBTC", "WBETH", "BETH", "BNSOL", "WSTETH", "STETH"}   # pegged / wrapped assets
 KEY_REPEAT_DAYS = 10       # the same signal on the same pair within this many days is shown once
-ALWAYS = {"bot_buy": 400, "bot_sell": 400, "bot_partial": 380, "bot_signal": 350, "btc_regime": 500, "chan_call": 300, "hs_event": 290}
+ALWAYS = {"bot_buy": 400, "bot_sell": 400, "bot_partial": 380, "bot_signal": 350, "btc_regime": 500, "chan_call": 300, "hs_event": 290, "ltbo": 320}
 SIGNAL_KINDS = set().union(*analytics.HIGHLIGHT_KINDS.values())
 
 
@@ -495,6 +495,14 @@ def run(con=None):
         print(f"export_web: {len(calls['rows'])} channel calls, {n_new} new")
     except Exception as e:
         print("export_web: channel calls skipped:", repr(e))
+    lt = {"rows": [], "stats": {}, "rules": {}}
+    try:                                         # long-term (250+ day) channel breakouts with their confirmation dossier
+        import ltbo
+        n_new = ltbo.record(con, channels["rows"], ltbo.now_utc())
+        lt = ltbo.export(con, last, signal_stats=table(con, "SELECT * FROM signal_stats"))
+        print(f"export_web: {len(lt['rows'])} long-term breakouts tracked, {n_new} new, {ltbo.log(con, lt, ltbo.now_utc())} posted")
+    except Exception as e:
+        print("export_web: long-term breakouts skipped:", repr(e))
     hsd = {"rows": [], "stats": {}, "labels": {}, "rules": {}}
     try:                                         # head-and-shoulders tops and inverse: near / broken / retesting the neckline
         import hs
@@ -513,6 +521,7 @@ def run(con=None):
     hl["channels"] = channels
     hl["channel_calls"] = calls
     hl["hs"] = hsd
+    hl["ltbo"] = lt
     write(os.path.join(OUT, "highlights.json"), hl)
     try:                                         # futures context: funding, open interest, long/short (public data)
         import derivatives

@@ -373,6 +373,10 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Setup</th><th>Side</th><th title="Median result 30 days after the setup (entry next open, no stop), before 2022">30d median ≤2021</th><th>Win ≤2021</th><th title="Same, from 2022 on">30d median 2022+</th><th>Win 2022+</th><th>Cases</th><th id="setupRegHead" title="Same setup, only on days with today's market regime (all years)">Today's regime</th></tr></thead><tbody id="setupStats"></tbody></table></div>
       <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Setup</th><th>Chart</th><th>Close</th><th title="Where the setup is wrong: beyond the swing high/low (+/- 0.5 ATR), or 1.5 ATR under a breakout">Invalidation</th><th title="Entry at the next open, out at the invalidation level if touched, else marked at the latest close (closed after 30 days). No fees.">So far</th><th>Liquidity</th></tr></thead><tbody id="setupBody"></tbody></table></div>
     </div>
+    <div class="card" id="ltCardH">
+      <div class="card-head"><h2>Long-term channel breakouts</h2><span class="note" id="ltNoteH"></span></div>
+      <div class="tbl-wrap" style="max-height: 70vh"><table><thead><tr><th>Grade</th><th>Pair</th><th>Broke out</th><th>Long-term channel</th><th title="The three checks that separated winners from losers in testing">Graded checks</th><th title="The first weekly close after the breakout must stay above the line">Weekly close</th><th title="From the breakout close: now, and the best so far">Since breakout · best</th><th>Top line now</th><th title="Channel width projected above the top line">Width target</th><th title="Since 2022, breakouts with this grade: median 90-day result, share that gained 50%+ and that doubled within 180 days">History of this grade</th></tr></thead><tbody id="ltBodyH"></tbody></table></div>
+    </div>
     <div class="card" id="hsCardH">
       <div class="card-head"><h2>Head and shoulders: neckline action</h2><span class="note" id="hsNoteH"></span></div>
       <div class="tbl-wrap" style="max-height: 45vh; margin-bottom:12px"><table><thead><tr><th>Pair</th><th>Pattern</th><th>Status</th><th title="Neckline today (extended), and the distance from the close">Neckline</th><th title="Measured move: neckline −/+ the pattern height">Target</th><th title="Where the pattern fails: beyond the right shoulder before the break; after it, back through the neckline by 35% of the height">Invalid at</th><th title="Left shoulder → head → right shoulder → today">Pattern</th><th>Broke / retested</th><th title="Since 2022: median 30-day move in the pattern's direction, how often it went that way, and vs the average coin">History (2022+)</th><th>Liquidity</th></tr></thead><tbody id="hsBodyH"></tbody></table></div>
@@ -445,6 +449,12 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
   </section>
 
   <section class="view" id="v-watchlist" hidden>
+    <div class="card" id="ltCardW">
+      <div class="card-head"><h2>Long-term channel breakouts</h2><span class="note" id="ltNoteW"></span></div>
+      <p class="note" style="margin:0 0 12px" id="ltIntroW"></p>
+      <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Grade</th><th>Cases 2022+</th><th>Price 90 days later (median)</th><th>Higher after 90 days</th><th title="Within 180 days">Gained 50%+</th><th title="Within 180 days">Doubled</th><th title="Median best gain within 180 days">Best gain (median)</th><th title="Median drawdown before the peak">Drawdown first</th><th>Up to 2021: median 90d · doubled</th></tr></thead><tbody id="ltStats"></tbody></table></div>
+      <div class="tbl-wrap" style="max-height: 70vh"><table><thead><tr><th>Grade</th><th>Pair</th><th>Broke out</th><th>Long-term channel</th><th title="The three checks that separated winners from losers in testing">Graded checks</th><th title="The first weekly close after the breakout must stay above the line">Weekly close</th><th title="From the breakout close: now, and the best so far">Since breakout · best</th><th>Top line now</th><th title="Channel width projected above the top line">Width target</th><th title="Since 2022, breakouts with this grade: median 90-day result, share that gained 50%+ and that doubled within 180 days">History of this grade</th></tr></thead><tbody id="ltBodyW"></tbody></table></div>
+    </div>
     <div class="card" id="hsCardW">
       <div class="card-head"><h2>Head and shoulders</h2>
         <div class="seg" id="hsKind"><button type="button" data-v="" aria-pressed="true">Active</button><button type="button" data-v="retest" aria-pressed="false">Retesting</button><button type="button" data-v="broken" aria-pressed="false">Just broke</button><button type="button" data-v="near_neckline" aria-pressed="false">Near the neckline</button><button type="button" data-v="top" aria-pressed="false">Tops</button><button type="button" data-v="inverse" aria-pressed="false">Inverse</button><button type="button" data-v="all" aria-pressed="false">All</button></div>
@@ -759,7 +769,7 @@ const isNew = h => !S.prevVisit || h.first_seen_utc > S.prevVisit;
 const newHl = () => S.prevVisit ? S.hl.filter(h => h.first_seen_utc > S.prevVisit) : S.hl.filter(h => h.first_seen_utc >= S.hl[0]?.first_seen_utc?.slice(0, 10));
 
 // ---------- highlights
-const KIND = { hs_event: ["Inverse head and shoulders (bullish): neckline action", "Head and shoulders top (bearish): neckline action"], chan_call: ["Channel call (long): channel entry confirmed by proven signals", "Channel call (short / caution): channel break or rejection confirmed by proven signals"], ema50_x_ema200: ["EMA golden cross (50 × 200)", "EMA death cross (50 × 200)"], sma50_x_sma200: ["MA golden cross (50 × 200)", "MA death cross (50 × 200)"],
+const KIND = { ltbo: ["Long-term channel BREAKOUT (250+ day channel)", "Long-term channel breakout"], hs_event: ["Inverse head and shoulders (bullish): neckline action", "Head and shoulders top (bearish): neckline action"], chan_call: ["Channel call (long): channel entry confirmed by proven signals", "Channel call (short / caution): channel break or rejection confirmed by proven signals"], ema50_x_ema200: ["EMA golden cross (50 × 200)", "EMA death cross (50 × 200)"], sma50_x_sma200: ["MA golden cross (50 × 200)", "MA death cross (50 × 200)"],
   lose_sma200: ["", "Lost the 200-day MA after 20+ days above it"], lose_ema200: ["", "Lost the 200-day EMA after 20+ days above it"],
   reclaim_sma200: ["Reclaimed the 200-day MA after 20+ days below it", ""], reclaim_ema200: ["Reclaimed the 200-day EMA after 20+ days below it", ""],
   price_x_ema200: ["Closed above the 200-day EMA", "Closed below the 200-day EMA"], price_x_sma200: ["Closed above the 200-day MA", "Closed below the 200-day MA"],
@@ -791,6 +801,7 @@ function hlEvidence(h) {
   if (h.kind === "bot_partial") return who + `Sold ${fN(100 * d.share, 0)}% at ${fPx(d.price)} (${fUsd2(d.pnl_usd)}); stop on the rest moved to break-even. Paper trade.`;
   if (h.kind === "bot_signal") return who + `Signal close ${fPx(d.ref_close)}; stop will sit ${fN(d.stop_dist_pct)}% below the fill. Paper trade.`;
   if (h.kind === "btc_regime") return "The bot opens new longs only while BTC is above its 200-day average.";
+  if (h.kind === "ltbo") { const c = d.checks || {}, hh = d.hist; return `Grade ${d.grade} · closed ${fPx(d.close)} above the ${Math.round(d.days || 0)}-day channel's top line ${fPx(d.level)} · RSI ${c.rsi ?? "—"}${c.rsi_ok ? " ✓" : " ✗"} · ${c.flat_or_falling ? "from a range / downtrend ✓" : "uptrend channel ✗"} · ${fPct(c.ext_pct, 1)} above the line${c.not_extended ? " ✓" : " ✗"}${hh ? ` · grade ${d.grade} since 2022: median ${fPct(hh.med90, 1)} after 90 days, ${hh.p50}% gained 50%+, ${hh.x2}% doubled` : ""}. Watch the weekly close. Not advice.`; }
   if (h.kind === "hs_event") return `${HS_ST[d.status] || d.status} · neckline ${fPx(d.neck)} · target ${fPx(d.target)} (${fPct(d.to_target_pct, 1)}) · invalid at ${fPx(d.stop)} · close ${fPx(d.close)}. Not advice.`;
   if (h.kind === "chan_call") return `Grade ${d.grade} · ${((chanData().labels || {})[d.status] || d.status || "").toLowerCase()} in a ${Math.round(d.days || 0)}-day channel (${(d.touches || []).join("/")} touches) · ${(d.signals || []).map(k => sigLabel(k.split(":")[1], h.direction) + (k.startsWith("1w") ? " (weekly)" : "")).join(", ")} · close ${fPx(d.close)}, stop ${fPx(d.stop)}, target ${fPx(d.t1)}${isNum(d.rr) ? " (R:R " + fN(d.rr, 1) + ")" : ""}. Not advice.`;
   if (h.kind === "new_listing" || h.kind === "stopped_trading") return "";
@@ -939,6 +950,43 @@ function renderHs() {
   const list = $("#hlHs"); if (list) { list.replaceChildren(); const posted = S.hl.filter(h => h.kind === "hs_event"); posted.slice(0, 60).forEach(h => list.append(hlRow(h, true)));
     if (!posted.length) list.innerHTML = '<div class="empty">Nothing posted yet. New near-neckline setups, breaks and retests appear here the day they happen.</div>'; }
 }
+const ltData = () => (S.hlMeta && S.hlMeta.ltbo) || { rows: [], stats: {}, rules: {} };
+function ltRows(body) {
+  const D = ltData(), el = $("#" + body); if (!el) return; el.replaceChildren(); const frag = document.createDocumentFragment();
+  (D.rows || []).forEach(x => { const ck = x.checks || {}, cx = x.context || {}, h = x.hist;
+    const t = document.createElement("tr"); t.className = "clickable"; t.onclick = () => openPair(x.symbol, "1d");
+    const checks = document.createElement("span"); checks.className = "controls"; checks.style.gap = "4px";
+    [["rsi_ok", "RSI " + (ck.rsi ?? "—") + (ck.rsi_ok ? " (55-75)" : ck.rsi > 75 ? " (overheated)" : " (weak)")], ["flat_or_falling", ck.flat_or_falling ? "From a range / downtrend" : "Uptrend channel"], ["not_extended", (ck.not_extended ? "Close to the line " : "Extended ") + "+" + fN(ck.ext_pct, 1) + "%"]]
+      .forEach(([k, lab]) => checks.append(chip((ck[k] ? "✓ " : "✗ ") + lab, ck[k] ? "up" : "down")));
+    const wk = chip(x.weekly === "held" ? "Held" : x.weekly === "failed" ? "Failed" : "Pending (Sunday close)", x.weekly === "held" ? "up" : x.weekly === "failed" ? "down" : "neutral");
+    t.append(tdNode(chip(x.grade, x.grade === "A" ? "up" : x.grade === "B" ? "neutral" : "down")), tdNode(symNode(x.symbol)), td(x.event_date + " · " + x.days_since + "d ago", "num"),
+      td(Math.round(ck.days || 0) + " days · " + (ck.touches || []).join("/") + " touches · since " + String(x.t0).slice(0, 10), ""), tdNode(checks), tdNode(wk),
+      td(fPct(x.since_pct, 1) + " · best " + fPct(x.max_pct, 1), "num " + cls(x.since_pct)), td(fPx(x.line_now) + " (" + x.status + ")", "num"),
+      td(isNum(x.target_width) ? fPx(x.target_width) + " (" + fPct(100 * (x.target_width / x.price - 1), 0) + ")" : "—", "num"),
+      h ? td(fPct(h.med90, 1) + " · 50%+: " + h.p50 + "% · 2×: " + h.x2 + "%", "num " + cls(h.med90)) : td("—", "cold")); frag.append(t);
+    const d = document.createElement("tr"); const c = document.createElement("td"); c.colSpan = 10; c.className = "note";
+    c.textContent = "Dossier · not graded (did not separate winners in testing): breakout volume " + (isNum(ck.rvol) ? fN(ck.rvol, 1) + "×" : "—") + " · 200-day average " + (cx.above_200d == null ? "—" : cx.above_200d ? "above" : "below") +
+      " · BTC " + (cx.btc_above_200d == null ? "—" : cx.btc_above_200d ? "above" : "below") + " its 200-day · vs BTC 30d " + (isNum(cx.rs30) ? fPct(cx.rs30, 1) : "—") + " · bull score " + (cx.bull_score ?? "—") + "/10 · RSI now " + (isNum(cx.rsi_now) ? fN(cx.rsi_now, 0) : "—") + ", weekly " + (isNum(cx.weekly_rsi) ? fN(cx.weekly_rsi, 0) : "—") +
+      (isNum(cx.funding_apr) ? " · funding " + fPct(cx.funding_apr, 1) + "/yr" : "") + (isNum(cx.oi_chg_7d) ? " · open interest " + fPct(cx.oi_chg_7d, 0) + " 7d" : "") + (isNum(cx.from_ath_pct) ? " · " + fPct(cx.from_ath_pct, 0) + " from ATH" : "") +
+      ((cx.proven_signals || []).length ? " · proven signals: " + cx.proven_signals.map(k => sigLabel(k.split(":")[1], "bullish") + (k.startsWith("1w") ? " (weekly)" : "")).join(", ") : "") +
+      ". Plan from testing: hold ~90 days or trail 35% from the high; a failed weekly close or a close back inside the channel is the warning.";
+    d.append(c); frag.append(d); });
+  el.append(frag);
+  if (!(D.rows || []).length) el.innerHTML = '<tr><td colspan="10" class="empty">No long-term channel breakouts in the last 180 days yet. New ones appear here the day they close above the line.</td></tr>';
+}
+function renderLtbo() {
+  const D = ltData(), ST = D.stats || {}, L = ST.late || {}, E = ST.early || {}, rows = D.rows || [];
+  const intro = "Daily closes above the top line of a channel that has held for 250+ days: the moves that can turn parabolic. Each breakout gets a dossier. It is GRADED only on the three checks that separated winners from losers when every breakout since 2018 was tested with the data known at the time: RSI between 55 and 75 at the breakout (strong, not overheated), a flat or falling channel (breaking out of a range or downtrend, not accelerating an uptrend), and a close within 10% of the line (not already extended). Then the first weekly close must hold above the line: when it failed, the median result 90 days later was −36%. Everything else (volume, 200-day, BTC, strength vs BTC, signals, funding) is shown for context: in testing it did not change the odds. Up to 2021 almost every long-term breakout ran; since 2022 only the grade-A ones did, and even they round-trip often, so take profits or trail.";
+  ["W"].forEach(k => { const e = $("#ltIntro" + k); if (e) e.textContent = intro; });
+  const a = rows.filter(x => x.grade === "A" && x.days_since <= 10).length, note = rows.length ? `${rows.length} in the last 180 days · ${a} grade A in the last 10 days` : "";
+  ["#ltNoteW", "#ltNoteH"].forEach(id => { const e = $(id); if (e) e.textContent = note; });
+  const sb = $("#ltStats"); if (sb) { sb.replaceChildren();
+    ["A", "B", "C", "all"].forEach(g => { const x = L[g], y = E[g]; if (!x) return; const t = document.createElement("tr");
+      t.append(tdNode(chip(g === "all" ? "All breakouts" : "Grade " + g, g === "A" ? "up" : g === "C" ? "down" : "neutral")), td(String(x.n), "num"), td(fPct(x.med90, 1), "num " + cls(x.med90)), td(x.win90 + "%", "num"), td(x.p50 + "%", "num"), td(x.x2 + "%", "num"),
+        td(fPct(x.max180, 0), "num pos"), td(fPct(x.dd, 0), "num neg"), td(y ? fPct(y.med90, 0) + " · " + y.x2 + "%" : "—", "num")); sb.append(t); });
+    const wf = L.weekly_fail; if (wf) { const t = document.createElement("tr"); t.append(tdNode(chip("Weekly close failed", "down")), td(String(wf.n), "num"), td(fPct(wf.med90, 1), "num " + cls(wf.med90)), td(wf.win90 + "%", "num"), td(wf.p50 + "%", "num"), td(wf.x2 + "%", "num"), td(fPct(wf.max180, 0), "num pos"), td(fPct(wf.dd, 0), "num neg"), td("—", "num")); sb.append(t); } }
+  ltRows("ltBodyW"); ltRows("ltBodyH");
+}
 function renderMoves() {
   const M = S.mv, card = $("#movesCard"); if (!card) return; if (!M) { card.hidden = true; return; } card.hidden = false;
   const ST = M.stats || {}, me = ST._meta || {}, L = M.labels || {};
@@ -989,7 +1037,7 @@ function renderChannels() {
       isNum(x.so_far_pct) ? td(fPct(x.so_far_pct, 1), "num " + cls(x.so_far_pct)) : td("—", "cold"), td("#" + x.liq_rank, "num")); frag.append(t); });
   body.append(frag);
   if (!rows.length) body.innerHTML = '<tr><td colspan="14" class="empty">No coin matches this filter right now.</td></tr>';
-  renderCallsAll(); renderMoves(); renderHs();
+  renderCallsAll(); renderMoves(); renderHs(); renderLtbo();
 }
 function renderHighlights() {
   const bots = S.hl.filter(isBotHl), list = $("#hlBot"); list.replaceChildren();
@@ -1250,7 +1298,7 @@ function renderWatchStats() {
   if (!yb.children.length) yb.innerHTML = '<tr><td colspan="8" class="empty">No rule hits yet.</td></tr>';
 }
 function renderWatch() {
-  renderWatchStats(); renderCallsAll(); renderHs();
+  renderWatchStats(); renderLtbo(); renderCallsAll(); renderHs();
   const b = $("#watchBody"); b.replaceChildren(); $("#watchCount").textContent = S.watch.length + " hits"; const frag = document.createDocumentFragment();
   S.watch.forEach(h => { const t = document.createElement("tr"); t.className = "clickable"; t.onclick = () => openPair(h.symbol);
     t.append(td(h.date, "num"), tdNode(symNode(h.symbol)), td(fPx(h.close), "num"), td(fX(h.rvol), "num pos"), td(fN(h.vol_z), "num"), td(fN(h.rsi), "num"),

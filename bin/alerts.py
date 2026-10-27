@@ -5,6 +5,7 @@ What is sent (each event once, newest data only, at most MAX_PER_RUN per run):
   * bot actions: entry signal, buy, partial profit, sale (paper trading)
   * the BTC 200-day market filter switching the breakout bots on or off
   * new "Possible major top (weekly)" setups, and the other leading setups (daily tops/bottoms, breakouts)
+  * long-term (250+ day) channel breakouts with their grade, and whether the first weekly close held
   * head and shoulders (tops and inverse): near the neckline, the break, the retest (150 most liquid)
   * channel calls: a channel entry confirmed by proven signals (each coin / side / channel / status once)
   * channels: breakouts / breakdowns (daily and 4h), midline reclaims / losses / retests and bottom bounces (daily),
@@ -162,6 +163,20 @@ def events(con, today):
                 f" ({'weekly' if x.get('tf') == '1w' else 'daily'} chart, close {_px(x.get('close'))}); invalid beyond {_px(x.get('stop'))}."
                 + (f" Measured target {_px(x.get('target'))}." if x.get("target") else "") + f" Liquidity #{x.get('liq_rank')}. Not advice.")
         out.append((f"setup:{x['kind']}:{x['symbol']}:{x['date']}", text))
+    for x in (hl.get("ltbo") or {}).get("rows", []):
+        ck, h, coin = x.get("checks") or {}, x.get("hist") or {}, x["symbol"].replace("USDT", "")
+        if x["days_since"] <= 2:
+            text = (f"LONG-TERM CHANNEL BREAKOUT, grade {x['grade']}: {coin} closed {_px(x['close_at_break'])} above the top line "
+                    f"{_px(x['level_at_break'])} of a {round(ck.get('days') or 0)}-day channel. Checks: RSI {ck.get('rsi')} {'OK' if ck.get('rsi_ok') else 'X'}, "
+                    f"{'from a range/downtrend' if ck.get('flat_or_falling') else 'uptrend channel'} {'OK' if ck.get('flat_or_falling') else 'X'}, "
+                    f"{ck.get('ext_pct')}% above the line {'OK' if ck.get('not_extended') else 'X'}."
+                    + (f" Grade {x['grade']} since 2022: median {h['med90']:+.1f}% after 90 days, {h['p50']}% gained 50%+, {h['x2']}% doubled within 180 days." if h else "")
+                    + " Next check: the weekly close must hold above the line. Not advice.")
+            out.append((f"ltbo:{x['symbol']}:{x['event_date']}", text))
+        if x["weekly"] in ("held", "failed") and x["days_since"] <= 9:
+            out.append((f"ltbo_wk:{x['symbol']}:{x['event_date']}", f"{coin} long-term breakout ({x['event_date']}): the weekly close "
+                        + ("HELD above the line." if x["weekly"] == "held" else "FAILED: closed back below the line. Historically a bad sign (median -36% after 90 days).")
+                        + f" Now {_px(x['price'])} ({x['since_pct']:+.1f}% since the breakout). Not advice."))
     for x in (hl.get("hs") or {}).get("rows", []):
         if x["status"] not in ("broken", "retest", "near_neckline") or (x.get("liq_rank") or 999) > 150:
             continue

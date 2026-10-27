@@ -18,6 +18,13 @@ rules look the way they do. Scripts are in `research/`.
   average (68% moved down in 30 days, 138 cases), at the break +0.3R (70%, 305 cases). Mostly the falling market:
   against the average coin they are about even.
 
+* **Long-term channel breakouts** (`research/ltbo.py`, `research/ltbo_exit.py`; closes above the top of a 250+ day
+  channel, 380 cases 2018-2026): up to 2021 almost all ran (median best gain +200% within 180 days, 80% doubled).
+  Since 2022 the average one round-tripped (median -13% after 90 days), but three checks known at the breakout close
+  separate them: RSI 55-75, a flat or falling channel, a close within 10% of the line. All three (grade A, 113 cases):
+  median +9.6% after 90 days, 60% gained 50%+ and 38% doubled within 180 days; none of them (grade C): median -28%.
+  A failed first weekly close: median -36%. Volume, 200-day trend, BTC trend and strength vs BTC did not help.
+
 ## Did not hold up
 
 * Neckline **retests** as a better entry: since 2022, top retests -0.02R (83 cases), inverse retests -0.13R (170 cases,
