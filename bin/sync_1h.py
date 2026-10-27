@@ -24,6 +24,7 @@ DAY_MS = 86_400_000
 H1_BUDGET_S = 420         # max seconds of first-time 1h downloading per 15-minute run
 H1_MIN_DAY_VOL = 100_000
 AUDIT_SAMPLE = 30
+PARALLEL = 6               # concurrent requests for top-ups
 
 SCHEMA_1H = """
 CREATE TABLE IF NOT EXISTS candles_1h(
@@ -140,6 +141,23 @@ def run(con, api, today, stamp, now_ms=None, budget_s=H1_BUDGET_S):
     hard_stop = deadline + 300              # incremental updates may run past the budget, but never this far
     # incremental updates first (cheap), then first-time downloads oldest-first within the time budget
     order = sorted(pairs, key=lambda p: (0 if (p[0] in state and state[p[0]][2]) else 1, p[0]))
+    # top-ups of pairs already downloaded: fetched in parallel (a few hundred small requests, ~2 weight each, well
+    # under the 6000/minute limit), stored serially below
+    todo = [(sym, state[sym][1] + H1_MS) for sym, _, _ in order
+            if sym in state and state[sym][2] and not state[sym][3] and state[sym][1] and state[sym][1] + 2 * H1_MS <= now_ms]
+    pre = {}
+    if todo:
+        from concurrent.futures import ThreadPoolExecutor
+
+        def _one(job):
+            try:
+                return job[0], _fetch(api, job[0], job[1], now_ms, time.time() + 120), None
+            except Exception as e:      # recorded and retried serially below
+                return job[0], None, e
+        with ThreadPoolExecutor(max_workers=PARALLEL) as ex:
+            for sym, res, err in ex.map(_one, todo):
+                if res is not None:
+                    pre[sym] = res
     for sym, since, trading in order:
         st = state.get(sym)
         if st and st[3]:                    # delisted and complete: nothing more will come
@@ -153,7 +171,7 @@ def run(con, api, today, stamp, now_ms=None, budget_s=H1_BUDGET_S):
             pending += 1                    # out of time, or the network is down (5 failures in a row): next run
             continue
         try:
-            rows, reached_end = _fetch(api, sym, start, now_ms, deadline if not (st and st[2]) else time.time() + 120)
+            rows, reached_end = pre.pop(sym) if sym in pre else _fetch(api, sym, start, now_ms, deadline if not (st and st[2]) else time.time() + 120)
         except Exception as e:              # one bad symbol must not stop the rest
             errors += 1
             consec += 1
