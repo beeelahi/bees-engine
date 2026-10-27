@@ -25,7 +25,7 @@ H1_PAIRS = 30
 H1_SHOW_BARS = 720          # 30 days
 H1_CALC_BARS = 1500
 EXT_SHOW_4H = 1200          # 200 days of 4h candles for pairs added on purpose
-EXT_SHOW_1H = 2160          # 90 days of 1h candles for pairs added on purpose
+EXT_SHOW_1H = 8760          # a full year of 1h candles for pairs added on purpose
 BREAK_MS = 7 * 86_400_000
 COLS = ["t", "o", "h", "l", "c", "v", "e21", "e50", "e200", "rsi", "macd", "sig", "rv", "bbu", "bbl", "st", "sa", "sb", "x"]
 WARM = {"e21": I.ema_warm(21), "e50": I.ema_warm(50), "e200": I.ema_warm(200), "rsi": I.rsi_warm(14),
@@ -64,7 +64,7 @@ def build(con, universe, now_ms, table="candles_4h", state="h4_state", bar_ms=4 
         liq.append((v, sym))
     liq.sort(reverse=True)
     pick = [s for _, s in liq[:n_pairs]] + [s for _, s in liq[n_pairs:] if venues.is_external(s)]
-    index, shards = {}, [dict() for _ in range(SHARDS)]
+    index, shards = {}, [dict() for _ in range(SHARDS + 1)]     # the last shard holds pairs added on purpose (long history)
     for k, sym in enumerate(pick):
         ext = venues.is_external(sym)
         rows = _series(con, sym, now_ms, table, bar_ms, max(calc, show_ext + 300) if ext else calc)
@@ -83,7 +83,7 @@ def build(con, universe, now_ms, table="candles_4h", state="h4_state", bar_ms=4 
             x = 1 + sum(b for key, b in BITS if i >= WARM[key])
             out.append([rows[i][0] // 1000] + [_r(z) for z in (o[i], h[i], l[i], c[i], v[i])] +
                        [_r(X[key][i]) for key in ("e21", "e50", "e200", "rsi", "macd", "sig", "rv", "bbu", "bbl", "st", "sa", "sb")] + [x])
-        sh = k % SHARDS
+        sh = SHARDS if ext else k % SHARDS
         index[sym] = f"s{sh:02d}.json"
         shards[sh][sym] = out
     return index, shards
@@ -100,7 +100,7 @@ def write(con, universe, out_dir, now_ms, sub="h4", res=False):
         res = build(con, universe, now_ms)
     d = os.path.join(out_dir, sub)
     os.makedirs(d, exist_ok=True)
-    index, shards = res if res else ({}, [dict() for _ in range(SHARDS)])
+    index, shards = res if res else ({}, [dict() for _ in range(SHARDS + 1)])
     for k, sh in enumerate(shards):
         tmp = os.path.join(d, f".s{k:02d}.tmp")
         with open(tmp, "w") as f:

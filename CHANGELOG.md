@@ -12,7 +12,7 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
   every big 4-hour move. Bee's Shortlist is now a Highlights section (old #shortlist links still work) with live prices.
 
 ### Added
-- 1-hour charts (1H) for the 30 most liquid pairs and ZIG (90 days for ZIG), refreshed every hour; ZIG's 4H chart
+- 1-hour charts (1H) for the 30 most liquid pairs and ZIG (a full year for ZIG, in its own file), refreshed every hour; ZIG's 4H chart
   shows 200 days and its daily / weekly charts its complete history.
 - 1H / 4H views show that timeframe's own numbers (last candle, 24 hours, 7 days, RSI, MACD, Supertrend, cloud,
   EMA 200, RVOL, when the last candle closed), refreshed with every new candle.
