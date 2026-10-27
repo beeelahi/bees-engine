@@ -1,0 +1,10 @@
+# Default gitleaks rules, plus one narrow exception: the Supabase PUBLISHABLE key in web/auth.json is public by
+# design (it ships in the website; row-level security protects the data). Secret keys (sb_secret_...) still fail.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Supabase publishable key (public)"
+regexes = ['''sb_publishable_[A-Za-z0-9_-]{20,}''']
+paths = ['''^web/auth\.json$''']
+condition = "AND"

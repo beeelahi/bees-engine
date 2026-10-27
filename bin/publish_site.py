@@ -95,6 +95,7 @@ def html_attr(s):
     return s.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+CONTACT = "gm@koreit.io"   # privacy / terms contact (site.json "contact_email" overrides)
 LEGAL_CSP = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
 LEGAL = {
     "privacy.html": ("Privacy notice", [
@@ -237,7 +238,7 @@ def _write_static(cfg, domain):
     with open(PAGE, encoding="utf-8") as f:
         ask_url, ask_org = ask_origin(cfg)
         html = wrap(f.read(), ask_url, ask_org, auth_config())
-    legal = tuple((n, legal_page(*v, contact=(cfg or {}).get("contact_email"))) for n, v in LEGAL.items())
+    legal = tuple((n, legal_page(*v, contact=(cfg or {}).get("contact_email") or CONTACT)) for n, v in LEGAL.items())
     for name, text in (("index.html", html), (".nojekyll", ""), ("robots.txt", "User-agent: *\nDisallow: /\n")) + legal + \
             ((("CNAME", domain.strip() + "\n"),) if domain else ()):
         path = os.path.join(BUILD, name)
