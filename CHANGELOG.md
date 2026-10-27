@@ -5,6 +5,11 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Changed
+- Fewer, clearer tabs: Top 50 now sits on the Overview (under Latest signals / Top performers, above Data health);
+  Signals and Signal library are one Signals tab (Latest signals | Signal library); Bot and Track record are one
+  Trading bots tab (Portfolio | Each bot | Track record | Fade 4h). Old links (#top50, #library, #record) still work.
+- Latest signals show each signal's own track record (30-day result vs the average pair, cases, Proven badge) and
+  have a Proven only filter.
 - Highlights redesigned and moved next to Overview: one header with section chips (Latest, Bee's Shortlist, Channel
   calls, Long-term breakouts, Patterns, Big 4h moves, Trade ideas, Channels, Bots), each with a live count; one section
   shows at a time and has its own link (#highlights/<section>). Latest is a single feed, newest first, grouped by day,

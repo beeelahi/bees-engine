@@ -114,7 +114,7 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .stat-row div { background: var(--panel-2); border-radius: 6px; padding: 8px 10px; }
 .stat-row b { display: block; font-family: var(--font-num); font-weight: 500; margin-top: 2px; }
 .hl-list { display: grid; gap: 0; }
-.hl-head .hl-lead { margin: 0 0 14px; max-width: 900px; }
+.hl-head .hl-lead, .sub-head .sub-lead { margin: 0 0 14px; max-width: 900px; }
 .hl-nav { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px 0; }
 .hl-nav::-webkit-scrollbar { display: none; }
 .hl-nav button { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); background: rgba(255,255,255,0.03); color: var(--muted); border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
@@ -127,6 +127,7 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .hl-day:first-child { padding-top: 2px; }
 .hl-how summary { cursor: pointer; font-weight: 600; list-style: revert; }
 .hl-panel > .card:first-child { margin-top: 0; }
+.sub-panel, .hl-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
 .lab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 16px; }
 .lab-box { display: grid; gap: 8px; align-content: start; min-width: 0; }
 #labConds { display: grid; gap: 8px; }
@@ -232,13 +233,10 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <a href="#me" data-view="me" id="navMe" hidden>★ My dashboard</a>
       <a href="#overview" data-view="overview">Overview</a>
       <a href="#highlights" data-view="highlights">Highlights<span class="badge" id="hlBadge" hidden></span></a>
-      <a href="#top50" data-view="top50">Top 50</a>
-      <a href="#bot" data-view="bot">Bot</a>
-      <a href="#record" data-view="record">Track record</a>
+      <a href="#bot" data-view="bot">Trading bots</a>
       <a href="#screener" data-view="screener">Screener</a>
       <a href="#watchlist" data-view="watchlist">Watchlist</a>
       <a href="#signals" data-view="signals">Signals</a>
-      <a href="#library" data-view="library">Signal library</a>
       <a href="#listings" data-view="listings">Listings</a>
       <a href="#pair" data-view="pair">Pair chart</a>
       <a href="#lab" data-view="lab">Setup Lab</a>
@@ -277,6 +275,15 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
         <div class="tbl-wrap"><table><thead><tr><th>Pair</th><th>Return</th><th>vs BTC 30D</th><th>RVOL</th><th>RSI</th></tr></thead><tbody id="topBody"></tbody></table></div>
       </div>
     </div>
+    <div class="card" id="t50Card">
+      <div class="card-head"><h2>Top 50 focus list</h2><span class="note" id="t50Note"></span></div>
+      <p class="note" style="margin:0 0 12px" id="t50Explain"></p>
+      <div class="tbl-wrap" style="max-height: 72vh"><table><thead><tr><th>#</th><th>Pair</th><th>Score</th><th>Conditions met</th><th>Liquidity</th><th>Mkt cap (est.)</th><th>Price</th><th>7D</th><th>30D</th><th>90D</th><th>Bot</th></tr></thead><tbody id="t50Body"></tbody></table></div>
+    </div>
+    <details class="card hl-how">
+      <summary>The 10 conditions behind the score</summary>
+      <ol class="rules" id="t50Rules" style="margin-top:10px"></ol>
+    </details>
     <div class="card">
       <div class="card-head"><h2>Data health</h2><span class="note" id="healthNote"></span></div>
       <div class="health" id="health"></div>
@@ -284,101 +291,106 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
   </section>
 
 
-  <section class="view" id="v-top50" hidden>
-    <div class="card">
-      <div class="card-head"><h2>Top 50 focus list</h2><span class="note" id="t50Note"></span></div>
-      <p class="note" style="margin:0 0 12px" id="t50Explain"></p>
-      <div class="tbl-wrap" style="max-height: 72vh"><table><thead><tr><th>#</th><th>Pair</th><th>Score</th><th>Conditions met</th><th>Liquidity</th><th>Mkt cap (est.)</th><th>Price</th><th>7D</th><th>30D</th><th>90D</th><th>Bot</th></tr></thead><tbody id="t50Body"></tbody></table></div>
-    </div>
-    <div class="card">
-      <div class="card-head"><h2>The 10 conditions</h2></div>
-      <ol class="rules" id="t50Rules"></ol>
-    </div>
-  </section>
+
 
   <section class="view" id="v-bot" hidden>
-    <div class="card" id="p4Card" hidden>
-      <div class="card-head"><h2>Fade 4h · experimental paper bot</h2><span class="note" id="p4Note"></span></div>
-      <p class="note" style="margin:0 0 12px" id="p4Intro"></p>
-      <div class="grid-kpi" style="margin-bottom:12px">
-        <div class="card kpi"><div class="label">Paper equity</div><div class="v" id="p4Eq">—</div><div class="note" id="p4EqNote">&nbsp;</div></div>
-        <div class="card kpi"><div class="label">Open shorts</div><div class="v" id="p4Open">—</div><div class="note" id="p4OpenNote">&nbsp;</div></div>
-        <div class="card kpi"><div class="label">Closed trades</div><div class="v" id="p4Closed">—</div><div class="note" id="p4ClosedNote">&nbsp;</div></div>
-        <div class="card kpi"><div class="label">Backtest (unseen half)</div><div class="v" id="p4Bt">—</div><div class="note" id="p4BtNote">&nbsp;</div></div>
+    <div class="card sub-head">
+      <div class="card-head"><h2>Trading bots</h2><span class="note" id="botHeadNote"></span></div>
+      <p class="note sub-lead">Paper bots that follow fixed, published rules: no real money and no orders on any exchange. <b>Portfolio</b> is all bots together, <b>Each bot</b> its positions, orders, rules and backtest, <b>Track record</b> the live results since launch against what the backtest expected.</p>
+      <div class="hl-nav sub-nav" data-for="bot" role="tablist" aria-label="Bot sections">
+        <button type="button" role="tab" data-s="portfolio">Portfolio<i></i></button>
+        <button type="button" role="tab" data-s="each">Each bot<i></i></button>
+        <button type="button" role="tab" data-s="record">Track record<i></i></button>
+        <button type="button" role="tab" data-s="fade" id="botNavFade" hidden>Fade 4h (experimental)<i></i></button>
       </div>
-      <div class="tbl-wrap" style="max-height: 45vh"><table><thead><tr><th>Pair</th><th>Status</th><th>Signal candle</th><th>Pump</th><th>Entry</th><th>Stop</th><th>Exit / price</th><th>Result</th><th>R</th></tr></thead><tbody id="p4Body"></tbody></table></div>
     </div>
-    <div class="grid-kpi">
-      <div class="card kpi"><div class="label">Portfolio (paper)</div><div class="v" id="pEq">—</div><div class="note" id="pEqNote">&nbsp;</div></div>
-      <div class="card kpi"><div class="label">Open positions</div><div class="v" id="pOpen">—</div><div class="note" id="pOpenNote">&nbsp;</div></div>
-      <div class="card kpi"><div class="label">Closed trades</div><div class="v" id="pClosed">—</div><div class="note" id="pClosedNote">&nbsp;</div></div>
-      <div class="card kpi"><div class="label">Market filter</div><div class="v" id="bRegime">—</div><div class="note" id="bRegimeNote">&nbsp;</div></div>
+    <div class="sub-panel" data-s="portfolio" hidden>
+      <div class="grid-kpi">
+        <div class="card kpi"><div class="label">Portfolio (paper)</div><div class="v" id="pEq">—</div><div class="note" id="pEqNote">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Open positions</div><div class="v" id="pOpen">—</div><div class="note" id="pOpenNote">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Closed trades</div><div class="v" id="pClosed">—</div><div class="note" id="pClosedNote">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Market filter</div><div class="v" id="bRegime">—</div><div class="note" id="bRegimeNote">&nbsp;</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>The bots</h2><span class="note" id="pNote"></span></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Bot</th><th>Status</th><th>Capital</th><th>Equity</th><th>P&amp;L</th><th>Open</th><th>Closed</th><th>Next open</th><th>Tested 2022+: win</th><th>Per year</th><th>Max drawdown</th><th>Profit factor</th></tr></thead><tbody id="pBots"></tbody></table></div>
+        <p class="note">Proven: passed on data it was never tuned on (2022 onwards). Experimental: your ideas, running on paper to be proven or retired on live results. Each bot has its own slice of the $100,000 and its own record.</p>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Portfolio evidence: all bots together</h2><span class="note" id="pBtNote"></span></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Period</th><th>Trades</th><th>Win rate</th><th>Avg win</th><th>Avg loss</th><th>Profit factor</th><th>Per year</th><th>Max drawdown</th><th>Worst losing run</th></tr></thead><tbody id="pBtBody"></tbody></table></div>
+        <div class="chart-eq" id="pCurve"></div>
+        <div class="legend" id="pCurveLegend"></div>
+      </div>
     </div>
-    <div class="card">
-      <div class="card-head"><h2>The bots</h2><span class="note" id="pNote"></span></div>
-      <div class="tbl-wrap"><table><thead><tr><th>Bot</th><th>Status</th><th>Capital</th><th>Equity</th><th>P&amp;L</th><th>Open</th><th>Closed</th><th>Next open</th><th>Tested 2022+: win</th><th>Per year</th><th>Max drawdown</th><th>Profit factor</th></tr></thead><tbody id="pBots"></tbody></table></div>
-      <p class="note">Proven: passed on data it was never tuned on (2022 onwards). Experimental: your ideas, running on paper to be proven or retired on live results. Each bot has its own slice of the $100,000 and its own record.</p>
+    <div class="sub-panel" data-s="each" hidden>
+      <div class="controls"><div class="seg" id="botSeg" role="group" aria-label="Bot"></div><span class="note" id="botSummary"></span></div>
+      <div class="grid-kpi">
+        <div class="card kpi"><div class="label">Bot equity</div><div class="v" id="bEq">—</div><div class="note" id="bEqNote">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Open positions</div><div class="v" id="bOpen">—</div><div class="note" id="bOpenNote">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Closed trades</div><div class="v" id="bClosed">—</div><div class="note" id="bClosedNote">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Exposure</div><div class="v" id="bExp">—</div><div class="note" id="bExpNote">&nbsp;</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Open positions</h2><span class="note" id="bOpenAsOf"></span></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Pair</th><th>Side</th><th>Entered</th><th>Entry</th><th>Stop</th><th>Last close</th><th>P&amp;L</th><th>P&amp;L $</th><th>R</th><th>Size</th><th>Leverage</th><th>Days</th></tr></thead><tbody id="bOpenBody"></tbody></table></div>
+        <p class="note">Marked at the last daily close, after the entry fee; the exit fee is charged when the position closes. R = profit ÷ amount risked (entry to stop). Size = position value as a share of the account at entry.</p>
+      </div>
+      <div class="card" id="bOrdersCard">
+        <div class="card-head"><h2>Orders for the next open</h2><span class="note" id="bOrdersNote"></span></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Pair</th><th>Side</th><th>Signal close</th><th>Reference price</th><th>Stop distance</th></tr></thead><tbody id="bOrdersBody"></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Closed trades</h2><span class="note" id="bClosedSum"></span></div>
+        <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Side</th><th>Entered</th><th>Entry</th><th>Exited</th><th>Exit</th><th>Why</th><th>P&amp;L</th><th>P&amp;L $</th><th>R</th><th>Size</th><th>Leverage</th><th>Days</th></tr></thead><tbody id="bClosedBody"></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2 id="bStratName">Strategy</h2><span class="note" id="bStratVer"></span></div>
+        <ol class="rules" id="bRules"></ol>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Evidence: the same code on full history</h2><span class="note" id="bBtNote"></span></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Period</th><th>Trades</th><th>Win rate</th><th>Avg win</th><th>Avg loss</th><th>Profit factor</th><th>Per year</th><th>Max drawdown</th><th>Worst losing run</th></tr></thead><tbody id="bBtBody"></tbody></table></div>
+        <div class="chart-eq" id="bCurve"></div>
+        <div class="legend" id="bCurveLegend"></div>
+        <p class="note" id="bBtExplain"></p>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Backtest trades</h2><span class="note" id="bBtCount"></span></div>
+        <div class="tbl-wrap" style="max-height: 50vh"><table><thead><tr><th>Pair</th><th>Entered</th><th>Entry</th><th>Exited</th><th>Exit</th><th>Why</th><th>P&amp;L</th><th>R</th><th>Size</th><th>Days</th></tr></thead><tbody id="bBtTrades"></tbody></table></div>
+      </div>
     </div>
-    <div class="controls"><div class="seg" id="botSeg" role="group" aria-label="Bot"></div><span class="note" id="botSummary"></span></div>
-    <div class="grid-kpi">
-      <div class="card kpi"><div class="label">Bot equity</div><div class="v" id="bEq">—</div><div class="note" id="bEqNote">&nbsp;</div></div>
-      <div class="card kpi"><div class="label">Open positions</div><div class="v" id="bOpen">—</div><div class="note" id="bOpenNote">&nbsp;</div></div>
-      <div class="card kpi"><div class="label">Closed trades</div><div class="v" id="bClosed">—</div><div class="note" id="bClosedNote">&nbsp;</div></div>
-      <div class="card kpi"><div class="label">Exposure</div><div class="v" id="bExp">—</div><div class="note" id="bExpNote">&nbsp;</div></div>
+    <div class="sub-panel" data-s="record" hidden>
+      <div class="grid-kpi">
+        <div class="card kpi"><div class="label">Live since</div><div class="v" id="rDays">—</div><div class="note" id="rDaysNote">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Bots portfolio (paper)</div><div class="v" id="rRet">—</div><div class="note" id="rRetNote">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">BTC, same period</div><div class="v" id="rBtc">—</div><div class="note">Buy and hold, for comparison</div></div>
+        <div class="card kpi"><div class="label">Closed trades</div><div class="v" id="rTrades">—</div><div class="note" id="rTradesNote">&nbsp;</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Live paper results vs. what the backtest expected</h2><span class="note" id="rNote"></span></div>
+        <p class="note" style="margin:0 0 12px">The bots trade on paper from the date they went live. Every trade is recorded the first time it appears and re-checked on every update, so nothing can be edited after the fact (integrity check). "Backtest pace" is what each bot's unseen-period (2022+) yearly return would have produced over the same number of days: live results will swing around it, because real markets come in streaks.</p>
+        <div class="tbl-wrap"><table><thead><tr><th>Bot</th><th>Status</th><th>Capital</th><th>Equity</th><th>Live result</th><th>Backtest pace</th><th>Trades</th><th>Win rate</th><th>Max drawdown</th><th>Integrity</th></tr></thead><tbody id="rBots"></tbody></table></div>
+        <div class="chart-eq" id="rCurve"></div>
+        <div class="legend" id="rLegend"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Every live trade</h2><span class="note" id="rTradeNote"></span></div>
+        <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Bot</th><th>Side</th><th>Entered</th><th>Entry</th><th>Exited</th><th>Exit</th><th>Why</th><th>Result</th><th>R</th></tr></thead><tbody id="rTradeBody"></tbody></table></div>
+      </div>
     </div>
-    <div class="card">
-      <div class="card-head"><h2>Open positions</h2><span class="note" id="bOpenAsOf"></span></div>
-      <div class="tbl-wrap"><table><thead><tr><th>Pair</th><th>Side</th><th>Entered</th><th>Entry</th><th>Stop</th><th>Last close</th><th>P&amp;L</th><th>P&amp;L $</th><th>R</th><th>Size</th><th>Leverage</th><th>Days</th></tr></thead><tbody id="bOpenBody"></tbody></table></div>
-      <p class="note">Marked at the last daily close, after the entry fee; the exit fee is charged when the position closes. R = profit ÷ amount risked (entry to stop). Size = position value as a share of the account at entry.</p>
-    </div>
-    <div class="card" id="bOrdersCard">
-      <div class="card-head"><h2>Orders for the next open</h2><span class="note" id="bOrdersNote"></span></div>
-      <div class="tbl-wrap"><table><thead><tr><th>Pair</th><th>Side</th><th>Signal close</th><th>Reference price</th><th>Stop distance</th></tr></thead><tbody id="bOrdersBody"></tbody></table></div>
-    </div>
-    <div class="card">
-      <div class="card-head"><h2>Closed trades</h2><span class="note" id="bClosedSum"></span></div>
-      <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Side</th><th>Entered</th><th>Entry</th><th>Exited</th><th>Exit</th><th>Why</th><th>P&amp;L</th><th>P&amp;L $</th><th>R</th><th>Size</th><th>Leverage</th><th>Days</th></tr></thead><tbody id="bClosedBody"></tbody></table></div>
-    </div>
-    <div class="card">
-      <div class="card-head"><h2 id="bStratName">Strategy</h2><span class="note" id="bStratVer"></span></div>
-      <ol class="rules" id="bRules"></ol>
-    </div>
-    <div class="card">
-      <div class="card-head"><h2>Evidence: the same code on full history</h2><span class="note" id="bBtNote"></span></div>
-      <div class="tbl-wrap"><table><thead><tr><th>Period</th><th>Trades</th><th>Win rate</th><th>Avg win</th><th>Avg loss</th><th>Profit factor</th><th>Per year</th><th>Max drawdown</th><th>Worst losing run</th></tr></thead><tbody id="bBtBody"></tbody></table></div>
-      <div class="chart-eq" id="bCurve"></div>
-      <div class="legend" id="bCurveLegend"></div>
-      <p class="note" id="bBtExplain"></p>
-    </div>
-    <div class="card">
-      <div class="card-head"><h2>Backtest trades</h2><span class="note" id="bBtCount"></span></div>
-      <div class="tbl-wrap" style="max-height: 50vh"><table><thead><tr><th>Pair</th><th>Entered</th><th>Entry</th><th>Exited</th><th>Exit</th><th>Why</th><th>P&amp;L</th><th>R</th><th>Size</th><th>Days</th></tr></thead><tbody id="bBtTrades"></tbody></table></div>
-    </div>
-    <div class="card">
-      <div class="card-head"><h2>Portfolio evidence: all bots together</h2><span class="note" id="pBtNote"></span></div>
-      <div class="tbl-wrap"><table><thead><tr><th>Period</th><th>Trades</th><th>Win rate</th><th>Avg win</th><th>Avg loss</th><th>Profit factor</th><th>Per year</th><th>Max drawdown</th><th>Worst losing run</th></tr></thead><tbody id="pBtBody"></tbody></table></div>
-      <div class="chart-eq" id="pCurve"></div>
-      <div class="legend" id="pCurveLegend"></div>
-    </div>
-  </section>
-
-  <section class="view" id="v-record" hidden>
-    <div class="grid-kpi">
-      <div class="card kpi"><div class="label">Live since</div><div class="v" id="rDays">—</div><div class="note" id="rDaysNote">&nbsp;</div></div>
-      <div class="card kpi"><div class="label">Bots portfolio (paper)</div><div class="v" id="rRet">—</div><div class="note" id="rRetNote">&nbsp;</div></div>
-      <div class="card kpi"><div class="label">BTC, same period</div><div class="v" id="rBtc">—</div><div class="note">Buy and hold, for comparison</div></div>
-      <div class="card kpi"><div class="label">Closed trades</div><div class="v" id="rTrades">—</div><div class="note" id="rTradesNote">&nbsp;</div></div>
-    </div>
-    <div class="card">
-      <div class="card-head"><h2>Live paper results vs. what the backtest expected</h2><span class="note" id="rNote"></span></div>
-      <p class="note" style="margin:0 0 12px">The bots trade on paper from the date they went live. Every trade is recorded the first time it appears and re-checked on every update, so nothing can be edited after the fact (integrity check). "Backtest pace" is what each bot's unseen-period (2022+) yearly return would have produced over the same number of days: live results will swing around it, because real markets come in streaks.</p>
-      <div class="tbl-wrap"><table><thead><tr><th>Bot</th><th>Status</th><th>Capital</th><th>Equity</th><th>Live result</th><th>Backtest pace</th><th>Trades</th><th>Win rate</th><th>Max drawdown</th><th>Integrity</th></tr></thead><tbody id="rBots"></tbody></table></div>
-      <div class="chart-eq" id="rCurve"></div>
-      <div class="legend" id="rLegend"></div>
-    </div>
-    <div class="card">
-      <div class="card-head"><h2>Every live trade</h2><span class="note" id="rTradeNote"></span></div>
-      <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Bot</th><th>Side</th><th>Entered</th><th>Entry</th><th>Exited</th><th>Exit</th><th>Why</th><th>Result</th><th>R</th></tr></thead><tbody id="rTradeBody"></tbody></table></div>
+    <div class="sub-panel" data-s="fade" hidden>
+      <div class="card" id="p4Card" hidden>
+        <div class="card-head"><h2>Fade 4h · experimental paper bot</h2><span class="note" id="p4Note"></span></div>
+        <p class="note" style="margin:0 0 12px" id="p4Intro"></p>
+        <div class="grid-kpi" style="margin-bottom:12px">
+          <div class="card kpi"><div class="label">Paper equity</div><div class="v" id="p4Eq">—</div><div class="note" id="p4EqNote">&nbsp;</div></div>
+          <div class="card kpi"><div class="label">Open shorts</div><div class="v" id="p4Open">—</div><div class="note" id="p4OpenNote">&nbsp;</div></div>
+          <div class="card kpi"><div class="label">Closed trades</div><div class="v" id="p4Closed">—</div><div class="note" id="p4ClosedNote">&nbsp;</div></div>
+          <div class="card kpi"><div class="label">Backtest (unseen half)</div><div class="v" id="p4Bt">—</div><div class="note" id="p4BtNote">&nbsp;</div></div>
+        </div>
+        <div class="tbl-wrap" style="max-height: 45vh"><table><thead><tr><th>Pair</th><th>Status</th><th>Signal candle</th><th>Pump</th><th>Entry</th><th>Stop</th><th>Exit / price</th><th>Result</th><th>R</th></tr></thead><tbody id="p4Body"></tbody></table></div>
+      </div>
     </div>
   </section>
 
@@ -583,31 +595,43 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
   </section>
 
   <section class="view" id="v-signals" hidden>
-    <div class="controls">
-      <div class="seg" id="sigTf"><button type="button" data-tf="1d" aria-pressed="true">Daily</button><button type="button" data-tf="1w" aria-pressed="false">Weekly</button><button type="button" data-tf="1M" aria-pressed="false">Monthly</button></div>
-      <select id="sigType" aria-label="Signal type"><option value="">All signals</option></select>
-      <div class="seg" id="sigDir"><button type="button" data-d="" aria-pressed="true">Both</button><button type="button" data-d="bullish" aria-pressed="false">Bullish</button><button type="button" data-d="bearish" aria-pressed="false">Bearish</button></div>
-      <button class="toggle" type="button" id="sigConf" aria-pressed="false">Volume-confirmed only</button>
-      <span class="note" id="sigCount" style="margin-left:auto"></span>
+    <div class="card sub-head">
+      <div class="card-head"><h2>Signals</h2><span class="note" id="sigHeadNote"></span></div>
+      <p class="note sub-lead"><b>Latest signals</b>: every signal the engine detected recently (daily: 30 days, weekly and monthly: 6 months), newest first, with each signal's track record. <b>Signal library</b>: how every signal did historically, so the proven ones stand out from the noise. Tap a library row to see where that signal fired recently.</p>
+      <div class="hl-nav sub-nav" data-for="signals" role="tablist" aria-label="Signal sections">
+        <button type="button" role="tab" data-s="latest">Latest signals<i></i></button>
+        <button type="button" role="tab" data-s="library">Signal library<i></i></button>
+      </div>
     </div>
-    <div class="tbl-wrap" style="max-height: 72vh"><table><thead><tr><th>Candle</th><th>Pair</th><th>Signal</th><th>Direction</th><th>Close</th><th>Volume</th><th>State</th></tr></thead><tbody id="sigBody"></tbody></table></div>
-  </section>
-
-  <section class="view" id="v-library" hidden>
-    <div class="controls">
-      <div class="seg" id="libTf"><button type="button" data-v="1d" aria-pressed="true">Daily</button><button type="button" data-v="1w" aria-pressed="false">Weekly</button><button type="button" data-v="1M" aria-pressed="false">Monthly</button></div>
-      <div class="seg" id="libVar"><button type="button" data-v="all" aria-pressed="true">All signals</button><button type="button" data-v="confirmed" aria-pressed="false">Volume-confirmed only</button></div>
-      <div class="seg" id="libDir"><button type="button" data-v="" aria-pressed="true">Both</button><button type="button" data-v="bullish" aria-pressed="false">Bullish</button><button type="button" data-v="bearish" aria-pressed="false">Bearish</button></div>
-      <button class="toggle" type="button" id="libConsistent" aria-pressed="false">Consistent edge only</button>
-      <select id="libMin" aria-label="Minimum cases"><option value="30" selected>At least 30 cases</option><option value="100">At least 100 cases</option><option value="300">At least 300 cases</option><option value="0">Any number of cases</option></select>
-      <span class="note" id="libCount" style="margin-left:auto"></span>
+    <div class="sub-panel" data-s="latest" hidden>
+      <div class="card">
+        <div class="controls">
+          <div class="seg" id="sigTf"><button type="button" data-tf="1d" aria-pressed="true">Daily</button><button type="button" data-tf="1w" aria-pressed="false">Weekly</button><button type="button" data-tf="1M" aria-pressed="false">Monthly</button></div>
+          <select id="sigType" aria-label="Signal type"><option value="">All signals</option></select>
+          <div class="seg" id="sigDir"><button type="button" data-d="" aria-pressed="true">Both</button><button type="button" data-d="bullish" aria-pressed="false">Bullish</button><button type="button" data-d="bearish" aria-pressed="false">Bearish</button></div>
+          <button class="toggle" type="button" id="sigConf" aria-pressed="false">Volume-confirmed only</button>
+          <button class="toggle" type="button" id="sigProven" aria-pressed="false" title="Signals with a consistent 30-day edge in the right direction, both up to 2021 and since 2022, with 100+ cases">Proven only</button>
+          <span class="note" id="sigCount" style="margin-left:auto"></span>
+        </div>
+        <div class="tbl-wrap" style="max-height: 72vh"><table><thead><tr><th>Candle</th><th>Pair</th><th>Signal</th><th>Direction</th><th title="This signal's history on this timeframe (all cases since 2017): average 30-day result vs the average pair">Track record (30d)</th><th>Close</th><th>Volume</th><th>State</th></tr></thead><tbody id="sigBody"></tbody></table></div>
+      </div>
     </div>
-    <div class="card">
-      <div class="card-head"><h2>Signal scorecard</h2><span class="note" id="libBase"></span></div>
-      <p class="note" style="margin:0 0 12px">What happened after each signal since 2017, entering at the signal candle's close. It counts only signals whose indicators were warmed up, on pairs with at least $100k volume that day, and includes coins that were later delisted. <b>Edge</b> is the signal's average 30-day return minus the baseline (every liquid pair-day). For bearish signals, a negative edge means the signal correctly warned of weakness. <b>Consistent</b> means the edge has the same sign in 2017–2021 and 2022 onward, with at least 30 cases in each period.</p>
-      <div class="tbl-wrap" style="max-height: 68vh"><table><thead id="libHead"></thead><tbody id="libBody"></tbody></table></div>
+    <div class="sub-panel" data-s="library" hidden>
+      <div class="controls">
+        <div class="seg" id="libTf"><button type="button" data-v="1d" aria-pressed="true">Daily</button><button type="button" data-v="1w" aria-pressed="false">Weekly</button><button type="button" data-v="1M" aria-pressed="false">Monthly</button></div>
+        <div class="seg" id="libVar"><button type="button" data-v="all" aria-pressed="true">All signals</button><button type="button" data-v="confirmed" aria-pressed="false">Volume-confirmed only</button></div>
+        <div class="seg" id="libDir"><button type="button" data-v="" aria-pressed="true">Both</button><button type="button" data-v="bullish" aria-pressed="false">Bullish</button><button type="button" data-v="bearish" aria-pressed="false">Bearish</button></div>
+        <button class="toggle" type="button" id="libConsistent" aria-pressed="false">Consistent edge only</button>
+        <select id="libMin" aria-label="Minimum cases"><option value="30" selected>At least 30 cases</option><option value="100">At least 100 cases</option><option value="300">At least 300 cases</option><option value="0">Any number of cases</option></select>
+        <span class="note" id="libCount" style="margin-left:auto"></span>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Signal scorecard</h2><span class="note" id="libBase"></span></div>
+        <p class="note" style="margin:0 0 12px">What happened after each signal since 2017, entering at the signal candle's close. It counts only signals whose indicators were warmed up, on pairs with at least $100k volume that day, and includes coins that were later delisted. <b>Edge</b> is the signal's average 30-day return minus the baseline (every liquid pair-day). For bearish signals, a negative edge means the signal correctly warned of weakness. <b>Consistent</b> means the edge has the same sign in 2017–2021 and 2022 onward, with at least 30 cases in each period.</p>
+        <div class="tbl-wrap" style="max-height: 68vh"><table><thead id="libHead"></thead><tbody id="libBody"></tbody></table></div>
+      </div>
+      <p class="note" id="libParams"></p>
     </div>
-    <p class="note" id="libParams"></p>
   </section>
 
   <section class="view" id="v-listings" hidden>
@@ -671,7 +695,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <div class="card" id="meSettings">
         <div class="card-head"><h2>Settings</h2></div>
         <div class="acct-field"><label for="meName">Display name</label><input id="meName" maxlength="60" autocomplete="nickname"></div>
-        <div class="acct-field"><label for="meStart">Open the site on</label><select id="meStart" class="search" style="width:100%"><option value="">Overview (default)</option><option value="me">My dashboard</option><option value="highlights">Highlights</option><option value="watchlist">Watchlist</option><option value="shortlist">Bee's Shortlist</option><option value="screener">Screener</option><option value="top50">Top 50</option></select></div>
+        <div class="acct-field"><label for="meStart">Open the site on</label><select id="meStart" class="search" style="width:100%"><option value="">Overview (default)</option><option value="me">My dashboard</option><option value="highlights">Highlights</option><option value="watchlist">Watchlist</option><option value="shortlist">Bee's Shortlist</option><option value="screener">Screener</option><option value="signals">Signals</option><option value="bot">Trading bots</option></select></div>
         <div class="row-end" style="margin-top:14px"><span class="note" id="meSaved"></span><button class="btn primary" id="meSave" type="button">Save settings</button></div>
       </div>
       <div class="card">
@@ -1004,7 +1028,7 @@ function hlRow(h, showNew, noDate) {
   if (h.kind.startsWith("bot_") || h.kind === "btc_regime") right.append(chip("Bot", "warn"));
   right.append(chip(h.direction === "bullish" ? "Bullish" : h.direction === "bearish" ? "Bearish" : "Info", h.direction === "bullish" ? "up" : h.direction === "bearish" ? "down" : "neutral"));
   d.append(when, what, right);
-  d.onclick = () => { if (h.kind.startsWith("bot_")) { const b = hlDet(h).bot; if (b) { S.botId = b; store.set("botId", b); } location.hash = "bot"; } else openPair(h.symbol, "1d"); };
+  d.onclick = () => { if (h.kind.startsWith("bot_")) { const b = hlDet(h).bot; if (b) { S.botId = b; store.set("botId", b); } location.hash = "bot/each"; } else openPair(h.symbol, "1d"); };
   return d;
 }
 const isBotHl = h => h.kind.startsWith("bot_") || h.kind === "btc_regime";
@@ -1401,7 +1425,7 @@ function renderRecord() {
   const tb = $("#rBots"); tb.replaceChildren();
   R.bots.forEach(b => { const m = b.paper.metrics || {}, u = (b.backtest || {}).unseen || {}, live = 100 * (b.paper.equity / b.paper.start_equity - 1);
     const pace = isNum(u.cagr) ? 100 * (Math.pow(1 + u.cagr, days / 365.25) - 1) : null; const t = document.createElement("tr");
-    t.className = "clickable"; t.onclick = () => { S.botId = b.id; store.set("botId", b.id); location.hash = "bot"; };
+    t.className = "clickable"; t.onclick = () => { S.botId = b.id; store.set("botId", b.id); location.hash = "bot/each"; };
     t.append(td(b.name, ""), tdNode(chip(b.status === "proven" ? "Proven" : "Experimental", b.status === "proven" ? "up" : "warn")), td(usd(b.capital), "num"), td(usd(b.paper.equity), "num"),
       td(fPct(live), "num " + cls(live)), td(fPct(pace), "num cold"), td(String(m.trades || 0), "num"), td(isNum(m.win) ? fN(100 * m.win, 0) + "%" : "—", "num"),
       td(isNum(m.maxdd) ? fPct(100 * m.maxdd, 1) : "—", "num " + (m.maxdd < 0 ? "neg" : "")), td(b.paper.integrity === "ok" ? "OK" : b.paper.integrity, b.paper.integrity === "ok" ? "pos" : "neg")); tb.append(t); });
@@ -1445,11 +1469,11 @@ function renderToday() {
   if (mv.length) add(String(mv.length), mv.some(x => /pump/.test(x.kind)) ? "warn" : "neutral", `Big 4-hour moves in the last 24 hours`,
     mv.slice(0, 4).map(x => x.symbol.replace(/USDT$/, "") + " " + fPct(x.ret_pct, 0)).join(" · ") + " · pumps like these have mostly faded", () => { location.hash = "highlights/moves"; });
   const bots = S.hl.filter(isBotHl).filter(h => S.ov && h.period_start >= S.ov.last_date);
-  if (bots.length) add("B", "warn", `${bots.length} bot action${bots.length > 1 ? "s" : ""} today`, bots.slice(0, 3).map(h => h.symbol.replace(/USDT$/, "") + " " + (KIND[h.kind] ? KIND[h.kind][0] : h.kind)).join(" · "), () => { location.hash = "record"; });
+  if (bots.length) add("B", "warn", `${bots.length} bot action${bots.length > 1 ? "s" : ""} today`, bots.slice(0, 3).map(h => h.symbol.replace(/USDT$/, "") + " " + (KIND[h.kind] ? KIND[h.kind][0] : h.kind)).join(" · "), () => { location.hash = "bot/record"; });
   const ld = latestIdeaDay(), td_ = ideas().filter(x => x.date === ld);
   if (td_.length) add(String(td_.length), "neutral", `${td_.length} trade idea${td_.length > 1 ? "s" : ""}: ${td_.filter(x => x.side === "long").length} long, ${td_.filter(x => x.side === "short").length} short`, "From proven lagging signals on the 50 most liquid coins. Past ideas are scored honestly on the Highlights tab.", () => { location.hash = "highlights/ideas"; });
   const bp = S.bot && S.bot.portfolio;
-  if (bp) { const ret = 100 * (bp.equity / bp.start_equity - 1); add("$", ret >= 0 ? "up" : "down", `Bots portfolio ${fPct(ret)} since ${S.bot.inception} (paper)`, `${bp.open} open position${bp.open === 1 ? "" : "s"} · ${bp.orders} order${bp.orders === 1 ? "" : "s"} for the next open`, () => { location.hash = "record"; }); }
+  if (bp) { const ret = 100 * (bp.equity / bp.start_equity - 1); add("$", ret >= 0 ? "up" : "down", `Bots portfolio ${fPct(ret)} since ${S.bot.inception} (paper)`, `${bp.open} open position${bp.open === 1 ? "" : "s"} · ${bp.orders} order${bp.orders === 1 ? "" : "s"} for the next open`, () => { location.hash = "bot/record"; }); }
   items.slice(0, 5).forEach(x => { const li = document.createElement("li"); li.tabIndex = 0; li.onclick = x.go; li.onkeydown = e => { if (e.key === "Enter") x.go(); };
     const ic = document.createElement("span"); ic.className = "ic " + x.icCls; ic.textContent = x.ic; const w = document.createElement("div"); const b = document.createElement("b"); b.textContent = x.title; const sm = document.createElement("small"); sm.textContent = x.sub; w.append(b, sm);
     const go = document.createElement("span"); go.className = "note"; go.textContent = "›"; li.append(ic, w, go); L.append(li); });
@@ -1589,22 +1613,35 @@ const SIGN = { ema9_x_ema21: "EMA9 × EMA21", ema12_x_ema26: "EMA12 × EMA26", e
   new_ath: "New all-time high", new_1y_high: "New 1-year high", new_1y_low: "New 1-year low" };
 const sigName = s => (S.ov && S.ov.catalog && S.ov.catalog[s]) || SIGN[s] || s;
 const sigLabel = (s, d) => /^(ema|sma)50_x_\1?200$/.test(s) || s === "ema50_x_ema200" || s === "sma50_x_sma200" ? (s.startsWith("ema") ? "EMA " : "MA ") + (d === "bearish" ? "death cross (50 × 200)" : "golden cross (50 × 200)") : sigName(s);
+// a signal's own history (signal library), for the Latest signals table
+function sigStat(s) {
+  if (!S.sigStatMap) { S.sigStatMap = {}; toObjs(S.ov.signal_stats).forEach(r => { if (r.variant === "all") S.sigStatMap[r.tf + "|" + r.signal + "|" + r.direction] = r; }); }
+  return S.sigStatMap[s.tf + "|" + s.signal + "|" + s.direction] || null;
+}
+const sigProven = r => !!r && (r.n || 0) >= 100 && isConsistent(r) && ((r.direction === "bullish" && r.edge_30d > 0) || (r.direction === "bearish" && r.edge_30d < 0));
+function sigRecordCell(s) {
+  const r = sigStat(s); if (!r || !isNum(r.edge_30d)) return td("—", "cold");
+  const e = document.createElement("td"); e.className = "num"; const good = s.direction === "bearish" ? r.edge_30d < 0 : r.edge_30d > 0;
+  const v = document.createElement("span"); v.className = good ? (s.direction === "bearish" ? "neg" : "pos") : "cold"; v.textContent = fPct(r.edge_30d, 1);
+  e.append(v, document.createTextNode(" · " + Number(r.n).toLocaleString())); if (sigProven(r)) { e.append(" "); e.append(chip("Proven", s.direction === "bearish" ? "down" : "up")); }
+  e.title = `${Number(r.n).toLocaleString()} past cases: ${fPct(r.edge_30d, 1)} vs the average pair over 30 days (up to 2021 ${fPct(r.edge_30d_early, 1)}, since 2022 ${fPct(r.edge_30d_late, 1)})`; return e;
+}
 function sigRow(s, withPair) { const t = document.createElement("tr"); t.className = "clickable"; t.onclick = () => openPair(s.symbol, s.tf);
   t.append(td(s.period_start, "num")); if (withPair) t.append(tdNode(symNode(s.symbol)));
   t.append(td(sigName(s.signal)), tdNode(chip(s.direction === "bullish" ? "Bullish" : s.direction === "bearish" ? "Bearish" : "Neutral", s.direction === "bullish" ? "up" : s.direction === "bearish" ? "down" : "neutral")));
-  if (withPair) t.append(td(fPx(s.close), "num"));
+  if (withPair) t.append(sigRecordCell(s), td(fPx(s.close), "num"));
   t.append(tdNode(s.confirmed ? chip("Confirmed " + fX(s.rvol), "warn") : document.createTextNode(isNum(s.rvol) ? fX(s.rvol) : "—")));
   t.append(tdNode(s.provisional ? chip("Candle still open", "warn") : chip("Closed", "neutral"))); return t; }
 function renderSignals() {
   $$("#sigTf button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tf === S.sigTf)));
   $$("#sigDir button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.d === (S.sigDir || ""))));
-  $("#sigConf").setAttribute("aria-pressed", String(!!S.sigConf));
+  $("#sigConf").setAttribute("aria-pressed", String(!!S.sigConf)); $("#sigProven").setAttribute("aria-pressed", String(!!S.sigProvenOnly));
   const sel = $("#sigType"); if (sel.options.length === 1) [...new Set(S.sig.map(s => s.signal))].sort((a, b) => sigName(a).localeCompare(sigName(b))).forEach(s => sel.add(new Option(sigName(s), s)));
   sel.value = S.sigType || "";
-  const rows = S.sig.filter(s => s.tf === S.sigTf && (!S.sigType || s.signal === S.sigType) && (!S.sigDir || s.direction === S.sigDir) && (!S.sigConf || s.confirmed));
+  const rows = S.sig.filter(s => s.tf === S.sigTf && (!S.sigType || s.signal === S.sigType) && (!S.sigDir || s.direction === S.sigDir) && (!S.sigConf || s.confirmed) && (!S.sigProvenOnly || sigProven(sigStat(s))));
   $("#sigCount").textContent = rows.length + " events";
   const b = $("#sigBody"); b.replaceChildren(); const frag = document.createDocumentFragment(); rows.slice(0, 2500).forEach(s => frag.append(sigRow(s, true))); b.append(frag);
-  if (!rows.length) b.innerHTML = '<tr><td colspan="7" class="empty">No events for this selection.</td></tr>';
+  if (!rows.length) b.innerHTML = '<tr><td colspan="8" class="empty">No events for this selection.</td></tr>';
 }
 function renderListings() {
   const L = toObjs(S.lst.listings), last = S.ov.last_date, uni = new Set(S.scr.map(r => r.symbol));
@@ -1652,7 +1689,7 @@ function renderLibrary() {
   head.append(tr);
   const body = $("#libBody"); body.replaceChildren(); const frag = document.createDocumentFragment();
   rows.forEach(r => { const t = document.createElement("tr"); t.className = "clickable"; t.title = "Show recent events for this signal";
-    t.onclick = () => { S.sigTf = r.tf; S.sigType = r.signal; S.sigDir = r.direction === "neutral" ? "" : r.direction; S.sigConf = r.variant === "confirmed"; location.hash = "signals"; };
+    t.onclick = () => { S.sigTf = r.tf; S.sigType = r.signal; S.sigDir = r.direction === "neutral" ? "" : r.direction; S.sigConf = r.variant === "confirmed"; location.hash = "signals/latest"; };
     const bear = r.direction === "bearish", good = x => !isNum(x) ? "cold" : (bear ? (x < 0 ? "pos" : "neg") : (x > 0 ? "pos" : "neg"));
     t.append(td(sigName(r.signal)), tdNode(chip(r.direction === "bullish" ? "Bullish" : r.direction === "bearish" ? "Bearish" : "Neutral", r.direction === "bullish" ? "up" : r.direction === "bearish" ? "down" : "neutral")),
       td((r.n || 0).toLocaleString(), "num"), td(fN(r.win_7d) + "%", "num"), td(fPct(r.avg_7d), "num " + cls(r.avg_7d)), td(isNum(r.win_30d) ? fN(r.win_30d) + "%" : "—", "num"), td(fPct(r.avg_30d), "num " + cls(r.avg_30d)),
@@ -2179,7 +2216,7 @@ function renderBot() {
   $("#bRegimeNote").textContent = on ? "BTC above its 200-day average: breakout bots may buy" : "BTC below its 200-day average: breakout bots stay in cash";
   $("#pNote").textContent = `Paper trading since ${R.inception} · marked at the ${R.data_through} close (UTC)`;
   const pb = $("#pBots"); pb.replaceChildren();
-  R.bots.forEach(b => { const t = document.createElement("tr"); t.className = "clickable"; t.onclick = () => { S.botId = b.id; store.set("botId", b.id); renderBot(); };
+  R.bots.forEach(b => { const t = document.createElement("tr"); t.className = "clickable"; t.onclick = () => { S.botId = b.id; store.set("botId", b.id); location.hash = "bot/each"; };
     const u = b.backtest.unseen || {}, ret = 100 * (b.paper.equity / b.capital - 1);
     t.append(td(b.name), tdNode(statusChip(b.status)), td(usd(b.capital), "num"), td(usd(b.paper.equity), "num"), td(fPct(ret), "num " + cls(ret)),
       td(String(b.paper.open.length), "num"), td(String(b.paper.closed.length), "num"), td(String(b.paper.orders.length), "num"),
@@ -2245,18 +2282,46 @@ function renderBot() {
 const fUsd2 = v => isNum(v) ? (v < 0 ? "−$" : "$") + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
 
 // ---------- routing + controls
-const VIEWS = ["me", "overview", "top50", "bot", "record", "lab", "highlights", "screener", "watchlist", "signals", "library", "listings", "pair"];
+const VIEWS = ["me", "overview", "bot", "lab", "highlights", "screener", "watchlist", "signals", "listings", "pair"];
+// sub-sections inside a tab (#bot/record, #signals/library ...); old tab names still open the right place
+const SUBS = { bot: ["portfolio", "each", "record", "fade"], signals: ["latest", "library"] };
+const ALIAS = { top50: ["overview", "t50"], record: ["bot", "record"], library: ["signals", "library"] };
+S.sub = { bot: "portfolio", signals: "latest" };
+function setSub(view, sub) {
+  const list = SUBS[view]; if (!list) return;
+  if (!list.includes(sub) || (view === "bot" && sub === "fade" && $("#botNavFade").hidden)) sub = list[0];
+  S.sub[view] = sub;
+  $$('.sub-nav[data-for="' + view + '"] button').forEach(b => { const on = b.dataset.s === sub; b.setAttribute("aria-selected", String(on)); if (on && !$("#v-" + view).hidden) b.scrollIntoView({ block: "nearest", inline: "nearest" }); });
+  $$("#v-" + view + " > .sub-panel").forEach(x => { x.hidden = x.dataset.s !== sub; });
+  ({ bot: { portfolio: renderBot, each: renderBot, record: renderRecord, fade: renderBot }, signals: { latest: renderSignals, library: renderLibrary } })[view][sub]();
+}
+$$(".sub-nav button").forEach(b => b.onclick = () => { location.hash = b.closest(".sub-nav").dataset.for + "/" + b.dataset.s; });
 function show(v) {
   let parts = String(v || "").split("/");
   if (parts[0] === "shortlist") { parts = ["highlights", "shortlist"]; try { history.replaceState(null, "", "#highlights/shortlist"); } catch (e) {} }   // the Shortlist now lives in Highlights
   if (parts[0] === "highlights") { S.hlPanel = HL_PANELS.includes(parts[1]) ? parts[1] : "latest"; v = "highlights"; }
+  let focus = null;
+  if (ALIAS[parts[0]]) { const [to, sub] = ALIAS[parts[0]]; if (to === "overview") focus = sub; parts = [to].concat(to === "overview" ? [] : [sub]); v = to;
+    try { history.replaceState(null, "", "#" + parts.join("/")); } catch (e) {} }
+  if (SUBS[parts[0]]) { S.sub[parts[0]] = parts[1] || S.sub[parts[0]]; v = parts[0]; }
   if (parts[0] === "pair" && parts[1]) { const sym = decodeURIComponent(parts[1]).toUpperCase(); if (S.index && S.index[sym]) S.pair = sym;
     if (["1h", "4h", "1d", "1w", "1M"].includes(parts[2])) S.pairTf = parts[2]; v = "pair"; }
   if (!VIEWS.includes(v)) v = "overview"; VIEWS.forEach(x => { $("#v-" + x).hidden = x !== v; });
   $$("nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.view === v ? "page" : "false"));
-  ({ me: () => { if (!ME.user) { if (AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); return; } renderMe(); }, overview: renderOverview, top50: renderTop50, bot: renderBot, record: renderRecord, lab: renderLab, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch, signals: renderSignals, library: renderLibrary, listings: renderListings, pair: renderPair })[v](); }
+  ({ me: () => { if (!ME.user) { if (AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); return; } renderMe(); }, overview: () => { renderOverview(); renderTop50(); if (focus === "t50") setTimeout(() => $("#t50Card").scrollIntoView({ behavior: "smooth", block: "start" }), 150); },
+    bot: () => { $("#botNavFade").hidden = !S.p4; subCounts(); setSub("bot", S.sub.bot); }, lab: renderLab, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch,
+    signals: () => { subCounts(); setSub("signals", S.sub.signals); }, listings: renderListings, pair: renderPair })[v](); }
+function subCounts() {
+  const R = S.bot, PF = R && R.portfolio, fill = (view, sub, n, title) => { const b = $('.sub-nav[data-for="' + view + '"] button[data-s="' + sub + '"]'); if (!b) return; b.querySelector("i").textContent = n ? String(n) : ""; b.title = title || ""; };
+  fill("bot", "portfolio", R && R.bots ? R.bots.length : 0, "bots");
+  fill("bot", "each", PF ? PF.open : 0, "open positions (paper)");
+  fill("bot", "record", PF ? PF.closed : 0, "closed trades since launch");
+  const last = S.ov && S.ov.last_date; fill("signals", "latest", last ? S.sig.filter(x => x.tf === "1d" && x.period_start === last).length : 0, "daily signals at the latest close (" + (last || "") + ")");
+  $("#botHeadNote").textContent = R && R.inception ? "Paper trading since " + R.inception : "";
+  $("#sigHeadNote").textContent = last ? "Daily close " + last + " (UTC)" : "";
+}
 // ---------- Back: return to the exact spot you clicked from (same page, same row), with the button or the browser
-const VIEW_NAME = { overview: "Overview", shortlist: "Bee's Shortlist", top50: "Top 50", bot: "Bot", record: "Track record", lab: "Setup Lab", highlights: "Highlights", screener: "Screener", watchlist: "Watchlist", signals: "Signals", library: "Signal library", listings: "Listings", pair: "Pair chart" };
+const VIEW_NAME = { overview: "Overview", shortlist: "Bee's Shortlist", top50: "Top 50", bot: "Trading bots", record: "Trading bots", lab: "Setup Lab", highlights: "Highlights", screener: "Screener", watchlist: "Watchlist", signals: "Signals", library: "Signals", listings: "Listings", pair: "Pair chart" };
 const backStack = []; let lastClick = null, restoring = false;
 function spotOf(el) {
   const item = el && el.closest && el.closest("tr, .hl, .tile, li, [data-k], button, a");
@@ -2304,6 +2369,7 @@ segment("callSide", "v", v => { S.callSide = v; renderCalls("callsBodyW", v); })
 segment("mvKind", "v", v => { S.mvKind = v; renderMoves(); });
 segment("hsKind", "v", v => { S.hsKind = v; hsRows("hsBodyW", v); });
 $("#sigType").onchange = e => { S.sigType = e.target.value; renderSignals(); };
+$("#sigProven").onclick = e => { S.sigProvenOnly = !S.sigProvenOnly; e.currentTarget.setAttribute("aria-pressed", String(S.sigProvenOnly)); renderSignals(); };
 $("#sigConf").onclick = e => { S.sigConf = !S.sigConf; e.currentTarget.setAttribute("aria-pressed", String(S.sigConf)); renderSignals(); };
 segment("libTf", "v", v => { S.lib.tf = v; renderLibrary(); }); segment("libVar", "v", v => { S.lib.variant = v; renderLibrary(); }); segment("libDir", "v", v => { S.lib.dir = v; renderLibrary(); });
 $("#libMin").onchange = e => { S.lib.min = +e.target.value; renderLibrary(); };
