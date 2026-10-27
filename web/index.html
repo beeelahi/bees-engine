@@ -197,7 +197,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
 <header class="top" id="top">
   <div class="wrap">
     <div class="top-row">
-      <div class="brand"><svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="bm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4a55e8"/><stop offset="1" stop-color="#04b7f8"/></linearGradient></defs><path d="M16 2.5l11.7 6.75v13.5L16 29.5 4.3 22.75V9.25z" fill="url(#bm)"/><path d="M9.5 19.5l4.2-4.4 3.3 2.8 5.5-6.4" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><h1>Bee's Dashboard</h1><span class="sub">Binance spot · USDT pairs · daily close 00:00 UTC</span></div>
+      <div class="brand"><svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="bm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4a55e8"/><stop offset="1" stop-color="#04b7f8"/></linearGradient></defs><path d="M16 2.5l11.7 6.75v13.5L16 29.5 4.3 22.75V9.25z" fill="url(#bm)"/><path d="M9.5 19.5l4.2-4.4 3.3 2.8 5.5-6.4" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><h1>Bee's Dashboard</h1><span class="sub" id="brandSub">Binance spot · USDT pairs · daily close 00:00 UTC</span></div>
       <div class="fresh">
         <span class="pill" id="freshPill"><span class="dot"></span><span id="freshText">Loading data…</span></span>
         <span class="note num" id="syncText"></span>
@@ -860,6 +860,7 @@ const tzName = () => { try { return Intl.DateTimeFormat().resolvedOptions().time
 const livePx = sym => { const x = S.px && S.px.rows && S.px.rows[sym]; const age = S.px && S.px.as_of ? (Date.now() - Date.parse(S.px.as_of)) / 6e4 : 1e9; return x && age < 180 ? x : null; };
 function renderFresh() {
   const ov = S.ov, st = ov.status || {};
+  const ven = Object.entries(ov.venues || {}); if (ven.length) $("#brandSub").textContent = "Binance spot · USDT pairs (+ " + ven.map(([k, v]) => k.replace(/USDT$/, "") + " from " + v).join(", ") + ") · daily close 00:00 UTC";
   const runIso = st.last_run_utc || ov.generated_utc;
   // the engine refreshes every 15 minutes (live prices, 4h candles, shortlist); the daily package only rebuilds
   // after each daily close (00:00 UTC), so the newest of the two is the real "last update"
