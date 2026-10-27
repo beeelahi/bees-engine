@@ -1411,7 +1411,7 @@ async function renderShortlist() {
   const AUTO = !!(S.pubSL && S.pubSL.auto);
   const candCard = $("#slCandHead").closest(".card"); candCard.hidden = !SL.owner || AUTO; if (pub) $("#slConfirm").hidden = true;
   $("#slThNote").hidden = pub; $("#slThAct").hidden = pub;
-  $("#slIntro").textContent = AUTO ? `Picked automatically by the engine after every daily close, with no human approval. Rules v2 (since Oct 27, 2026): new picks only while BTC is above its 200-day average${S.pubSL.auto.market_ok === false ? " (it is below now, so no new picks are being added: that is the rule working)" : ""}, only among the 20 most liquid pairs, with a daily bull score of 7+ of 10 and a proven bullish signal (100+ past cases, a positive 30-day edge vs. the average pair both up to 2021 and since 2022) on the daily chart in the last 3 days or the latest weekly candle. Entry = that day's close; stop = entry − 2 × ATR(14), fixed at entry. A pick closes when a daily low trades below the stop, when a strong proven bearish signal fires (30-day edge of 2% or more), or when the pair leaves the universe. Why v2: tested on the full history, the first version (no market or liquidity filter) lost money since 2022 (profit factor 0.77 over 11,197 trades); v2 was the only variant that stayed positive since 2022, also out of sample (profit factor about 1.1). The edge is small: most picks lose a little and a few win big. Picks made under v1 stay listed until they close. Every open and close is written to a hash-chained ledger${S.pubSL.auto.ledger_head ? " (current head " + S.pubSL.auto.ledger_head.slice(0, 12) + "…)" : ""}. Not advice. R = (price − entry) ÷ (entry − stop).`
+  $("#slIntro").textContent = AUTO ? `Long AND short ideas, picked automatically after every daily close, with no human approval, whatever BTC does. Long: one of the 20 most liquid pairs, daily bull score 7+ of 10, and a proven bullish signal (100+ past cases, a positive 30-day edge vs. the average pair both up to 2021 and since 2022) on the daily chart in the last 3 days or the latest weekly candle; stop = entry − 2 × ATR(14). Short: any liquid pair, bull score 3 or less, a proven bearish signal; stop = entry + 2 × ATR(14); shorting needs a futures or margin account. A pick closes at its stop, when a strong proven signal fires the other way (30-day edge of 2%+), or when the pair leaves the universe. Each pick is tagged with BTC's position vs. its 200-day average at entry, because the record depends on it: tested on the full history since 2022, the longs made money while BTC was above its 200-day (profit factor about 1.1) and lost while it was below (about 0.9); the shorts made money since 2022 (profit factor 1.23) but lost in the 2019-2021 bull market. BTC is ${S.pubSL.auto.market_ok === false ? "below" : "above"} its 200-day now. Most picks lose a little and a few win big. Every open and close is written to a hash-chained ledger${S.pubSL.auto.ledger_head ? " (head " + S.pubSL.auto.ledger_head.slice(0, 12) + "…)" : ""}. Not advice. R = (price − entry) ÷ (entry − stop); for shorts the result is shown in the trade's favour.`
     : pub ? `Bee's own picks, public from the moment they are made: every pick and every close is a timestamped commit in the open-source repository, so the record cannot be edited after the fact${S.pubSL.as_of ? " (list as of " + S.pubSL.as_of.slice(0, 16).replace("T", " ") + " UTC)" : ""}. Not advice: these are one trader's positions, shown with their full record, losers included. Entry is the close of the latest daily candle on the day of approval; the stop is entry − 2 × ATR(14), locked at approval. R = (price − entry) ÷ (entry − stop). "Stop hit" means a daily low since approval went below the stop. "Review" means a proven bearish signal fired since approval.`
     : "Only you can approve or remove entries. The list (pair, dates, entry, stop, status and result; never your notes or the suggestions) is also published read-only on the public site. Entry is the close of the latest closed daily candle on the day you approve. Stop = entry − 2 × ATR(14, daily), locked at approval. R = (price − entry) ÷ (entry − stop). Stop hit: a daily low since approval went below the stop. Review: a proven bearish signal (consistent edge, 100+ cases) fired on the pair since approval.";
   const last = S.ov.last_date, P = provenSets(), scr = Object.fromEntries(S.scr.map(r => [r.symbol, r]));
@@ -1419,21 +1419,23 @@ async function renderShortlist() {
   $("#slNote").textContent = active.length + " active · prices as of the " + last + " daily close";
   const tb = $("#slActive"); tb.replaceChildren();
   for (const d of active) {
-    const r = scr[d.symbol], px = r ? r.last_close : null, ret = isNum(px) ? (px / d.entry - 1) * 100 : null, R = isNum(px) ? (px - d.entry) / (d.entry - d.stop) : null;
-    if (!SL.lows[d.id]) SL.lows[d.id] = lowsSince(d.symbol, d.entry_date);
-    const lo = await SL.lows[d.id];
-    const hit = lo && lo.v < d.stop;
-    const bears = S.sig.filter(x => x.symbol === d.symbol && x.period_start > d.entry_date && P.bear.has(x.tf + "|" + x.signal + "|" + x.direction));
+    const short = d.side === "short", sgn = short ? -1 : 1;
+    const r = scr[d.symbol], px = r ? r.last_close : null, ret = isNum(px) ? sgn * (px / d.entry - 1) * 100 : null, R = isNum(px) ? (px - d.entry) / (d.entry - d.stop) : null;
+    let hit = false, lo = null;
+    if (!short) { if (!SL.lows[d.id || d.symbol + d.entry_date]) SL.lows[d.id || d.symbol + d.entry_date] = lowsSince(d.symbol, d.entry_date); lo = await SL.lows[d.id || d.symbol + d.entry_date]; hit = lo && lo.v < d.stop; }
+    const bears = S.sig.filter(x => x.symbol === d.symbol && x.period_start > d.entry_date && (short ? P.bull : P.bear).has(x.tf + "|" + x.signal + "|" + x.direction));
     const warn = document.createElement("span"); warn.className = "controls"; warn.style.gap = "4px";
-    bears.slice(0, 3).forEach(x => { const c = chip(sigLabel(x.signal, x.direction) + (x.tf === "1w" ? " (weekly)" : ""), "down"); c.title = x.period_start; warn.append(c); });
+    bears.slice(0, 3).forEach(x => { const c = chip(sigLabel(x.signal, x.direction) + (x.tf === "1w" ? " (weekly)" : ""), short ? "up" : "down"); c.title = x.period_start; warn.append(c); });
+    if (d.market) warn.append(chip(d.market === "btc_above_200d" ? "BTC above 200d at entry" : "BTC below 200d at entry", d.market === "btc_above_200d" ? "neutral" : "warn"));
     if (!r) warn.append(chip("Left universe", "warn"));
-    if (d.source === "auto" && Array.isArray(d.why)) d.why.slice(0, 3).forEach(k => { const [tf, sg] = k.split(":"); const c = chip(sigLabel(sg, "bullish") + (tf === "1w" ? " (weekly)" : ""), "up"); c.title = "Entry signal"; warn.append(c); });
+    if (d.source === "auto" && Array.isArray(d.why)) d.why.slice(0, 3).forEach(k => { const [tf, sg] = k.split(":"); const c = chip(sigLabel(sg, short ? "bearish" : "bullish") + (tf === "1w" ? " (weekly)" : ""), short ? "down" : "up"); c.title = "Entry signal"; warn.append(c); });
     const status = hit ? chip("Stop hit " + (lo.d || ""), "down") : bears.length ? chip("Review", "warn") : chip("Active", "up");
     const t = document.createElement("tr"); t.className = "clickable";
     const act = document.createElement("button"); act.className = "btn small"; act.type = "button"; act.textContent = "Remove";
     act.onclick = e => { e.stopPropagation(); askClose(d, px, hit); };
     t.onclick = () => r && openPair(d.symbol);
-    t.append(tdNode(symNode(d.symbol)), tdNode(status), td(d.entry_date, "num"), td(fPx(d.entry), "num"), td(fPx(d.stop), "num"), td(fPx(px), "num"),
+    const symCell = document.createElement("span"); symCell.style.display = "inline-flex"; symCell.style.gap = "6px"; symCell.append(symNode(d.symbol), chip(short ? "Short" : "Long", short ? "down" : "up"));
+    t.append(tdNode(symCell), tdNode(status), td(d.entry_date, "num"), td(fPx(d.entry), "num"), td(fPx(d.stop), "num"), td(fPx(px), "num"),
       td(fPct(ret), "num " + cls(ret)), td(isNum(R) ? (R >= 0 ? "+" : "") + R.toFixed(2) + "R" : "—", "num " + cls(R)), tdNode(r && isNum(r.d_bull_score) ? chip(String(r.d_bull_score), r.d_bull_score >= 8 ? "up" : r.d_bull_score <= 2 ? "down" : "neutral") : chip("—", "neutral")),
       tdNode(warn), ...(pub ? [] : [td(d.note || "", "note"), tdNode(act)]));
     tb.append(t);
@@ -1470,8 +1472,9 @@ async function renderShortlist() {
 }
 function renderClosedSL(closed) {
   const cl = $("#slClosed"); cl.replaceChildren();
-  closed.forEach(d => { const res = (d.exit / d.entry - 1) * 100, R = (d.exit - d.entry) / (d.entry - d.stop); const t = document.createElement("tr");
-    t.append(tdNode(symNode(d.symbol)), td(d.entry_date, "num"), td(fPx(d.entry), "num"), td(d.exit_date || "", "num"), td(fPx(d.exit), "num"), td(fPct(res), "num " + cls(res)), td((R >= 0 ? "+" : "") + R.toFixed(2) + "R", "num " + cls(R)), td(d.close_reason || "", "note")); cl.append(t); });
+  closed.forEach(d => { const sh = d.side === "short", res = (sh ? -1 : 1) * (d.exit / d.entry - 1) * 100, R = (d.exit - d.entry) / (d.entry - d.stop); const t = document.createElement("tr");
+    const sc = document.createElement("span"); sc.style.display = "inline-flex"; sc.style.gap = "6px"; sc.append(symNode(d.symbol), chip(sh ? "Short" : "Long", sh ? "down" : "up"));
+    t.append(tdNode(sc), td(d.entry_date, "num"), td(fPx(d.entry), "num"), td(d.exit_date || "", "num"), td(fPx(d.exit), "num"), td(fPct(res), "num " + cls(res)), td((R >= 0 ? "+" : "") + R.toFixed(2) + "R", "num " + cls(R)), td(d.close_reason || "", "note")); cl.append(t); });
   if (!closed.length) cl.innerHTML = '<tr><td colspan="8" class="empty">No closed items yet.</td></tr>';
 }
 function confirmPanel(title, stats, btnText, onDo) {

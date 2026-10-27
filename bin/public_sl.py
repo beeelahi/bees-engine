@@ -16,7 +16,7 @@ SRC = os.path.join(ROOT, "picks", "picks.json")          # deployed from the rep
 AUTO = os.path.join(ROOT, "data", "auto_picks.json")     # written by auto_picks.py on the server
 DST = os.path.join(ROOT, "web_export", "shortlist.json")
 FIELDS = {"symbol": str, "status": str, "entry": float, "entry_date": str, "stop": float, "risk_pct": float,
-          "approved_at": str, "exit": float, "exit_date": str, "closed_at": str, "close_reason": str, "source": str, "why": list}
+          "approved_at": str, "exit": float, "exit_date": str, "closed_at": str, "close_reason": str, "source": str, "why": list, "side": str, "market": str}
 WHY_RE = re.compile(r"(1d|1w):[a-z0-9_]{1,40}")
 SYM_RE = re.compile(r"[A-Z0-9]{1,20}USDT")
 DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}([T ][0-9:.]+Z?)?")
@@ -48,7 +48,12 @@ def _clean(d):
     for k in ("entry_date", "exit_date", "approved_at", "closed_at"):
         if k in out and not DATE_RE.fullmatch(out[k]):
             return None
-    if "entry" not in out or "stop" not in out or "entry_date" not in out or out["stop"] >= out["entry"]:
+    out["side"] = "short" if out.get("side") == "short" else "long"
+    if out.get("market") not in (None, "btc_above_200d", "btc_below_200d"):
+        out.pop("market")
+    if "entry" not in out or "stop" not in out or "entry_date" not in out:
+        return None
+    if (out["side"] == "long" and out["stop"] >= out["entry"]) or (out["side"] == "short" and out["stop"] <= out["entry"]):
         return None
     out["source"] = "auto" if out.get("source") == "auto" else "bee"
     if "close_reason" in out:                      # free text the owner typed: publish only standard reasons
