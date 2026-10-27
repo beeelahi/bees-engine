@@ -390,7 +390,8 @@ def run_sync(con, force):
         meta_set(con, "history_start", hist_start)
         con.commit()
 
-    if not force and meta_get(con, "synced_through") == last_day and meta_get(con, "universe_date") == today:
+    new_ext = [x for x in venues.EXTERNAL if not con.execute("SELECT 1 FROM pairs WHERE symbol=?", (x,)).fetchone()]
+    if not force and not new_ext and meta_get(con, "synced_through") == last_day and meta_get(con, "universe_date") == today:
         log.info(f"Up to date through {last_day}. Nothing to do.")
         return {"ok": True, "noop": True, "synced_through": last_day}
 
