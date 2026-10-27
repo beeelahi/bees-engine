@@ -37,6 +37,8 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 - Operations status shows which keys are present (names only) and the live / market-maker settings.
 
 ### Changed
+- Channel calls use only the statuses with a measured edge (bottom entries and midline retests long, midline
+  lost / top rejection short), graded by that record; midline reclaims, breakouts and breakdowns were dropped.
 - Bee's Shortlist rules v2: new picks only while BTC is above its 200-day average and only among the 20 most
   liquid pairs; exits on strong proven bearish signals only. v1 lost money since 2022 in the shortlist study.
 - 1h and 4h top-ups are fetched in parallel (an hourly top-up took ~9 minutes).

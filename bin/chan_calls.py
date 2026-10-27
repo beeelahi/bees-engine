@@ -3,8 +3,8 @@ Channel calls (Python 3.9 stdlib only): coins whose daily channel gives an entry
 
 A call needs all of:
   * a daily channel (bin/chan.py) in an entry status:
-      long:  near_bottom, bottom_bounce, mid_retest, mid_reclaim, breakout
-      short / caution: breakdown, mid_loss, top_reject
+      long:  near_bottom, bottom_bounce, mid_retest
+      short / caution: mid_loss, top_reject
   * at least one PROVEN signal in the same direction on the pair: fired on the daily chart in the last 3 days or on
     the latest closed weekly candle (proven = 100+ cases, 30-day edge vs the average pair with the same sign in the
     full history and in both halves, up to 2021 and 2022 on: the same test the automatic shortlist uses);
@@ -12,7 +12,8 @@ A call needs all of:
     shorts.
 One call per coin (its best channel). Score = channel quality + 2 per agreeing proven signal (+1 if volume
 confirmed) + the status's measured 30-day result vs the average coin + the bull score's distance from neutral.
-Grade A = 2+ agreeing proven signals and a status that has not lagged the market; else B.
+Grade A = the long statuses with the best measured record (near the bottom, bounce off the bottom, midline retest);
+B = the shorts (midline lost, rejected at the top). The full record is in calls_stats.json (bin/calls_study.py).
 Plan: the stop sits 10% of the channel width beyond the line the entry depends on (the bottom line for bottom
 entries, the midline for midline reclaims / retests, the top line for breakouts; for shorts the line that was lost
 or rejected). Targets: the midline, then the far line (a breakout: half a width above the top). A call is kept only
@@ -20,8 +21,11 @@ when the stop is within MAX_RISK of the price and the first target pays at least
 """
 from datetime import datetime, timedelta
 
-LONG = {"near_bottom", "bottom_bounce", "mid_retest", "mid_reclaim", "breakout"}
-SHORT = {"breakdown", "mid_loss", "top_reject"}
+# Statuses kept after bin/calls_study.py (2022 on, out of sample, average R per call): mid_retest +0.22, near_bottom
+# +0.18, mid_loss +0.10. Dropped: mid_reclaim +0.04 and breakout +0.03 (no real edge), breakdown -0.23.
+LONG = {"near_bottom", "bottom_bounce", "mid_retest"}
+SHORT = {"mid_loss", "top_reject"}
+GRADE_A = {"near_bottom", "bottom_bounce", "mid_retest"}   # the statuses with the best measured record
 REPOST_DAYS = 7
 MAX_RISK, MIN_RR = 0.20, 1.5
 
@@ -72,7 +76,7 @@ def build(con, chan_rows, signal_stats, last_date):
         rr = abs(t1 - close) / risk if risk > 0 and (t1 - close) * sg > 0 else None
         if risk <= 0 or risk / close > MAX_RISK or rr is None or rr < MIN_RR:
             continue                                # a great channel is not a great entry when the stop is too far
-        grade = "A" if len(agree) >= 2 and (rel is None or sg * rel >= 0) else "B"
+        grade = "A" if x["status"] in GRADE_A else "B"
         row = {"symbol": x["symbol"], "side": side, "grade": grade, "score": round(score, 1), "status": x["status"],
                "date": last_date, "close": close, "stop": _r(stop), "t1": _r(t1), "t2": _r(t2), "rr": None if rr is None else round(rr, 1),
                "risk_pct": round(100 * risk / close, 1) if close else None,
@@ -83,7 +87,11 @@ def build(con, chan_rows, signal_stats, last_date):
         if x["symbol"] not in best or row["score"] > best[x["symbol"]]["score"]:
             best[x["symbol"]] = row
     rows = sorted(best.values(), key=lambda r: (r["grade"], -r["score"]))
-    return {"rows": rows, "rules": {"long": sorted(LONG), "short": sorted(SHORT), "daily_days": 3, "repost_days": REPOST_DAYS,
+    import json
+    import os
+    sp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "calls_stats.json")
+    stats = json.load(open(sp)) if os.path.exists(sp) else {}
+    return {"rows": rows, "stats": stats, "rules": {"long": sorted(LONG), "short": sorted(SHORT), "daily_days": 3, "repost_days": REPOST_DAYS,
                                      "max_risk_pct": 100 * MAX_RISK, "min_rr": MIN_RR}}
 
 

@@ -29,6 +29,10 @@ rules look the way they do. Scripts are in `research/`.
   the 20 most liquid pairs did it stay positive since 2022 (profit factor about 1.1, also when 'proven' signals were
   chosen with data up to 2021 only). This is the live rule (v2).
 
+* **Channel calls** (`bin/calls_study.py`, every call replayed point in time, 2022 on, signals chosen on data up to
+  2021): midline retests +0.22R and bottom entries +0.18R per call, midline-lost shorts +0.10R; overall profit factor
+  1.05 (longs) and 1.22 (shorts). Midline reclaims (+0.04R) and breakouts (+0.03R) were dropped, breakdowns (-0.23R) too.
+
 ## Did not hold up
 
 * Shortlist v1 (any liquid pair, no market filter, exit on any proven bearish signal): profit factor 0.77 since 2022

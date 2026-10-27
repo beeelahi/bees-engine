@@ -1,0 +1,6 @@
+{"source": "bin/calls_study.py on the full history, 2022-01-01 to 2026-10, proven signals chosen with data up to 2021 only (out of sample)",
+ "long": {"calls": 3943, "win": 30, "avg_pct": 0.37, "avg_r": 0.08, "pf": 1.05},
+ "short": {"calls": 2058, "win": 32, "avg_pct": 1.60, "avg_r": 0.10, "pf": 1.22},
+ "status": {"mid_retest": {"n": 550, "avg_r": 0.22}, "near_bottom": {"n": 602, "avg_r": 0.18}, "mid_reclaim": {"n": 1988, "avg_r": 0.04},
+            "breakout": {"n": 803, "avg_r": 0.03}, "mid_loss": {"n": 2035, "avg_r": 0.10}, "breakdown": {"n": 23, "avg_r": -0.23}},
+ "before_2022": {"long": {"calls": 622, "avg_r": 0.40, "pf": 1.72}, "short": {"calls": 226, "avg_r": -0.11, "pf": 0.80}}}
