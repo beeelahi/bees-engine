@@ -43,5 +43,8 @@ case "$CMD" in
   trading-resume)  rm -f "$ROOT/STOP_TRADING"; echo "STOP_TRADING cleared" ;;
   carry-study)     nice -n 10 python3 "$ROOT/bin/carry_study.py" ;;
   shortlist-study) nice -n 10 python3 "$ROOT/bin/shortlist_study.py" ;;
-  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop trading-stop trading-resume carry-study shortlist-study"; exit 2 ;;
+  calls-study)     setsid nohup nice -n 15 python3 "$ROOT/bin/calls_study.py" > "$ROOT/logs/calls_study.txt" 2>&1 < /dev/null &
+                   echo "channel calls study started in the background; read it with study-log" ;;
+  study-log)       tail -n "$N" "$ROOT/logs/calls_study.txt" 2>/dev/null || echo "no study output yet" ;;
+  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop trading-stop trading-resume carry-study shortlist-study calls-study study-log"; exit 2 ;;
 esac
