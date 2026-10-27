@@ -33,6 +33,16 @@ def build(con, api):
                        round(float(t["quoteVolume"]))]
         except (KeyError, TypeError, ValueError):
             continue
+    for s in sorted(uni):                       # pairs tracked from another venue (venues.py)
+        try:
+            import venues
+            if not venues.is_external(s):
+                continue
+            t = venues.ticker24(None, s)
+            rows[s] = [_r(t["lastPrice"]), round(float(t["priceChangePercent"]), 2), _r(t["highPrice"]), _r(t["lowPrice"]),
+                       round(float(t["quoteVolume"]))]
+        except Exception:
+            continue
     return {"as_of": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "columns": COLUMNS, "rows": rows}
 
 

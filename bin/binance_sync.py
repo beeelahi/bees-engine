@@ -30,6 +30,8 @@ Python 3.8+, standard library only. Uses the system `curl` for HTTPS.
 import argparse, csv, fcntl, json, logging, logging.handlers, os, platform
 import re, shutil, sqlite3, subprocess, sys, tempfile, time, urllib.request, urllib.error, urllib.parse
 from datetime import datetime, timezone, timedelta
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import venues  # noqa: E402  pairs tracked from another exchange (ZIG on MEXC)
 
 # ---------------------------------------------------------------- settings
 HISTORY_START = "2017-07-01"   # before Binance's first candles: = full history since each listing
@@ -123,6 +125,8 @@ def _fetch(url):
 
 
 def api(path, params=None, retries=5):
+    if path == "/api/v3/klines" and params and venues.is_external(params.get("symbol")):
+        return venues.klines(_fetch, params)             # same rows as Binance, from the pair's own venue
     q = ("?" + urllib.parse.urlencode(params)) if params else ""   # encodes non-ASCII symbols
     last = None
     for host in HOSTS:
@@ -229,11 +233,19 @@ def store(con, sym, klines, stamp):
         for issue in validate(sym, d, o, h, l, c, vb, vq):
             con.execute("INSERT OR IGNORE INTO anomalies VALUES(?,?,?,?)", (sym, d, issue, stamp))
             n_anom += 1
-        out.append((sym, d, o, h, l, c, vb, vq, int(k[8]), float(k[9]), float(k[10]),
+        out.append((sym, d, o, h, l, c, vb, vq, _int(k[8]), _num(k[9]), _num(k[10]),
                     int(k[0]), int(k[6]), stamp))
     before = con.total_changes
     con.executemany("INSERT OR IGNORE INTO daily VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", out)
     return con.total_changes - before, n_anom
+
+
+def _num(x):
+    return None if x is None else float(x)
+
+
+def _int(x):
+    return None if x is None else int(x)
 
 
 def contiguous(dates):
@@ -323,6 +335,30 @@ def refresh_universe(con, today, stamp):
         if t and st == "TRADING":
             con.execute("INSERT OR IGNORE INTO ticker_snapshots VALUES(?,?,?,?,?)",
                         (today, sym, float(t["lastPrice"]), float(t["quoteVolume"]), stamp))
+    for sym in venues.EXTERNAL:                  # pairs from another venue; Binance wins if it lists the same symbol
+        if sym in seen:
+            continue
+        s = venues.exchange_info(_fetch, sym)
+        if not s:
+            continue
+        seen.add(sym)
+        st = s["status"]
+        row = con.execute("SELECT status FROM pairs WHERE symbol=?", (sym,)).fetchone()
+        if row is None:
+            con.execute("INSERT INTO pairs(symbol, token, status, first_seen, last_seen_trading) VALUES(?,?,?,?,?)",
+                        (sym, s["baseAsset"], st, today, today if st == "TRADING" else None))
+        else:
+            con.execute("UPDATE pairs SET delisted_on=CASE WHEN ?='TRADING' THEN NULL WHEN status='TRADING' THEN ? ELSE delisted_on END,"
+                        " status=?, last_seen_trading=COALESCE(?, last_seen_trading) WHERE symbol=?",
+                        (st, today, st, today if st == "TRADING" else None, sym))
+        try:
+            t = venues.ticker24(_fetch, sym)
+            if st == "TRADING":
+                con.execute("INSERT OR IGNORE INTO ticker_snapshots VALUES(?,?,?,?,?)",
+                            (today, sym, float(t["lastPrice"]), float(t["quoteVolume"]), stamp))
+        except Exception as e:
+            log.warning(f"  {sym}: 24h ticker from {venues.venue(sym)} failed: {e}")
+        log.info(f"  {sym}: tracked from {venues.venue(sym)} ({st})")
     for (sym,) in con.execute("SELECT symbol FROM pairs").fetchall():
         if not sym.isascii():
             for t in ("pairs", "daily", "gaps", "anomalies", "ticker_snapshots"):
@@ -420,7 +456,7 @@ def run_sync(con, force):
 
 
 # ---------------------------------------------------------------- circulating supply (for estimated market cap)
-ENGINE_VERSION = "13"     # bump when engine/bot/export code changes so the next hourly run rebuilds once
+ENGINE_VERSION = "14"     # bump when engine/bot/export code changes so the next hourly run rebuilds once
 SUPPLY_URL = "https://www.binance.com/bapi/asset/v2/public/asset-service/product/get-products?includeEtf=false"
 
 
@@ -560,6 +596,8 @@ def audit(con, n):
                        " FROM daily ORDER BY RANDOM() LIMIT ?", (n,)).fetchall()
     bad = 0
     for sym, d, *stored in rows:
+        if venues.is_external(sym):                  # audits compare against Binance itself
+            continue
         k = api("/api/v3/klines", {"symbol": sym, "interval": "1d", "startTime": d2ms(d), "limit": 1})
         if not k or ms2d(int(k[0][0])) != d:
             log.error(f"AUDIT {sym} {d}: candle not returned by Binance")
@@ -586,6 +624,8 @@ def audit_resample(con, n_syms):
                                       " ORDER BY RANDOM() LIMIT ?", (n_syms,))]
     checked = bad = 0
     for sym in syms:
+        if venues.is_external(sym):
+            continue
         for tf in ("1w", "1M"):
             ours = {r[0]: r[1:] for r in con.execute(
                 "SELECT period_start, open, high, low, close, volume_base, volume_usdt, trades FROM candles"

@@ -72,7 +72,7 @@ tbody tr.clickable { cursor: pointer; }
 .chip.warn { background: var(--warn-soft); color: var(--warn); } .chip.neutral { background: var(--panel-2); color: var(--muted); }
 .chip.new { background: linear-gradient(90deg, var(--btn-from), var(--accent)); color: #fff; }
 .trend { display: inline-flex; gap: 3px; } .trend .chip { width: 22px; text-align: center; padding: 1px 0; }
-.sym { font-weight: 600; } .sym small { color: var(--muted); font-weight: 400; margin-left: 2px; }
+.sym { font-weight: 600; } .sym small { color: var(--muted); font-weight: 400; margin-left: 2px; } .sym small.venue { color: var(--accent); font-size: 10px; letter-spacing: .03em; }
 .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; gap: 2px; background: rgba(255,255,255,0.04); overflow-x: auto; max-width: 100%; scrollbar-width: none; }
 .seg button { border-radius: 999px; }
@@ -761,7 +761,9 @@ const cls = v => !isNum(v) ? "cold" : v > 0 ? "pos" : v < 0 ? "neg" : "";
 function td(text, c = "", title = "") { const e = document.createElement("td"); e.textContent = text; if (c) e.className = c; if (title) e.title = title; return e; }
 function tdNode(node, c = "") { const e = document.createElement("td"); if (node) e.append(node); if (c) e.className = c; return e; }
 function chip(text, kind) { const s = document.createElement("span"); s.className = "chip " + kind; s.textContent = text; return s; }
-function symNode(sym) { const s = document.createElement("span"); s.className = "sym"; s.textContent = sym.replace(/USDT$/, ""); const m = document.createElement("small"); m.textContent = "/USDT"; s.append(m); return s; }
+const venueOf = sym => (S.ov && S.ov.venues && S.ov.venues[sym]) || null;      // pairs tracked from another exchange
+function symNode(sym) { const s = document.createElement("span"); s.className = "sym"; s.textContent = sym.replace(/USDT$/, ""); const m = document.createElement("small"); m.textContent = "/USDT"; s.append(m);
+  const v = venueOf(sym); if (v) { const t = document.createElement("small"); t.className = "venue"; t.textContent = " " + v; t.title = "Data from " + v + " (not listed on Binance)"; s.append(t); } return s; }
 const toObjs = t => t && t.columns ? t.rows.map(r => Object.fromEntries(t.columns.map((c, i) => [c, r[i]]))) : [];
 const daysAgo = (d, n) => new Date(Date.parse(d) - n * 864e5).toISOString().slice(0, 10);
 
@@ -1825,7 +1827,7 @@ async function renderPair() {
   syncPairHash();
   const r = S.scr.find(x => x.symbol === S.pair), p = { "4h": "d", "1d": "d", "1w": "w", "1M": "m" }[S.pairTf];
   const lp = livePx(S.pair);
-  paintStar(); $("#pairName").textContent = S.pair ? S.pair.replace(/USDT$/, " / USDT") : "—"; $("#pairPx").textContent = lp ? fPx(lp[0]) : r ? fPx(r.last_close) : "—";
+  paintStar(); $("#pairName").textContent = S.pair ? S.pair.replace(/USDT$/, " / USDT") + (venueOf(S.pair) ? " · " + venueOf(S.pair) : "") : "—"; $("#pairPx").textContent = lp ? fPx(lp[0]) : r ? fPx(r.last_close) : "—";
   $("#pairPx").title = lp ? "Live price, " + fmtLocal(S.px.as_of) + " (refreshed every 15 minutes)" : "Last daily close";
   const chg = $("#pairChg"); chg.replaceChildren();
   if (lp) { const c = chip(fPct(lp[1]) + " 24h", lp[1] >= 0 ? "up" : "down"); c.title = "Rolling 24 hours to " + fmtLocal(S.px.as_of) + " · high " + fPx(lp[2]) + " · low " + fPx(lp[3]); chg.append(c); }

@@ -26,7 +26,7 @@ case "$CMD" in
     ;;
   logs|sync-log)   tail -n "$N" "$ROOT/logs/sync.log" | scrub ;;
   deploy-log)      tail -n "$N" "$ROOT/logs/deploy.log" 2>/dev/null | scrub ;;
-  mm-log)          journalctl -u bees-mm --no-pager -n "$N" 2>/dev/null | scrub ;;
+  mm-log)          sudo -n journalctl -u bees-mm --no-pager -n "$N" 2>/dev/null | scrub ;;
   health)
     last=$(grep -E "Run OK|Up to date" "$ROOT/logs/sync.log" | tail -1 | cut -c1-19)
     age=$(( $(date -u +%s) - $(date -u -d "$last" +%s 2>/dev/null || echo 0) ))
@@ -38,10 +38,10 @@ case "$CMD" in
   deploy)          sudo systemctl start bees-deploy.service && tail -n 5 "$ROOT/logs/deploy.log" ;;
   rollback)        "$ROOT/deploy/pull_deploy.sh" --rollback --now ;;
   mm-start)        rm -f "$ROOT/MM_STOP"; sudo systemctl restart bees-mm.service; echo "market maker (re)started; it trades only if mm.json enabled" ;;
-  mm-paper-start)  rm -f "$ROOT/MM_PAPER_STOP"; sudo systemctl enable bees-mm-paper.service >/dev/null 2>&1 || true; sudo systemctl restart bees-mm-paper.service; sleep 20; systemctl is-active bees-mm-paper.service || true; journalctl -u bees-mm-paper --no-pager -n 20 | scrub ;;
+  mm-paper-start)  rm -f "$ROOT/MM_PAPER_STOP"; sudo systemctl enable bees-mm-paper.service >/dev/null 2>&1 || true; sudo systemctl restart bees-mm-paper.service; sleep 20; systemctl is-active bees-mm-paper.service || true; sudo -n journalctl -u bees-mm-paper --no-pager -n 20 | scrub ;;
   mm-paper-stop)   sudo systemctl disable --now bees-mm-paper.service >/dev/null 2>&1 || true; echo "paper market maker stopped (results kept in data/mm_paper_*.db)" ;;
   mm-paper-report) python3 "$ROOT/bin/mm_paper.py" --report ;;
-  mm-paper-log)    journalctl -u bees-mm-paper --no-pager -n "$N" 2>/dev/null | scrub ;;
+  mm-paper-log)    sudo -n journalctl -u bees-mm-paper --no-pager -n "$N" 2>/dev/null | scrub ;;
   mm-stop)         touch "$ROOT/MM_STOP"; echo "MM_STOP set: the bot cancels its own orders and pauses (it never market-sells)" ;;
   trading-stop)    touch "$ROOT/STOP_TRADING"; echo "STOP_TRADING set: the live engine places no new entries" ;;
   trading-resume)  rm -f "$ROOT/STOP_TRADING"; echo "STOP_TRADING cleared" ;;

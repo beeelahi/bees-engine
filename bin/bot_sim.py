@@ -212,6 +212,8 @@ def prepare(daily_rows, tokens):
     """daily_rows: iterable of (symbol, date, o, h, l, c, vol_usdt) sorted by symbol, date.
     tokens: symbol -> base token.  Returns {symbol: F}, and the BTC regime by day number."""
     bad = excluded_tokens(tokens.values())
+    import venues                                # the Binance bots never trade pairs from another venue
+    bad |= {tokens[s] for s in venues.EXTERNAL if s in tokens}
     by = {}
     cur, buf = None, []
     for r in daily_rows:

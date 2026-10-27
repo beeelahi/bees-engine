@@ -98,7 +98,8 @@ def _store(con, sym, klines, stamp):
         o, h, l, c, vb, vq = float(k[1]), float(k[2]), float(k[3]), float(k[4]), float(k[5]), float(k[7])
         for issue in _validate(o, h, l, c, vb, vq):
             con.execute("INSERT OR IGNORE INTO h1_anomalies VALUES(?,?,?,?)", (sym, int(k[0]), issue, stamp))
-        out.append((sym, int(k[0]), o, h, l, c, vb, vq, int(k[8]), float(k[9]), float(k[10]), int(k[6]), stamp))
+        out.append((sym, int(k[0]), o, h, l, c, vb, vq, None if k[8] is None else int(k[8]),
+                    None if k[9] is None else float(k[9]), None if k[10] is None else float(k[10]), int(k[6]), stamp))
     before = con.total_changes
     con.executemany("INSERT OR IGNORE INTO candles_1h VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", out)
     return con.total_changes - before
