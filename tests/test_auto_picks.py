@@ -28,7 +28,15 @@ class AutoPicksTest(unittest.TestCase):
         self.d = tempfile.mkdtemp()
         self.state, self.ledger = os.path.join(self.d, "ap.json"), os.path.join(self.d, "ap.log")
         self.con = sqlite3.connect(":memory:")
-        self.con.execute("CREATE TABLE daily (symbol TEXT, date TEXT, low REAL, close REAL)")
+        self.con.execute("CREATE TABLE daily (symbol TEXT, date TEXT, low REAL, close REAL, volume_usdt REAL)")
+        from datetime import date, timedelta
+        rows = []                                   # BTC rising for 220 days (market on); liquid pairs traded
+        for k in range(220):
+            d = (date(2026, 10, 11) - timedelta(days=219 - k)).isoformat()
+            rows.append(("BTCUSDT", d, 100 + k, 100 + k, 9e9))
+            if k >= 200:
+                rows += [(s, d, 1e9, 1e9, 5e7) for s in ("AAAUSDT", "BBBUSDT", "CCCUSDT", "DDDUSDT")]
+        self.con.executemany("INSERT INTO daily VALUES (?,?,?,?,?)", rows)
 
     def run_day(self, last, screener, signals):
         write(self.d, last, screener, signals)
@@ -47,7 +55,8 @@ class AutoPicksTest(unittest.TestCase):
         self.assertAlmostEqual(st["rows"][0]["stop"], 9.0)
         self.assertFalse(self.run_day("2026-10-10", scr, sig))                    # same close: nothing new
         # next day: AAA trades below its stop, BBB gets a proven bearish signal
-        self.con.executemany("INSERT INTO daily VALUES (?,?,?,?)", [("AAAUSDT", "2026-10-11", 8.5, 9.5), ("BBBUSDT", "2026-10-11", 19, 21)])
+        self.con.execute("DELETE FROM daily WHERE symbol IN ('AAAUSDT','BBBUSDT') AND date='2026-10-11'")
+        self.con.executemany("INSERT INTO daily VALUES (?,?,?,?,?)", [("AAAUSDT", "2026-10-11", 8.5, 9.5, 5e7), ("BBBUSDT", "2026-10-11", 19, 21, 5e7)])
         sig.append(["1d", "2026-10-11", "BBBUSDT", "good_down", "bearish", 0, 0])
         scr[1][1] = 21.0
         self.assertTrue(self.run_day("2026-10-11", scr, sig))
@@ -64,6 +73,11 @@ class AutoPicksTest(unittest.TestCase):
         self.assertEqual(out["auto"]["ledger_head"], head)
         self.assertEqual({r["source"] for r in out["rows"]}, {"auto"})
         self.assertEqual(out["rows"][-1]["why"], ["1d:good_up"])
+
+    def test_market_filter_blocks_new_picks(self):
+        self.con.execute("UPDATE daily SET close = 300 - (julianday(date) - julianday('2026-03-01')) WHERE symbol='BTCUSDT'")
+        self.con.execute("UPDATE daily SET close = 50 WHERE symbol='BTCUSDT' AND date='2026-10-10'")
+        self.assertFalse(self.run_day("2026-10-10", [["AAAUSDT", 10.0, 8, 5.0, 1.0]], [["1d", "2026-10-10", "AAAUSDT", "good_up", "bullish", 0, 0]]))
 
     def test_tampering_is_detected(self):
         self.run_day("2026-10-10", [["AAAUSDT", 10.0, 8, 5.0, 1.0]], [["1d", "2026-10-10", "AAAUSDT", "good_up", "bullish", 0, 0]])

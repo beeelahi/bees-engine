@@ -37,6 +37,9 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 - Operations status shows which keys are present (names only) and the live / market-maker settings.
 
 ### Changed
+- Bee's Shortlist rules v2: new picks only while BTC is above its 200-day average and only among the 20 most
+  liquid pairs; exits on strong proven bearish signals only. v1 lost money since 2022 in the shortlist study.
+- 1h and 4h top-ups are fetched in parallel (an hourly top-up took ~9 minutes).
 - Back button: after clicking through to a pair (or another view), "Back" (or the browser's back, or Esc) returns to
   the exact row you clicked, scrolled into view and briefly highlighted.
 - The site header shows the latest 15-minute refresh instead of the daily rebuild time.

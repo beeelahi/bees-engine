@@ -25,7 +25,14 @@ rules look the way they do. Scripts are in `research/`.
   median +9.6% after 90 days, 60% gained 50%+ and 38% doubled within 180 days; none of them (grade C): median -28%.
   A failed first weekly close: median -36%. Volume, 200-day trend, BTC trend and strength vs BTC did not help.
 
+* **Bee's Shortlist rule** (`bin/shortlist_study.py`, full database): only with BTC above its 200-day average and
+  the 20 most liquid pairs did it stay positive since 2022 (profit factor about 1.1, also when 'proven' signals were
+  chosen with data up to 2021 only). This is the live rule (v2).
+
 ## Did not hold up
+
+* Shortlist v1 (any liquid pair, no market filter, exit on any proven bearish signal): profit factor 0.77 since 2022
+  over 11,197 trades. Replaced on 2026-10-27.
 
 * Neckline **retests** as a better entry: since 2022, top retests -0.02R (83 cases), inverse retests -0.13R (170 cases,
   29% went up). Inverse head-and-shoulders bottoms lost money at every entry since 2022 (break: -0.2R, 34% up).

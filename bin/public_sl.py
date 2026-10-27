@@ -80,7 +80,9 @@ def build(src=SRC, auto=AUTO):
     out = {"as_of": as_of, "rows": rows}
     if au is not None:
         head = au.get("head", "")
-        out["auto"] = {"last_date": au.get("last_date") if isinstance(au.get("last_date"), str) else None,
+        out["auto"] = {"market_ok": au.get("market_ok") if isinstance(au.get("market_ok"), bool) else None,
+                       "rules": au.get("rules") if isinstance(au.get("rules"), int) else 1,
+                       "last_date": au.get("last_date") if isinstance(au.get("last_date"), str) else None,
                        "ledger_head": head if re.fullmatch(r"[0-9a-f]{64}|", head or "") else ""}
         if out["auto"]["last_date"] and DATE_RE.fullmatch(out["auto"]["last_date"]):
             out["as_of"] = out["auto"]["last_date"]           # the daily close the automatic picks are based on
