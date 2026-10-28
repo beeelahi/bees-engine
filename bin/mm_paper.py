@@ -382,7 +382,37 @@ def report(path=CFG, data=DATA):
     return "\n".join(lines)
 
 
+def data_dump(data=DATA):
+    """Everything needed to chart and audit the paper results, as JSON (read-only): per variant the start, the
+    latest price, hourly snapshots, every fill, the resting orders, the grid ladder and its counters."""
+    import glob
+    out = {"utc": now(), "variants": {}}
+    for db in sorted(glob.glob(os.path.join(data, "mm_paper_*.db"))):
+        name = os.path.basename(db)[9:-3]
+        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+        try:
+            q = lambda sql: [list(r) for r in con.execute(sql)]          # noqa: E731
+            has = lambda t: con.execute("SELECT 1 FROM sqlite_master WHERE name=?", (t,)).fetchone() is not None  # noqa: E731
+            meta = {k: json.loads(v) for k, v in con.execute("SELECT k, v FROM p_meta") if not k.startswith("seen:")}
+            out["variants"][name] = {
+                "meta": meta,
+                "wallet": q("SELECT asset, free, locked FROM p_wallet"),
+                "snaps": q("SELECT utc, mid, coins, usdt, value, hold_value FROM p_snap ORDER BY utc"),
+                "fills": q("SELECT utc, side, price, qty, fee_usdt, liquidity, cid FROM p_fills ORDER BY n"),
+                "open": q("SELECT cid, side, type, price, qty, filled, queue, placed_ms FROM p_orders WHERE status IN ('NEW','PARTIALLY_FILLED') ORDER BY price"),
+                "grid": q("SELECT level, state, sell_px, rebuy_px, qty FROM grid ORDER BY level") if has("grid") else [],
+                "rungs": q("SELECT level, state, buy_px, resell_px, qty FROM grid_buy ORDER BY level") if has("grid_buy") else [],
+                "grid_meta": q("SELECT anchor, rounds, profit_usdt FROM grid_meta") if has("grid_meta") else [],
+                "log": q("SELECT utc, event, level, price, qty, profit FROM grid_log ORDER BY utc DESC LIMIT 200") if has("grid_log") else []}
+        finally:
+            con.close()
+    return out
+
+
 def main():
+    if "--json" in sys.argv:
+        print(json.dumps(data_dump(), separators=(",", ":")))
+        return 0
     if "--report" in sys.argv:
         print(report())
         return 0

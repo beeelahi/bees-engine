@@ -177,3 +177,26 @@ class PaperGridTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PaperDumpTest(unittest.TestCase):
+    def test_json_dump_reads_every_variant(self):
+        import json as J
+        d = tempfile.mkdtemp()
+        try:
+            con = sqlite3.connect(os.path.join(d, "mm_paper_base.db"))
+            con.executescript(P.SCHEMA)
+            con.execute("INSERT INTO p_meta VALUES('start', ?)", (J.dumps({"utc": "2026-10-27T15:46:18Z", "mid": 0.04}),))
+            con.execute("INSERT INTO p_meta VALUES('seen:X', '[]')")
+            con.execute("INSERT INTO p_snap VALUES('2026-10-27T16:00:00Z','X',0.04,1,1,1,1)")
+            con.commit()
+            con.close()
+            out = P.data_dump(d)
+            v = out["variants"]["base"]
+            self.assertEqual(v["meta"]["start"]["mid"], 0.04)
+            self.assertNotIn("seen:X", v["meta"])
+            self.assertEqual(len(v["snaps"]), 1)
+            self.assertEqual(v["grid"], [])
+            J.dumps(out)
+        finally:
+            shutil.rmtree(d)

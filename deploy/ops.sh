@@ -42,6 +42,7 @@ case "$CMD" in
   mm-paper-start)  rm -f "$ROOT/MM_PAPER_STOP"; sudo systemctl enable bees-mm-paper.service >/dev/null 2>&1 || true; sudo systemctl restart bees-mm-paper.service; sleep 20; systemctl is-active bees-mm-paper.service || true; sudo -n journalctl -u bees-mm-paper --no-pager -n 20 | scrub ;;
   mm-paper-stop)   sudo systemctl disable --now bees-mm-paper.service >/dev/null 2>&1 || true; echo "paper market maker stopped (results kept in data/mm_paper_*.db)" ;;
   mm-paper-report) python3 "$ROOT/bin/mm_paper.py" --report ;;
+  mm-paper-data)   python3 "$ROOT/bin/mm_paper.py" --json ;;
   mm-paper-log)    sudo -n journalctl -u bees-mm-paper --no-pager -n "$N" 2>/dev/null | scrub ;;
   mm-stop)         touch "$ROOT/MM_STOP"; echo "MM_STOP set: the bot cancels its own orders and pauses (it never market-sells)" ;;
   trading-stop)    touch "$ROOT/STOP_TRADING"; echo "STOP_TRADING set: the live engine places no new entries" ;;
@@ -51,5 +52,5 @@ case "$CMD" in
   calls-study)     setsid nohup nice -n 15 python3 "$ROOT/bin/calls_study.py" > "$ROOT/logs/calls_study.txt" 2>&1 < /dev/null &
                    echo "channel calls study started in the background; read it with study-log" ;;
   study-log)       tail -n "$N" "$ROOT/logs/calls_study.txt" 2>/dev/null || echo "no study output yet" ;;
-  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log"; exit 2 ;;
+  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log"; exit 2 ;;
 esac
