@@ -83,5 +83,37 @@ class BacktestTest(unittest.TestCase):
             self.assertAlmostEqual(r["change_usdt"], r["value_usdt"] - r["start_value_usdt"], places=1)
 
 
+class GuardTest(unittest.TestCase):
+    def setUp(self):
+        self.t0 = BT.t_of(BT.START)
+
+    def flat_day(self, t, px):
+        return [(t + i * H, px, px * 1.001, px * 0.999, px) for i in range(24)]
+
+    def test_btc_guard_pulls_sells_for_8_hours(self):
+        z = self.flat_day(self.t0 - 86400, 0.05) + self.flat_day(self.t0, 0.05)
+        b = self.flat_day(self.t0 - 86400, 100.0) + self.flat_day(self.t0, 100.0)
+        k = 24 + 5                                                          # 05:00: BTC +3% over two hours
+        b[k - 1] = (b[k - 1][0], 100.0, 101.6, 100.0, 101.5)
+        b[k] = (b[k][0], 101.5, 103.1, 101.4, 103.0)
+        for j in range(k + 1, len(b)):
+            b[j] = (b[j][0], 103.0, 103.1, 102.9, 103.0)
+        r = BT.run(z, btc=b, settings={"vol_fast": 0})
+        g = [e for e in r["events"] if e[1] == "btc guard"]
+        self.assertEqual(len(g), 1)
+        self.assertIn("20 sells pulled for 8 h", g[0][7])
+        self.assertEqual(sum(1 for u in r["units"] if u[2] == "selling"), 20)   # back on the book after 8 hours
+
+    def test_fast_mode_on_a_10pct_move_and_back(self):
+        z = self.flat_day(self.t0 - 86400, 0.05)
+        z += [(self.t0 + i * H, 0.05, 0.05, 0.05, 0.05) for i in range(2)]
+        z += [(self.t0 + 2 * H, 0.05, 0.0562, 0.05, 0.056)]               # +12% inside the 00:00-04:00 candle
+        z += [(self.t0 + i * H, 0.056, 0.0561, 0.0559, 0.056) for i in range(3, 30)]
+        r = BT.run(z, settings={"btc_guard": 0})
+        ev = [e[1] for e in r["events"]]
+        self.assertIn("fast mode", ev)
+        self.assertIn("calm", ev)                                           # the next day / 4h candles are calm
+
+
 if __name__ == "__main__":
     unittest.main()

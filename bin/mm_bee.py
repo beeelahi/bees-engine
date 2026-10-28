@@ -55,7 +55,10 @@ DEFAULTS = {"mode": "bee", "units": 20, "size": 15000, "first": 0.03, "gap": 0.0
             "rebase_hours": 4, "stagger_first": 5, "stagger_delay_s": 150, "min_move": 0.003,
             "acc_units": 0, "acc_after": 3, "acc_first": 0.03, "acc_gap": 0.02, "recycle": "off",
             "btc_guard": 0.02, "btc_symbol": "BTCUSDT", "btc_zig_max": 0.01, "btc_pause_h": 8,
-            "vol_fast": 0.10, "vol_calm": 0.05, "drip_min": 2.0, "drip_max": 4.0}
+            "vol_fast": 0.10, "vol_calm": 0.05, "drip_min": 2.0, "drip_max": 4.0,
+            "regimes": None, "regime_ema": 30, "regime_band": 0.03}
+# "regimes": {"up": {...}, "down": {...}, "flat": {...}} switches settings by market state at each rebase: "up" while
+# the 4h close is more than regime_band above its regime_ema-candle EMA, "down" while that much below, else "flat".
 META_COLS = ("base", "base_utc", "base_from", "ladders", "rounds", "profit_usdt", "proceeds_usdt", "spent_usdt",
              "last_fill_utc", "active_utc", "rebase_ms", "phase2", "ladder_sold", "acc_opened", "pause_until", "fast",
              "guard_ms")
@@ -116,6 +119,7 @@ def last_close(ex, symbol, interval, clock=time.time):
 class BeeLadder:
     def __init__(self, ex, c, con, log=print, clock=time.time, sleep=time.sleep):
         self.ex, self.c, self.con, self.log, self.clock, self.sleep = ex, dict(DEFAULTS, **c), con, log, clock, sleep
+        self.c0, self.regime = dict(self.c), None
         self.sym = c["symbol"]
         con.executescript(SCHEMA)
         have = {r[1] for r in con.execute("PRAGMA table_info(bee_meta)")}
@@ -369,6 +373,7 @@ class BeeLadder:
             self.log(f"mm bee: 4h close unavailable: {e}")
             return None
         if close_ms > m["rebase_ms"]:
+            self.pick_regime()
             first = not m["rebase_ms"] and abs(close / m["base"] - 1) < 1e-12
             self.set_meta(base=close, base_utc=self.now(), base_from=f"{iv.replace('60m', '1h')} close", rebase_ms=close_ms, phase2=1)
             self.con.commit()
@@ -390,6 +395,28 @@ class BeeLadder:
             self.con.commit()
             return "rebased (rest)"
         return None
+
+    def pick_regime(self):
+        R = self.c0.get("regimes")
+        if not R:
+            return
+        try:
+            rows = [r for r in self.ex.klines(self.sym, "4h", self.c0["regime_ema"] * 2) if r[2] <= self.clock() * 1000]
+        except Exception:
+            return
+        n = self.c0["regime_ema"]
+        if len(rows) < n:
+            return
+        a, e = 2 / (n + 1), rows[0][1]
+        for r in rows[1:]:
+            e = a * r[1] + (1 - a) * e
+        x = rows[-1][1] / e - 1
+        reg = "up" if x > self.c0["regime_band"] else "down" if x < -self.c0["regime_band"] else "flat"
+        if reg != self.regime:
+            self.regime = reg
+            self.c = dict(self.c0, **R.get(reg, {}))
+            m = self.meta()
+            self.note("regime", m["ladders"] - 1 if m else 0, 0, rows[-1][1], 0, 0, f"{reg} ({100 * x:+.1f}% vs the {n}-candle 4h EMA)")
 
     def reprice(self, base, mid, limit=None):
         """Move the nearest `limit` (all when None) movable orders of each side to the ladder from `base`."""
