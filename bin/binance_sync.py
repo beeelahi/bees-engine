@@ -922,6 +922,12 @@ def main():
             light_publish = True
     except Exception as e:
         log.warning(f"Live prices skipped: {e}")
+    try:                                       # paper bots between closes: entries and stops as they stand now
+        import bot_live
+        if bot_live.run(con, os.path.join(ROOT, "web_export"), log=log.info):
+            light_publish = True
+    except Exception as e:
+        log.warning(f"Bot live view skipped: {e}")
     try:                                       # MM-Bee backtest on the real ZIG hourly candles (once per new candle)
         import mm_bee_backtest
         mm_bee_backtest.refresh(con, log=log.info)

@@ -5,6 +5,8 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- Bots live view (bin/bot_live.py -> bot_live.json, every engine run): a daily signal is shown entered at the 00:00 UTC open right after the close, with its stop, profit-take and break-even move checked on hourly candles; Fade 4h shorts are shown from the open after the signal candle. Before, the page showed "order for the next open" until the following close although the trade had been running since the open. View only: the paper record is unchanged.
+- Simulator entry modes for research (bot_sim: entry = open / limit / stop) and research/entry_study.py; results in docs/RESEARCH.md (current rules kept: they beat every variant on the unseen period).
 - MM-Bee backtest: second scenario "live 5 days ago" (from the 24 Oct 00:00 UTC daily close) beside the 15-day run; the tab switches between them and shows the wallet's own change next to holding.
 
 ### Fixed

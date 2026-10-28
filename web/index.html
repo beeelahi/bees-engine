@@ -424,9 +424,10 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
         <div class="tbl-wrap"><table><thead><tr><th>Pair</th><th>Side</th><th>Entered</th><th>Entry</th><th>Stop</th><th>Last close</th><th>P&amp;L</th><th>P&amp;L $</th><th>R</th><th>Size</th><th>Leverage</th><th>Days</th></tr></thead><tbody id="bOpenBody"></tbody></table></div>
         <p class="note">Marked at the last daily close, after the entry fee; the exit fee is charged when the position closes. R = profit ÷ amount risked (entry to stop). Size = position value as a share of the account at entry.</p>
       </div>
-      <div class="card" id="bOrdersCard">
-        <div class="card-head"><h2>Orders for the next open</h2><span class="note" id="bOrdersNote"></span></div>
-        <div class="tbl-wrap"><table><thead><tr><th>Pair</th><th>Side</th><th>Signal close</th><th>Reference price</th><th>Stop distance</th></tr></thead><tbody id="bOrdersBody"></tbody></table></div>
+      <div class="card" id="bLiveCard">
+        <div class="card-head"><h2>Live now</h2><span class="note" id="bLiveNote"></span></div>
+        <p class="note" style="margin:0 0 10px">A signal at the daily close is entered at the very next open (00:00 UTC, the same moment), and stops and profit-takes work during the day. This shows that, hour by hour, before the day closes. The record books the same trades at the close.</p>
+        <div class="tbl-wrap"><table><thead><tr><th>Pair</th><th>Side</th><th>Now</th><th>Entry</th><th>Stop now</th><th>Price / exit</th><th>P&amp;L</th><th>R</th><th>Size</th></tr></thead><tbody id="bLiveBody"></tbody></table></div>
       </div>
       <div class="card">
         <div class="card-head"><h2>Closed trades</h2><span class="note" id="bClosedSum"></span></div>
@@ -1158,6 +1159,7 @@ async function loadAll() {
     try { S.mv = await j("data/moves.json"); } catch (e) { S.mv = null; }
     try { S.p4 = await j("data/paper4h.json"); } catch (e) { S.p4 = null; }
     try { S.mm = await j("data/mmbee.json"); } catch (e) { S.mm = null; }
+    try { S.botLive = await j("data/bot_live.json"); } catch (e) { S.botLive = null; }
     toObjs(ov.dictionary).forEach(d => { S.dict[d.col] = d; });
   } catch (e) {
     $("#freshText").textContent = "Data not published yet"; $("#freshPill").className = "pill warn";
@@ -1238,7 +1240,7 @@ const KIND = { ltbo: ["Long-term channel BREAKOUT (250+ day channel)", "Long-ter
   confluence_strong: ["Confluence score reached 8+ of 10", ""], confluence_weak: ["", "Confluence score fell to 2 or less"],
   tk_cross: ["Ichimoku Tenkan crossed above Kijun", "Ichimoku Tenkan crossed below Kijun"],
   new_listing: ["New listing on Binance"], stopped_trading: ["", "Stopped trading"],
-  bot_buy: ["Bought at the open (bot)"], bot_partial: ["Took partial profit (bot)"], bot_sell: ["Sold (bot)", "Sold (bot)"], bot_signal: ["Entry signal: the bot buys at the next open"],
+  bot_buy: ["Bought at the open (bot)"], bot_partial: ["Took partial profit (bot)"], bot_sell: ["Sold (bot)", "Sold (bot)"], bot_signal: ["Entry signal: the bot buys at the open right after the close"],
   btc_regime: ["BTC closed above its 200-day average: bot longs switched ON", "BTC closed below its 200-day average: bot longs switched OFF"] };
 const kindText = h => { const k = KIND[h.kind], d = h.signal_direction || h.direction;
   if (k) { const t = (d === "bearish" ? k[1] : k[0]) || k[0] || k[1]; if (t) return t; } return sigLabel(h.kind, d); };
@@ -2804,19 +2806,46 @@ function renderPaper4h() {
   $("#p4Note").textContent = "started " + new Date(P.start_ms).toISOString().slice(0, 16).replace("T", " ") + " UTC";
   const unreal = (P.open || []).reduce((a, q) => a + (q.unreal || 0), 0), eq = P.equity + unreal, ret = (eq / P.start_equity - 1) * 100;
   $("#p4Eq").textContent = fUsd2 ? fUsd2(eq) : fN(eq, 0); $("#p4EqNote").textContent = fPct(ret, 2) + " since start";
-  $("#p4Open").textContent = String((P.open || []).length); $("#p4OpenNote").textContent = (P.pending || []).length ? (P.pending || []).length + " entering at the next 4h open" : "max " + (ru.max_open || 5);
+  $("#p4Open").textContent = String((P.open || []).length); $("#p4OpenNote").textContent = (P.pending || []).length ? (P.pending || []).length + " entered at the open after the signal (see the table)" : "max " + (ru.max_open || 5);
   const cl = P.closed || [], wins = cl.filter(x => x.pnl > 0).length;
   $("#p4Closed").textContent = String(P.n_closed || 0); $("#p4ClosedNote").textContent = cl.length ? `${Math.round(100 * wins / cl.length)}% winners · avg ${fN(cl.reduce((a, x) => a + x.r, 0) / cl.length, 2)}R` : "none yet";
   $("#p4Bt").textContent = B ? (B.avg_r >= 0 ? "+" : "") + fN(B.avg_r, 2) + "R" : "—"; $("#p4BtNote").textContent = B ? `${B.n} trades · PF ${B.pf} · first half ${fN(A.avg_r, 2)}R` : "";
   const body = $("#p4Body"); body.replaceChildren();
   const T = ms => new Date(ms).toISOString().slice(5, 16).replace("T", " ");
-  [...(P.pending || []).map(x => ({ ...x, _st: "pending" })), ...(P.open || []).map(x => ({ ...x, _st: "open" })), ...cl.slice().reverse().map(x => ({ ...x, _st: "closed" }))].forEach(x => {
+  const LV = (S.botLive && S.botLive.fade4h) || {}, lvE = {}, lvP = {};
+  (LV.entries || []).forEach(e => { lvE[e.symbol] = e; }); (LV.positions || []).forEach(e => { lvP[e.symbol] = e; });
+  [...(P.pending || []).map(x => ({ ...x, _st: "pending", _lv: lvE[x.symbol] })), ...(P.open || []).map(x => ({ ...x, _st: "open", _lv: lvP[x.symbol] })), ...cl.slice().reverse().map(x => ({ ...x, _st: "closed" }))].forEach(x => {
     const t = document.createElement("tr"); t.className = "clickable"; t.onclick = () => openPair(x.symbol, "4h");
-    const res = x._st === "closed" ? x.pnl_pct : x._st === "open" && isNum(x.price) ? (x.entry / x.price - 1) * 100 : null;
-    t.append(tdNode(symNode(x.symbol)), tdNode(chip(x._st === "pending" ? "Entering next open" : x._st === "open" ? "Short open" : x.reason === "stop" ? "Stopped" : "Closed (3 days)", x._st === "closed" ? (x.pnl > 0 ? "up" : "down") : "neutral")),
-      td(T(x.signal_ms + 14400000) + " UTC", "num"), td(fPct(x.pump_pct, 1), "num"), td(isNum(x.entry) ? fPx(x.entry) : "—", "num"), td(fPx(x.stop), "num"),
-      td(x._st === "closed" ? fPx(x.exit) : isNum(x.price) ? fPx(x.price) : "—", "num"), td(isNum(res) ? fPct(res, 1) : "—", "num " + cls(res)), td(isNum(x.r) ? fN(x.r, 2) : "—", "num " + cls(x.r))); body.append(t); });
+    const lv = x._lv && x._lv.status !== "waiting for the first hourly candle" ? x._lv : null;
+    let res = x._st === "closed" ? x.pnl_pct : x._st === "open" && isNum(x.price) ? (x.entry / x.price - 1) * 100 : null, r_ = x.r;
+    let lab = x._st === "pending" ? "Entering at the open" : x._st === "open" ? "Short open" : x.reason === "stop" ? "Stopped" : "Closed (3 days)", kind = x._st === "closed" ? (x.pnl > 0 ? "up" : "down") : "neutral";
+    let entry = x.entry, outPx = x._st === "closed" ? x.exit : x.price;
+    if (lv) { res = lv.pnl_pct; r_ = lv.r; entry = isNum(lv.entry) ? lv.entry : entry; outPx = isNum(lv.exit) ? lv.exit : lv.last;
+      if (lv.status === "stopped") { lab = "Stopped (live " + hm(lv.exit_utc) + ")"; kind = "down"; }
+      else if (lv.status === "entered") { lab = "Short open since " + hm(lv.entry_utc); }
+      else if (lv.status === "opened above the stop: skipped") { lab = "Skipped (opened above the stop)"; } }
+    t.append(tdNode(symNode(x.symbol)), tdNode(chip(lab, kind)),
+      td(T(x.signal_ms + 14400000) + " UTC", "num"), td(fPct(x.pump_pct, 1), "num"), td(isNum(entry) ? fPx(entry) : "—", "num"), td(fPx(x.stop), "num"),
+      td(isNum(outPx) ? fPx(outPx) : "—", "num"), td(isNum(res) ? fPct(res, 1) : "—", "num " + cls(res)), td(isNum(r_) ? fN(r_, 2) : "—", "num " + cls(r_))); body.append(t); });
   if (!body.children.length) body.innerHTML = '<tr><td colspan="9" class="empty">No trades yet. The bot acts the first time a liquid, shortable coin closes a 4h candle 15%+ up.</td></tr>';
+}
+const LIVE_ST = { entered: ["Entered today", "up"], stopped: ["Stopped today", "down"], holding: ["Holding", "neutral"], "sold at today's open": ["Sold at today's open", "warn"],
+  "stopped at the open (gap)": ["Stopped at the open", "down"] };
+function liveChip(stt) { const [t, k] = LIVE_ST[stt] || [stt.charAt(0).toUpperCase() + stt.slice(1), "neutral"]; return chip(t, k); }
+const hm = s => s ? s.slice(5, 16).replace("T", " ") : "";
+function renderBotLive(b, P, side) {
+  const L = S.botLive && S.botLive.daily, mine = L && L.bots ? L.bots[b.id] : null, body = $("#bLiveBody"); body.replaceChildren();
+  const rows = mine ? [...mine.entries, ...mine.positions] : [];
+  if (!mine) P.orders.forEach(o => rows.push({ symbol: o.symbol, side: o.side, status: "entering at the next open", events: [] }));
+  rows.forEach(x => { const t = document.createElement("tr"); t.className = "clickable"; t.onclick = () => openPair(x.symbol, "1h");
+    const ex = isNum(x.exit), px = ex ? x.exit : x.last, now = tdNode(liveChip(x.status));
+    (x.events || []).forEach(e => { if (e.what === "take_profit") { const c = chip(`${fN(100 * e.share, 0)}% sold ${hm(e.utc)}`, "up"); c.title = "Profit-take at " + fPx(e.price) + "; the stop on the rest moved to the entry"; now.append(" ", c); } });
+    t.append(tdNode(symNode(x.symbol)), tdNode(side(x.side)), now,
+      td(isNum(x.entry) ? fPx(x.entry) + (x.entry_utc ? " · " + hm(x.entry_utc) : "") : "—", "num"), td(isNum(x.stop_now) ? fPx(x.stop_now) : isNum(x.stop) ? fPx(x.stop) : "—", "num"),
+      td(isNum(px) ? fPx(px) + (ex && x.exit_utc ? " · " + hm(x.exit_utc) : "") : "—", "num"), td(isNum(x.pnl_pct) ? fPct(x.pnl_pct, 2) : "—", "num " + cls(x.pnl_pct)),
+      td(isNum(x.r) ? fN(x.r, 2) : "—", "num " + cls(x.r)), td(isNum(x.size_pct) ? fN(x.size_pct, 1) + "%" : "", "num")); body.append(t); });
+  $("#bLiveCard").hidden = !rows.length;
+  $("#bLiveNote").textContent = L ? `since ${hm(L.since_utc)} UTC · updated ${mbAgo(S.botLive.generated_utc)}` : "";
 }
 function renderBot() {
   renderPaper4h();
@@ -2826,7 +2855,7 @@ function renderBot() {
   // ---- portfolio
   const pret = 100 * (PF.equity / PF.start_equity - 1);
   $("#pEq").textContent = usd(PF.equity); $("#pEqNote").textContent = `${fPct(pret)} since ${R.inception} · ${R.bots.length} bots`; $("#pEqNote").className = "note " + cls(pret);
-  $("#pOpen").textContent = PF.open; $("#pOpenNote").textContent = PF.orders ? `${PF.orders} order(s) for the next open` : "No orders for the next open";
+  $("#pOpen").textContent = PF.open; $("#pOpenNote").textContent = PF.orders ? `+ ${PF.orders} entered at today's open` : "No new entries today";
   $("#pClosed").textContent = PF.closed; $("#pClosedNote").textContent = PF.integrity === "ok" ? "Integrity check: every recorded trade unchanged" : "Integrity: " + PF.integrity;
   const on = R.regime.btc_above_sma200;
   $("#bRegime").textContent = on ? "ON" : "OFF"; $("#bRegime").className = "v " + (on ? "pos" : "neg");
@@ -2853,7 +2882,7 @@ function renderBot() {
   $("#bEq").textContent = usd(P.equity);
   const ret = 100 * (P.equity / P.start_equity - 1);
   $("#bEqNote").textContent = `${fPct(ret)} on its $${P.start_equity.toLocaleString()} slice`; $("#bEqNote").className = "note " + cls(ret);
-  $("#bOpen").textContent = P.open.length; $("#bOpenNote").textContent = P.orders.length ? `${P.orders.length} order(s) for the next open` : "No orders for the next open";
+  $("#bOpen").textContent = P.open.length; $("#bOpenNote").textContent = P.orders.length ? `+ ${P.orders.length} entered at today's open (see Live now)` : "No new entries today";
   $("#bClosed").textContent = P.closed.length;
   $("#bClosedNote").textContent = P.closed.length ? `${fN(100 * m.win, 0)}% winners · profit factor ${isNum(m.pf) ? fN(m.pf, 2) : "∞ (no losers)"}` : "None yet";
   $("#bExp").textContent = fN(P.exposure_pct, 0) + "%"; $("#bExpNote").textContent = (b.max_gross || 1) > 1 ? `of this bot's capital in positions · up to ${fN(b.max_gross, 0)}× allowed (margin needed with real money)` : "of this bot's capital invested · 1× spot, no borrowing";
@@ -2869,10 +2898,7 @@ function renderBot() {
     (x.partials || []).forEach(q => { const c = chip(`${fN(100 * q.share, 0)}% sold ${q.date}`, "up"); c.title = `Partial profit at ${fPx(q.price)}: ${fUsd2(q.pnl_usd)}`; t.children[6].append(" ", c); });
     ob.append(t); });
   if (!P.open.length) ob.innerHTML = `<tr><td colspan="12" class="empty">No open positions. ${b.strategy.code === "breakout" && !on ? "The market filter is OFF, so this bot stays in cash." : "The bot waits for its entry signal."}</td></tr>`;
-  const or = $("#bOrdersBody"); or.replaceChildren();
-  P.orders.forEach(o => { const t = document.createElement("tr"); t.append(tdNode(symNode(o.symbol)), tdNode(side(o.side)), td(o.signal_date, "num"), td(fPx(o.ref_close), "num"), td(fN(o.stop_dist_pct, 1) + "%", "num")); or.append(t); });
-  $("#bOrdersCard").hidden = !P.orders.length;
-  $("#bOrdersNote").textContent = "Filled at the next daily open, if the pair trades and a slot is free";
+  renderBotLive(b, P, side);
   const cb = $("#bClosedBody"); cb.replaceChildren();
   [...P.closed].reverse().forEach(x => { const t = document.createElement("tr"); t.className = "clickable"; t.onclick = () => openPair(x.symbol);
     t.append(tdNode(symNode(x.symbol)), tdNode(side(x.side)), td(x.entry_date, "num"), td(fPx(x.entry), "num"), td(x.exit_date, "num"), td(fPx(x.exit), "num"), td(WHY[x.reason] || x.reason),

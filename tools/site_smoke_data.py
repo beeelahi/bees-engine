@@ -56,6 +56,7 @@ def main(out):
     except Exception as e:                       # the smoke test is about the page; the bots have their own tests
         print("site_smoke_data: bots skipped:", e)
     E.run(con)
+    live_view(con, E.OUT)
     con.close()
     paper_mm(E.OUT)
     with open(os.path.join(HERE, "..", "web", "index.html"), encoding="utf-8") as f:
@@ -63,6 +64,22 @@ def main(out):
     with open(os.path.join(out, "index.html"), "w", encoding="utf-8") as f:
         f.write(page)
     print("site_smoke_data: package written to", out)
+
+
+def live_view(con, out_data):
+    """Hourly candles for 'today' so the bots' Live now card has something to show (bot_live.json)."""
+    import json
+    import bot_live
+    try:
+        b = json.load(open(os.path.join(out_data, "bot.json")))
+    except (OSError, ValueError):
+        return
+    d0 = bot_live.day_ms(b["data_through"]) + bot_live.DAY
+    con.execute("CREATE TABLE IF NOT EXISTS candles_1h(symbol TEXT, open_ms INTEGER, open REAL, high REAL, low REAL, close REAL, close_ms INTEGER)")
+    for (sym, c) in con.execute("SELECT symbol, close FROM daily WHERE date=?", (b["data_through"],)).fetchall():
+        for k in range(3):
+            con.execute("INSERT INTO candles_1h VALUES(?,?,?,?,?,?,?)", (sym, d0 + k * 3_600_000, c, c * 1.01, c * 0.995, c * 1.004, d0 + (k + 1) * 3_600_000))
+    bot_live.run(con, out_data, now_ms=d0 + 3 * 3_600_000 + 1)
 
 
 def paper_mm(out_data):

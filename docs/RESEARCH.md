@@ -58,3 +58,33 @@ rules look the way they do. Scripts are in `research/`.
 The highest-risk configuration tested (Turbo: 3% risk per trade, up to 2x exposure) returned roughly 35-40% a
 year in the unseen period with drawdowns near 40%. Returns of 60-75% every year were not achievable with any
 rule set that survived out-of-sample testing.
+
+
+## Entries and exits of the daily breakout bots (29 Oct 2026, research/entry_study.py)
+
+Question (Bilal): why wait for the next day; would a retracement limit, a stop order during the day, earlier partial
+profit or an earlier break-even stop do better? Same simulator as the paper bots, all pairs including delisted ones,
+costs included, data to 24 Oct 2026. CAGR and worst drawdown on the unseen period 2022-2026 (design 2018-2021 in brackets).
+
+Timing first: the rule "bought at the next open" means 00:00 UTC, the same moment the signal close is known. The
+price was never a day late; only the paper record and the page showed the trade a day late. Fixed with bin/bot_live.py.
+
+| Leaders v3 | CAGR 2022+ | worst DD | (CAGR 2018-21) |
+|---|---|---|---|
+| now: open after the close, 1/3 at +2R then BE | +21.8% | -24.9% | (+35.3%) |
+| 1/3 at +1R then BE | +18.3% | -21.4% | (+30.7%) |
+| 1/2 at +1R then BE | +13.9% | -17.5% | (+24.4%) |
+| 1/3 at +1.5R then BE | +20.3% | -25.6% | (+31.9%) |
+| BE at +1R, no partial | +25.8% | -30.0% | (+45.2%) |
+| no partial, no BE | +24.8% | -29.8% | (+53.0%) |
+| limit 0.5 ATR under the close, 3 days | +13.0% | -24.5% | (+38.6%) |
+| limit 1 ATR under the close, 5 days | +1.2% | -19.3% | (+19.7%) |
+| stop order at the 20-day high, during the day | +1.5% | -36.2% | (+33.8%) |
+
+Majors and Turbo show the same pattern (Majors now +12.1% / -19.0%; stop entry +7.4%; limit 0.5 ATR +2.9%. Turbo now
++39.0% / -37.2%; stop entry -4.7%; 1/3 at +1R +27.3% / -30.9%).
+
+Reading: entering during the day on a stop order catches many breakouts that fail by the close (the close and the
+volume confirmation are the edge). Waiting for a retracement misses the strongest moves, which rarely come back.
+Taking profit earlier raises the win rate (42% -> 55%) and lowers the drawdown, but gives up more return than it saves
+in drawdown. Decision: rules unchanged; entries and stops are now shown live, hour by hour.

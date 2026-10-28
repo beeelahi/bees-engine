@@ -164,13 +164,18 @@ def paper_account(bot, data, regime, last):
             "risk_usd": r(p["risk_amt"], 6), "pnl_usd": r(pnl, 6), "pnl_pct": r(100 * pnl / notional, 5),
             "r": r(pnl / p["risk_amt"], 4) if p["risk_amt"] else None, "days": p["bars"],
             "exit_next_open": bool(p["exit_flag"]),
+            # for the live (intraday) view, bot_live.py: the profit-take still to come and the fill slippage
+            "tp_price": (r(p["entry"] + strat.p["tp_r"] * abs(p["entry"] - p["stop0"]) if p["side"] == "long" else
+                           p["entry"] - strat.p["tp_r"] * abs(p["entry"] - p["stop0"]))
+                         if strat.p.get("tp_r") and not p.get("tp_done") else None),
+            "slip": S.slippage(F["vavg20i"][p["last_i"]] or 0.0),
         })
     orders = []
     for o in st["pending"]:
         F = data[o["sym"]]
         i = F["idx"][o["day"]]
         orders.append({"symbol": o["sym"], "side": o["side"], "signal_date": iso(o["day"], data),
-                       "ref_close": r(F["c"][i]), "stop_dist": r(o["stop_dist"]),
+                       "ref_close": r(F["c"][i]), "stop_dist": r(o["stop_dist"]), "adv": r(F["vavg20i"][i] or 0.0, 6),
                        "stop_dist_pct": r(100 * o["stop_dist"] / F["c"][i], 4), "add": bool(o.get("add"))})
     equity = st["curve"][-1][1] if st["curve"] else cfg["start_equity"]
     return cfg, strat, st, {"start_equity": cfg["start_equity"], "equity": r(equity, 8), "open": opened, "closed": closed,

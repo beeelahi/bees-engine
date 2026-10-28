@@ -23,6 +23,14 @@ DEFAULTS = dict(
     fee=0.001,            # per side (Binance base rate)
     stop_slip=0.001,      # extra slippage on stop exits
     short_carry=0.0002,   # per day on short notional (funding/borrow, conservative)
+    entry="open",         # how a signal is entered:
+                          #   "open"  at the next open, right after the signal close (the original rule);
+                          #   "limit" a limit order entry_atr x ATR(20) better than the signal close (a retracement),
+                          #           good for entry_ttl days; the stop stays where the signal put it;
+                          #   "stop"  breakout strategies only: a stop order at the n-day high, working DURING the day,
+                          #           so the trade starts the moment the breakout happens (no wait for the close)
+    entry_atr=0.5,
+    entry_ttl=3,
 )
 
 
@@ -90,6 +98,23 @@ class Breakout(Strategy):
     def init_stop(self, F, i, side, px):
         a = F["atr20"][i] * self.p["k"]
         return px - a if side == "long" else px + a
+
+    def stop_entry(self, F, i, regime):
+        """For entry="stop": the breakout level for TOMORROW (the n-day high including today) when every other
+        condition already holds at today's close. The volume condition (rvol) cannot be known during the day and
+        is not used. Returns (side, level, priority) or None."""
+        p = self.p
+        n = p["n"]
+        if F["seg_bar"][i] < n - 1:
+            return None
+        c, s200, atr = F["c"][i], F["sma200"][i], F["atr20"][i]
+        if not _ok(s200, atr):
+            return None
+        if "l" in p["sides"] and regime == 1 and (not p["trend"] or c > s200):
+            return ("long", max(F["h"][i - n + 1:i + 1]), F["ret90"][i] or 0.0)
+        if "s" in p["sides"] and regime == -1 and (not p["trend"] or c < s200):
+            return ("short", min(F["l"][i - n + 1:i + 1]), -(F["ret90"][i] or 0.0))
+        return None
 
     def manage(self, pos, F, i):
         p = self.p
@@ -276,19 +301,44 @@ def simulate(data, regime, strat, start, end, cfg=None, state=None, log_signals=
         eq_prev = mtm(d)
         # 1) fill pending entries at today's open
         new_pending = []
-        for o in pending:
+        for o in sorted(pending, key=lambda o: o.get("prio", 0)):
             F = data[o["sym"]]
             i = F["idx"].get(d)
             held_now = any(p["sym"] == o["sym"] for p in positions)
-            if i is None or o["day"] != d - 1 or held_now != bool(o.get("add")):
+            kind = o.get("kind", "open")
+            last_day = o.get("exp", o["day"] + 1)
+            if i is None or held_now != bool(o.get("add")) or d > last_day or d <= o["day"]:
+                if i is None and d < last_day and not held_now:
+                    new_pending.append(o)           # no candle today (gap): a working order stays
                 continue
             if not o.get("add") and len({p["sym"] for p in positions if not p["exit_flag"]}) >= c["max_pos"]:
+                if d < last_day:
+                    new_pending.append(o)
                 continue
             adv = F["vavg20i"][i - 1] or 0.0
             slip = slippage(adv)
-            px = F["o"][i] * (1 + slip) if o["side"] == "long" else F["o"][i] * (1 - slip)
-            stop = o["stop_dist"]
-            stop = px - stop if o["side"] == "long" else px + stop
+            lg = o["side"] == "long"
+            if kind == "open":
+                px = F["o"][i] * (1 + slip) if lg else F["o"][i] * (1 - slip)
+                stop = px - o["stop_dist"] if lg else px + o["stop_dist"]
+            elif kind == "limit":                       # rests at o["px"]; fills at the open if it gaps through
+                lim = o["px"]
+                hit = (F["l"][i] <= lim) if lg else (F["h"][i] >= lim)
+                if not hit:
+                    if d < last_day:
+                        new_pending.append(o)
+                    continue
+                px = min(F["o"][i], lim) if lg else max(F["o"][i], lim)
+                stop = o["stop"]
+                if (lg and px <= stop) or (not lg and px >= stop):
+                    continue                            # it gapped through the stop: the setup is void
+            else:                                       # "stop": triggers when the price trades through o["px"]
+                lvl = o["px"]
+                hit = (F["h"][i] > lvl) if lg else (F["l"][i] < lvl)
+                if not hit:
+                    continue
+                px = (max(F["o"][i], lvl) * (1 + slip)) if lg else (min(F["o"][i], lvl) * (1 - slip))
+                stop = px - o["stop_dist"] if lg else px + o["stop_dist"]
             dist = abs(px - stop)
             if dist <= 0:
                 continue
@@ -431,6 +481,23 @@ def simulate(data, regime, strat, start, end, cfg=None, state=None, log_signals=
             elif c["top_n"]:
                 elig = elig[:c["top_n"]]
             cands = []
+            mode = c["entry"] if not getattr(strat, "name", "") == "accumulation" else "open"
+            if mode == "stop" and hasattr(strat, "stop_entry"):
+                waiting = {o["sym"] for o in pending}
+                for _, sym, i in elig:
+                    F = data[sym]
+                    if sym in held or sym in waiting:
+                        continue
+                    s = strat.stop_entry(F, i, rg)
+                    if s and c["rs"] and sym != "BTCUSDT":
+                        r90 = F["ret90"][i]
+                        if r90 is None or btc90 is None or (s[0] == "long" and r90 <= btc90) or (s[0] == "short" and r90 >= btc90):
+                            s = None
+                    if s:
+                        side, lvl, prio = s
+                        dist = abs(lvl - strat.init_stop(F, i, side, lvl))
+                        pending.append(dict(sym=sym, side=side, day=d, exp=d + 1, kind="stop", px=lvl, stop_dist=dist, prio=-prio))
+                elig = []                           # stop orders replace the close-based signals
             for _, sym, i in elig:
                 F = data[sym]
                 if sym in held:
@@ -444,8 +511,19 @@ def simulate(data, regime, strat, start, end, cfg=None, state=None, log_signals=
                     stop = strat.init_stop(F, i, s[0], F["c"][i])
                     cands.append((-s[1], sym, s[0], abs(F["c"][i] - stop)))
             cands.sort()
+            waiting = {o["sym"] for o in pending}
             for _, sym, side, dist in cands[:slots]:
-                pending.append(dict(sym=sym, side=side, day=d, stop_dist=dist))
+                if sym in waiting:
+                    continue
+                if mode == "limit":
+                    F = data[sym]
+                    i = F["idx"][d]
+                    off = c["entry_atr"] * F["atr20"][i]
+                    lim = F["c"][i] - off if side == "long" else F["c"][i] + off
+                    stp = F["c"][i] - dist if side == "long" else F["c"][i] + dist
+                    pending.append(dict(sym=sym, side=side, day=d, exp=d + c["entry_ttl"], kind="limit", px=lim, stop=stp, stop_dist=dist))
+                else:
+                    pending.append(dict(sym=sym, side=side, day=d, stop_dist=dist))
         curve.append((d, mtm(d)))
     st.update(equity=realized, positions=positions, pending=pending, trades=trades, curve=curve)
     return st
