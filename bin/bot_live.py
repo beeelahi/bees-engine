@@ -112,12 +112,13 @@ def daily_bots(con, bot, live_px, now_ms):
                 rows_e.append(row)
                 continue
             lg = o["side"] == "long"
-            slip = _slip(o.get("adv") or 0.0)
+            adv = o.get("adv")                             # None: a bot.json from before this field existed
+            slip = _slip(adv) if adv is not None else 0.0015
             entry = bars[0][1] * ((1 + slip) if lg else (1 - slip))
             dist = o["stop_dist"]
             stop = entry - dist if lg else entry + dist
             qty = eq * cfg.get("risk", 0.01) / dist if dist > 0 else 0
-            cap = min(eq * cfg.get("max_pos_frac", 0.2), (o.get("adv") or 0) * cfg.get("max_adv_frac", 0.005),
+            cap = min(eq * cfg.get("max_pos_frac", 0.2), adv * cfg.get("max_adv_frac", 0.005) if adv is not None else float("inf"),
                       eq * cfg.get("max_gross", 1.0) - gross)
             if qty * entry > cap:
                 qty = cap / entry
