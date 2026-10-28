@@ -168,8 +168,7 @@ class BeeTest(unittest.TestCase):
         r = self.tick(ex, bee, 0.0451, 0.0449, 0.045, minutes=60)
         self.assertEqual(r, "revised")
         self.assertAlmostEqual(bee.meta()["base"], 0.045)
-        bee.step(0.045)
-        sells = ex.resting("SELL")
+        sells = ex.resting("SELL")                                 # moved in the same step: no gap for the price to jump
         self.assertEqual(len(sells), 20)
         self.assertAlmostEqual(sells[0], 0.045 * 1.03, places=7)
 

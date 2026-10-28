@@ -27,7 +27,12 @@ import mm_bee  # noqa: E402
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUT = os.path.join(ROOT, "data", "mm_bee_backtest.json")
 START = "2026-10-13T00:00:00Z"        # "created 15 days ago" (Bilal, 28 Oct 2026)
+# every scenario shown on the MM-Bee tab: (id, start, label). The bot goes live at a daily close (00:00 UTC) and takes
+# that day's close as its base, exactly as the live code does.
+SCENARIOS = [("15d", START, "Started 13 Oct (15 days)"),
+             ("5d", "2026-10-24T00:00:00Z", "Live 5 days ago (24 Oct)")]     # Bilal, 29 Oct 2026
 SYMBOL = "ZIGUSDT"
+VERSION = 2                            # bump when the strategy or the backtest changes: the next engine run reruns it
 H = 3600
 
 
@@ -186,7 +191,10 @@ def run(candles, start=START, bar=H, settings=None, coins=None, usdt=None):
         edge = x[2] - x[3]
         peak = edge if peak is None or edge > peak else peak
         dd = min(dd, edge - peak)
+    start_value = coins * p0 + usdt
     return {"start_utc": start, "end_utc": iso(ex.now()), "bar_seconds": bar, "candles": len(candles) - first + 1,
+            "start_value_usdt": round(start_value, 2), "change_usdt": round(value - start_value, 2),
+            "hold_change_usdt": round(hold - start_value, 2),
             "settings": {k: c[k] for k in mm_bee.DEFAULTS if k != "mode"}, "start_coins": coins, "start_usdt": usdt,
             "start_price": p0, "end_price": m, "high": hi, "low": lo,
             "rounds": meta["rounds"], "profit_usdt": round(meta["profit_usdt"], 2), "ladders": meta["ladders"],
@@ -217,19 +225,27 @@ def refresh(con, out=OUT, log=print):
     last = iso(rows[-1][0])
     try:
         with open(out) as f:
-            if json.load(f).get("last_candle_utc") == last:
+            old = json.load(f)
+            if old.get("last_candle_utc") == last and old.get("version") == VERSION:
                 return False
     except (OSError, ValueError):
         pass
-    res = run(rows)
+    runs = []
+    for sid, start, label in SCENARIOS:
+        r = run(rows, start=start)
+        r.update(id=sid, label=label)
+        runs.append(r)
+    res = dict(runs[0], runs=runs)                         # top level = the first scenario (older pages read it)
     res["last_candle_utc"] = last
+    res["version"] = VERSION
     res["generated_utc"] = iso(now_s)
     tmp = out + ".tmp"
     with open(tmp, "w") as f:
         json.dump(res, f, separators=(",", ":"))
     os.replace(tmp, out)
-    log(f"mm bee backtest: since {START}, {res['rounds']} rounds, {res['profit_usdt']:+,.2f} USDT locked in, "
-        f"{res['vs_hold_usdt']:+,.2f} vs holding")
+    for r in runs:
+        log(f"mm bee backtest {r['id']}: since {r['start_utc']}, {r['rounds']} rounds, {r['profit_usdt']:+,.2f} USDT locked in, "
+            f"{r['vs_hold_usdt']:+,.2f} vs holding")
     return True
 
 

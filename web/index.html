@@ -679,7 +679,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <p class="note sub-lead">Paper trading on live MEXC prices: every order is simulated against MEXC's real trades and order book, and no order reaches the exchange. <b id="mbLead">&nbsp;</b></p>
       <div class="hl-nav sub-nav" data-for="mmbee" role="tablist" aria-label="MM-Bee sections">
         <button type="button" role="tab" data-s="live">Live paper<i></i></button>
-        <button type="button" role="tab" data-s="backtest">Backtest: last 15 days<i></i></button>
+        <button type="button" role="tab" data-s="backtest">Backtest<i></i></button>
       </div>
     </div>
     <div class="sub-panel" data-s="live" hidden>
@@ -729,7 +729,8 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
     </div>
     <div class="sub-panel" data-s="backtest" hidden>
       <div class="card mb-row">
-        <div class="card-head"><h3 id="btTitle">Backtest</h3><span class="note" id="btRange"></span></div>
+        <div class="card-head"><div class="seg" id="btSeg"><button type="button" data-v="5d" aria-pressed="true">Live 5 days ago</button><button type="button" data-v="15d" aria-pressed="false">Started 15 days ago</button></div><span class="note" id="btRange"></span></div>
+        <h3 id="btTitle">Backtest</h3>
         <p class="mb-verdict" id="btVerdict">&nbsp;</p>
         <p class="note" id="btMethod">&nbsp;</p>
       </div>
@@ -1873,7 +1874,8 @@ function renderMMHead() {
   pill.className = "pill " + (age < 45 ? "ok" : "warn"); pt.textContent = (age < 45 ? "Running · updated " : "Last update ") + mbAgo(D.generated_utc);
   $("#mbLead").textContent = `Running since ${mbT(B.started_utc)} UTC (${mbHrs(B.started_utc, D.generated_utc).toFixed(1)} hours). Simulated wallet: ${fQ(B.start_coins)} ZIG and ${fQ(B.start_usdt)} USDT; it trades ${fQ(B.settings.units * B.settings.size)} ZIG per ladder.`;
   const bt = D.backtest, nb = $('.sub-nav[data-for="mmbee"] button[data-s="backtest"] i');
-  if (nb) nb.textContent = bt ? fUs(bt.vs_hold_usdt) : "";
+  const bt5 = bt && bt.runs ? (bt.runs.find(r => r.id === "5d") || bt) : bt;
+  if (nb) nb.textContent = bt5 ? fUs(bt5.vs_hold_usdt) : "";
 }
 function mbRules(c, base, baseFrom, ladders) {
   const p0 = base * (1 + c.first), p1 = c.gap_from === "prev" ? p0 * (1 + c.gap) : base * (1 + c.first + c.gap), pl = c.gap_from === "prev" ? p0 * (1 + c.gap) ** (c.units - 1) : base * (1 + c.first + c.gap * (c.units - 1));
@@ -1973,13 +1975,16 @@ function renderMMBee() {
 }
 function renderMBBacktest() {
   renderMMHead();
-  const T = S.mm && S.mm.backtest;
+  const BTD = S.mm && S.mm.backtest, runs = BTD && BTD.runs ? BTD.runs : BTD ? [BTD] : [];
+  const T = runs.find(r => r.id === (S.btRun || "5d")) || runs[0];
+  $$("#btSeg button").forEach(b => { const r = runs.find(x => x.id === b.dataset.v); b.hidden = !r; b.setAttribute("aria-pressed", String(!!T && r === T)); if (r) b.title = r.label; });
   if (!T) { $("#btTitle").textContent = "Backtest"; $("#btVerdict").textContent = "The backtest is published with the next engine run."; return; }
   const c = T.settings, mv = 100 * (T.end_price / T.start_price - 1), days = mbHrs(T.start_utc, T.end_utc) / 24;
-  $("#btTitle").textContent = `As if MM-Bee had started on ${T.start_utc.slice(0, 10)}`;
+  $("#btTitle").textContent = T.id === "5d" ? `As if MM-Bee had gone live on ${T.start_utc.slice(0, 10)} (00:00 UTC daily close)` : `As if MM-Bee had started on ${T.start_utc.slice(0, 10)}`;
   $("#btRange").textContent = `${mbT(T.start_utc)} → ${mbT(T.end_utc)} UTC · ${days.toFixed(1)} days · ${T.candles} hourly candles`;
   mbLine("btVerdict", [`ZIG went from ${fZ(T.start_price)} to ${fZ(T.end_price)} (`, [fPct(mv, 1), cls(mv)], `). MM-Bee completed `, [String(T.rounds)], ` buy-back rounds and locked in `, [fUs(T.profit_usdt) + " USDT", cls(T.profit_usdt)],
-    `, leaving the wallet `, [fUs(T.vs_hold_usdt) + " USDT", cls(T.vs_hold_usdt)], ` ${T.vs_hold_usdt >= 0 ? "ahead of" : "behind"} simply holding the same ${fQ(T.start_coins)} ZIG and ${fQ(T.start_usdt)} USDT.`]);
+    `, leaving the wallet `, [fUs(T.vs_hold_usdt) + " USDT", cls(T.vs_hold_usdt)], ` ${T.vs_hold_usdt >= 0 ? "ahead of" : "behind"} simply holding the same ${fQ(T.start_coins)} ZIG and ${fQ(T.start_usdt)} USDT.`]
+    .concat(isNum(T.change_usdt) ? [` The wallet itself went from ${fQ(T.start_value_usdt)} to ${fQ(T.value_usdt)} USDT (`, [fUs(T.change_usdt) + " USDT", cls(T.change_usdt)], `; holding: ${fUs(T.hold_change_usdt)} USDT), because the price moved.`] : []));
   $("#btMethod").textContent = `Method: the exact MM-Bee code run on MEXC's 1-hour ZIG candles. An order placed at a candle's close can only fill on a later candle that trades through its price, so a unit never sells and buys back inside one hour; real trading would usually fill a little more. Maker fee 0%, no slippage (all orders are resting limits). Rerun every hour as new candles arrive.`;
   mbSet("btEdge", fUs(T.vs_hold_usdt) + " USDT", cls(T.vs_hold_usdt)); $("#btEdgeNote").textContent = `${fQ(T.value_usdt)} vs ${fQ(T.hold_usdt)} USDT if untouched`;
   mbSet("btProfit", fUs(T.profit_usdt) + " USDT", cls(T.profit_usdt)); $("#btProfitNote").textContent = `${fUs(T.profit_usdt / Math.max(days, 1e-9))} USDT a day on average`;
@@ -2979,6 +2984,7 @@ segment("chanKind", "v", v => { S.chanKind = v; renderChannels(); });
 segment("chanTf", "v", v => { S.chanTf = v; renderChannels(); });
 segment("callSide", "v", v => { S.callSide = v; renderCalls("callsBodyW", v); });
 segment("mvKind", "v", v => { S.mvKind = v; renderMoves(); });
+segment("btSeg", "v", v => { S.btRun = v; renderMBBacktest(); });
 segment("hsKind", "v", v => { S.hsKind = v; hsRows("hsBodyW", v); });
 $("#sigType").onchange = e => { S.sigType = e.target.value; renderSignals(); };
 $("#sigProven").onclick = e => { S.sigProvenOnly = !S.sigProvenOnly; e.currentTarget.setAttribute("aria-pressed", String(S.sigProvenOnly)); renderSignals(); };

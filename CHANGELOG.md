@@ -5,6 +5,10 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- MM-Bee backtest: second scenario "live 5 days ago" (from the 24 Oct 00:00 UTC daily close) beside the 15-day run; the tab switches between them and shows the wallet's own change next to holding.
+
+### Fixed
+- MM-Bee: after a 12-hour base revision the moved (or new) ladder is placed in the same cycle. Before, it waited one cycle; in the hourly backtest that let the price jump past the lower levels unsold.
 - MM-Bee (bin/mm_bee.py): Bilal's sell-first ZIG ladder. Base = previous daily close; 20 sells of 15,000 ZIG from +3%, every 2% of the base; each filled sell is bought back 3.1% lower, each buy-back sold again 3% higher, looping; 12 hours without a fill revises the base to the latest hourly close (or, when every unit is sold, opens one more 300,000 ZIG ladder). Post-only, buys paid from sell proceeds, at most 10,000 USDT of the wallet's own on top. Runs on paper (bees-mm-paper, variant "bee") beside the grid settings; live only through mm.json with "mode": "bee" after approval.
 - MM-Bee backtest (bin/mm_bee_backtest.py): the same code on MEXC 1-hour ZIG candles since 13 Oct 2026, conservative fills (only on a later candle that trades through), rerun every new hour.
 - Website: MM-Bee tab (Live paper / Backtest) built from data/mmbee.json (bin/mm_site.py reads only the paper files and the backtest; never the live market maker).

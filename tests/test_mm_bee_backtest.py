@@ -69,12 +69,17 @@ class BacktestTest(unittest.TestCase):
         d = tempfile.mkdtemp()
         con = sqlite3.connect(":memory:")
         con.execute("CREATE TABLE candles_1h(symbol TEXT, open_ms INTEGER, open REAL, high REAL, low REAL, close REAL)")
-        for t, o, h, l, c in candles(self.t0 - 2 * 86400, 5 * 24, 0.05):
+        for t, o, h, l, c in candles(self.t0 - 2 * 86400, 16 * 24, 0.05):
             con.execute("INSERT INTO candles_1h VALUES('ZIGUSDT',?,?,?,?,?)", (t * 1000, o, h, l, c))
         out = os.path.join(d, "bt.json")
         self.assertTrue(BT.refresh(con, out, log=lambda *a: None))
         self.assertFalse(BT.refresh(con, out, log=lambda *a: None))            # same last candle: not rerun
-        self.assertIn("last_candle_utc", json.load(open(out)))
+        res = json.load(open(out))
+        self.assertIn("last_candle_utc", res)
+        self.assertEqual([r["id"] for r in res["runs"]], [x[0] for x in BT.SCENARIOS])
+        self.assertEqual(res["rounds"], res["runs"][0]["rounds"])
+        for r in res["runs"]:
+            self.assertAlmostEqual(r["change_usdt"], r["value_usdt"] - r["start_value_usdt"], places=1)
 
 
 if __name__ == "__main__":

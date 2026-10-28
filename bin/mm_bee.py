@@ -254,6 +254,15 @@ class BeeLadder:
                     continue
             self.upd(ladder, k, state="selling", sell_cid=cid, sell_px=float(px))
         # 4) first-ladder sells that can rest above the market
+        self.place_armed(mid)
+        # 5) 12 hours without a fill: revise the base, and rest the moved / new ladder at once (same price moment)
+        if self.clock() - ts(m["active_utc"]) >= c["idle_hours"] * 3600:
+            r = self.revise(mid)
+            self.place_armed(mid)
+            return r
+        return "ok"
+
+    def place_armed(self, mid):
         for ladder, k, st, kind, sp, bp, scid, bcid, q, cyc in self.units("armed"):
             if sp <= mid:
                 continue
@@ -264,7 +273,3 @@ class BeeLadder:
             except Exception as e:
                 self.log(f"mm bee: sell {ladder}/{k} not placed: {e}")
         self.con.commit()
-        # 5) 12 hours without a fill: revise the base
-        if self.clock() - ts(m["active_utc"]) >= c["idle_hours"] * 3600:
-            return self.revise(mid)
-        return "ok"

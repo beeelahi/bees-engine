@@ -118,7 +118,8 @@ def paper_mm(out_data):
         p = max(0.02, p * (1 + rnd.gauss(-0.0006, 0.01)))
         cs.append((t0 + i * 3600, o, max(o, p) * 1.004, min(o, p) * 0.996, p))
     with open(os.path.join(tmp, "mm_bee_backtest.json"), "w") as f:
-        json.dump(BT.run(cs), f)
+        runs = [dict(BT.run(cs, start=st), id=sid, label=lab) for sid, st, lab in BT.SCENARIOS]
+        json.dump(dict(runs[0], runs=runs), f)
     mm_site.export(out_data, data=tmp)
     print("site_smoke_data: MM-Bee paper data:", sorted(json.load(open(os.path.join(out_data, "mmbee.json")))["variants"]))
 
