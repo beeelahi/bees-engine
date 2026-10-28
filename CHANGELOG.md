@@ -4,6 +4,13 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 
 ## [Unreleased]
 
+### Changed
+- Highlights redesigned around cards: every section opens with a short title, one plain sentence and its filters,
+  then one card per item (coin, side and grade badges, the status in words, price / stop / target or the section's
+  key numbers in a 2 x 2 grid, the reasons as a short list, date and record in the footer; a coloured edge shows
+  bullish or bearish). The dense tables, long explanations and track records moved into one "details" drawer per
+  section. Latest is a clean feed with same-day Shortlist picks grouped into one line.
+
 ### Added
 - Live checks for the daily ops review: `tools/live_check.py` (published data fresh, complete and consistent) and
   `tools/site_smoke.js URL` (every tab of the live site on desktop and phone, no JavaScript errors).

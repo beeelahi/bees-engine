@@ -115,6 +115,62 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .stat-row b { display: block; font-family: var(--font-num); font-weight: 500; margin-top: 2px; }
 .hl-list { display: grid; gap: 0; }
 .hl-head .hl-lead, .sub-head .sub-lead { margin: 0 0 14px; max-width: 900px; }
+/* ---------- Highlights: cards (own visual language, calmer than the tables elsewhere) */
+.hx-sec { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px 20px; flex-wrap: wrap; margin: 4px 2px 0; }
+.hx-sec h2 { margin: 0 0 4px; font-size: 19px; font-weight: 650; letter-spacing: -0.01em; }
+.hx-sec p { margin: 0; color: var(--muted); font-size: 13.5px; max-width: 720px; }
+.hx-sec-r { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.hx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 318px), 1fr)); gap: 14px; align-items: stretch; }
+.hx-grid:empty { display: none; }
+.hx-empty { grid-column: 1 / -1; padding: 28px 18px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 14px; }
+.hx-card { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 12px; border-radius: 14px; border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(20, 38, 86, 0.72), rgba(11, 23, 57, 0.95)); cursor: pointer; transition: border-color .15s, transform .15s, box-shadow .15s; min-width: 0; }
+.hx-card::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 0 3px 3px 0; background: var(--cold); }
+.hx-card.up::before { background: var(--up); } .hx-card.down::before { background: var(--down); } .hx-card.warn::before { background: var(--warn); }
+.hx-card:hover, .hx-card:focus-visible { border-color: rgba(4, 183, 248, 0.45); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); outline: none; }
+.hx-top { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.hx-av { flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 10.5px; font-weight: 700; letter-spacing: .02em;
+  background: rgba(93, 107, 152, 0.25); color: var(--soft-blue); }
+.hx-av.up { background: var(--up-soft); color: var(--up); } .hx-av.down { background: var(--down-soft); color: var(--down); } .hx-av.warn { background: var(--warn-soft); color: var(--warn); }
+.hx-id { min-width: 0; flex: 1; } .hx-id b { font-size: 15.5px; font-weight: 650; } .hx-id small { color: var(--muted); margin-left: 2px; font-size: 11.5px; }
+.hx-id .hx-sub { color: var(--muted); font-size: 12px; line-height: 1.35; margin-top: 1px; }
+.hx-badges { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; max-width: 50%; }
+.hx-head { font-size: 14px; font-weight: 600; line-height: 1.35; }
+.hx-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.hx-metrics > div { background: rgba(8, 16, 40, 0.55); padding: 7px 9px; min-width: 0; }
+.hx-metrics span { display: block; font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+.hx-metrics b { display: inline; font-family: var(--font-num); font-weight: 600; font-size: 13.5px; white-space: nowrap; }
+.hx-metrics small { display: inline !important; margin-left: 6px; }
+.hx-metrics small { display: block; font-family: var(--font-num); font-size: 11px; color: var(--muted); }
+.hx-tags { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--muted); }
+.hx-tags span::before { content: "•"; margin-right: 5px; color: var(--cold); }
+.hx-tags span.ok::before { content: "✓"; color: var(--up); } .hx-tags span.no::before { content: "✗"; color: var(--down); }
+.hx-foot { display: flex; justify-content: space-between; gap: 10px; font-size: 11.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8px; margin-top: auto; }
+.hx-foot .hx-go { color: var(--accent); white-space: nowrap; }
+.hx-bar { position: relative; height: 6px; border-radius: 999px; background: linear-gradient(90deg, var(--up-soft), rgba(93,107,152,.25), var(--down-soft)); }
+.hx-bar i { position: absolute; top: -3px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--fg); box-shadow: 0 0 0 3px rgba(4,183,248,.35); }
+.hx-barl { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); margin-top: 4px; }
+.hx-more { border: 1px solid var(--line); border-radius: 14px; background: rgba(11, 23, 57, 0.6); }
+.hx-more > summary { cursor: pointer; padding: 13px 16px; color: var(--muted); font-weight: 600; font-size: 13px; list-style: none; display: flex; align-items: center; gap: 8px; }
+.hx-more > summary::-webkit-details-marker { display: none; }
+.hx-more > summary::before { content: "▸"; transition: transform .15s; } .hx-more[open] > summary::before { transform: rotate(90deg); }
+.hx-more > summary:hover { color: var(--fg); }
+.hx-more-in { padding: 0 12px 12px; display: grid; gap: 14px; }
+.hx-more-in > .card, .hx-more-in > details.card { box-shadow: none; }
+/* Latest feed */
+.hx-feed { display: grid; gap: 8px; }
+.hx-day { font-size: 11.5px; font-weight: 650; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; padding: 14px 2px 2px; }
+.hx-day:first-child { padding-top: 0; }
+.hx-item { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px;
+  background: rgba(16, 32, 74, 0.45); cursor: pointer; transition: border-color .15s, background .15s; }
+.hx-item:hover, .hx-item:focus-visible { border-color: rgba(4, 183, 248, 0.45); background: rgba(16, 32, 74, 0.75); outline: none; }
+.hx-item .hx-t { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; } .hx-item .hx-t b { font-size: 14.5px; }
+.hx-item .hx-k { font-size: 12px; color: var(--muted); }
+.hx-item .hx-h { margin-top: 2px; font-size: 13.5px; } .hx-item .hx-e { margin-top: 3px; font-size: 12px; color: var(--muted); line-height: 1.45; }
+.hx-item .hx-r { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; } .hx-item .hx-r small { color: var(--muted); font-size: 11px; white-space: nowrap; }
+@media (max-width: 640px) { .hx-item { grid-template-columns: 30px minmax(0, 1fr); } .hx-item .hx-r { grid-column: 2; flex-direction: row; align-items: center; justify-content: flex-start; }
+  .hx-av { width: 30px; height: 30px; font-size: 9.5px; } .hx-badges { max-width: 60%; } .hx-sec h2 { font-size: 17px; } }
+
 .hl-nav { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px 0; }
 .hl-nav::-webkit-scrollbar { display: none; }
 .hl-nav button { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); background: rgba(255,255,255,0.03); color: var(--muted); border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
@@ -397,7 +453,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
   <section class="view" id="v-highlights" hidden>
     <div class="card hl-head">
       <div class="card-head"><h2>Highlights</h2><span class="note" id="hlHeadNote"></span></div>
-      <p class="note hl-lead">Everything the dashboard flagged, in one place. <b>Latest</b> is the full feed, newest first; each section has the details and its measured track record. Tap any line to open its chart. Information only, not financial advice.</p>
+      <p class="note hl-lead">Everything the dashboard flagged, newest first. Tap a card to open its chart. Information only, not financial advice.</p>
       <div class="hl-nav" id="hlNav" role="tablist" aria-label="Highlights sections">
         <button type="button" role="tab" data-p="latest">Latest<i></i></button>
         <button type="button" role="tab" data-p="shortlist" id="hlNavSL" hidden>Bee's Shortlist<i></i></button>
@@ -411,110 +467,171 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       </div>
     </div>
     <div class="hl-panel" data-panel="latest" hidden>
-      <div class="card">
-        <div class="card-head"><h2>Latest</h2>
+      <div class="hx-sec">
+        <div><h2>Latest</h2><p>Everything new, newest first. Same-day Shortlist picks are grouped into one line.</p></div>
           <div class="hl-filters">
             <div class="seg" id="hlFeedDir"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="bullish" aria-pressed="false">Bullish</button><button type="button" data-v="bearish" aria-pressed="false">Bearish</button></div>
             <select id="hlFeedKind" class="search" aria-label="Kind of highlight"><option value="">Every kind</option><option value="sl">Bee's Shortlist</option><option value="chan_call">Channel calls</option><option value="ltbo">Long-term breakouts</option><option value="hs_event">Head and shoulders</option><option value="moves">Big 4h moves</option><option value="bot">Bots</option><option value="sig">Signals</option></select>
             <input id="hlFeedQ" class="search" type="search" placeholder="Coin…" aria-label="Filter by coin" autocomplete="off">
           </div>
-        </div>
-        <div class="hl-list" id="hlFeed"></div>
-        <div class="row-end" style="margin-top:10px"><span class="note" id="hlFeedNote"></span><button class="btn small" id="hlMore" type="button" hidden>Show more</button></div>
       </div>
-      <details class="card hl-how">
-        <summary>How these are chosen</summary>
-        <p class="note" id="hlRules" style="margin:10px 0 0"></p>
+      <div class="hx-feed" id="hlFeed"></div>
+      <div class="row-end"><span class="note" id="hlFeedNote"></span><button class="btn small" id="hlMore" type="button" hidden>Show more</button></div>
+      <details class="hx-more"><summary>How these are chosen</summary>
+        <div class="hx-more-in"><p class="note" id="hlRules" style="margin:0 4px"></p></div>
       </details>
     </div>
     <div class="hl-panel" data-panel="shortlist" id="v-shortlist" hidden>
-      <div class="card">
-        <div class="card-head"><h2>Bee's Shortlist</h2><span class="note" id="slNote"></span></div>
-        <details class="hl-how" style="margin:0 0 12px"><summary class="note">How picks are made and closed</summary><p class="note" style="margin:8px 0 0" id="slIntro">Only you can see or change this list: it's stored owner-only and never published to the public site. <b>Entry</b> is the close of the latest closed daily candle on the day you approve. <b>Stop</b> = entry − 2 × ATR(14, daily), locked at approval. <b>R</b> = (price − entry) ÷ (entry − stop). <b>Stop hit</b>: a daily low since approval went below the stop. <b>Review</b>: a proven bearish signal (consistent edge, 100+ cases) fired on the pair since approval.</p></details>
-        <div class="tbl-wrap"><table><thead><tr><th>Pair</th><th>Status</th><th>Picked</th><th>Entry</th><th>Stop</th><th>Price</th><th>Since entry</th><th>R</th><th>Confluence</th><th>Signals</th><th id="slThNote">Note</th><th id="slThAct"></th></tr></thead><tbody id="slActive"></tbody></table></div>
+      <div class="hx-sec">
+        <div><h2>Bee's Shortlist</h2><p>Automatic long and short picks after each daily close, with the live result of every open pick.</p></div>
+        <div class="hx-sec-r"><span class="note" id="hxNote-shortlist"></span></div>
       </div>
-      <div class="card">
-        <div class="card-head" id="slCandHead"><h2>Suggested for review</h2><span class="note" id="slCandNote"></span></div>
-        <p class="note" style="margin:0 0 12px">Pairs with confluence ≥ 7 of 10 that fired at least one <b>proven</b> bullish signal (consistent edge in both 2017–21 and 2022+, at least 100 cases) on the last 3 daily candles or the last closed week. Ranked by number of proven signals, volume confirmation, confluence and strength vs BTC. Nothing is added until you approve it.</p>
-        <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Proven signals</th><th>Confluence</th><th>vs BTC 30</th><th>RSI</th><th>Price</th><th>Stop if approved</th><th>Risk</th><th></th></tr></thead><tbody id="slCand"></tbody></table></div>
-      </div>
-      <div class="card" id="slConfirm" hidden>
-        <div class="card-head"><h2 id="slConfTitle">Approve</h2></div>
-        <div class="stat-row" id="slConfStats" style="margin-bottom:12px"></div>
-        <label class="label" for="slNoteIn">Note (optional)</label>
-        <textarea id="slNoteIn" maxlength="500" placeholder="Why this one, plan, size…"></textarea>
-        <div class="row-end" style="margin-top:10px"><span class="note" id="slConfStatus"></span><button class="btn" id="slCancel" type="button">Cancel</button><button class="btn primary" id="slDo" type="button">Approve</button></div>
-      </div>
-      <div class="card">
-        <div class="card-head"><h2>Closed</h2><span class="note">Removed from the shortlist, with result at removal</span></div>
-        <div class="tbl-wrap" style="max-height: 40vh"><table><thead><tr><th>Pair</th><th>Approved</th><th>Entry</th><th>Closed</th><th>Exit</th><th>Result</th><th>R</th><th>Reason</th></tr></thead><tbody id="slClosed"></tbody></table></div>
-      </div>
-    </div>
-    <div class="hl-panel" data-panel="calls" hidden>
-      <div class="card" id="callsCardH">
-        <div class="card-head"><h2>Channel calls</h2><span class="note" id="callsNoteH"></span></div>
-        <p class="note" style="margin:0 0 12px" id="callsIntroH"></p>
-        <div class="tbl-wrap" style="max-height: 50vh; margin-bottom:12px"><table><thead><tr><th>Grade</th><th>Pair</th><th>Side</th><th>Channel status</th><th>Channel</th><th title="Proven signals in the same direction: daily in the last 3 days or the latest weekly candle">Agreeing signals</th><th title="0-10 confluence of trend and momentum (daily)">Bull score</th><th>Close</th><th title="Longs: 10% of the channel width under the bottom line. Shorts: back above the line that was lost, +10% of the width">Stop / invalid</th><th>Target 1</th><th>Target 2</th><th title="Reward to target 1 ÷ risk to the stop">R:R</th><th title="Since 2022: this channel status's median 30-day result vs the average coin, and how often it beat the market">History vs market</th><th>Liquidity</th></tr></thead><tbody id="callsBodyH"></tbody></table></div>
-        <div class="card-head" style="margin-top:4px"><h2 style="font-size:1rem">Posted to highlights</h2><span class="note">each new call, when it happened (last 90 days)</span></div>
-        <div class="hl-list" id="hlCalls"></div>
-      </div>
-    </div>
-    <div class="hl-panel" data-panel="breakouts" hidden>
-      <div class="card" id="ltCardH">
-        <div class="card-head"><h2>Long-term channel breakouts</h2><span class="note" id="ltNoteH"></span></div>
-        <div class="tbl-wrap" style="max-height: 70vh"><table><thead><tr><th>Grade</th><th>Pair</th><th>Broke out</th><th>Long-term channel</th><th title="The three checks that separated winners from losers in testing">Graded checks</th><th title="The first weekly close after the breakout must stay above the line">Weekly close</th><th title="From the breakout close: now, and the best so far">Since breakout · best</th><th>Top line now</th><th title="Channel width projected above the top line">Width target</th><th title="Since 2022, breakouts with this grade: median 90-day result, share that gained 50%+ and that doubled within 180 days">History of this grade</th></tr></thead><tbody id="ltBodyH"></tbody></table></div>
-      </div>
-    </div>
-    <div class="hl-panel" data-panel="patterns" hidden>
-      <div class="card" id="hsCardH">
-        <div class="card-head"><h2>Head and shoulders: neckline action</h2><span class="note" id="hsNoteH"></span></div>
-        <div class="tbl-wrap" style="max-height: 45vh; margin-bottom:12px"><table><thead><tr><th>Pair</th><th>Pattern</th><th>Status</th><th title="Neckline today (extended), and the distance from the close">Neckline</th><th title="Measured move: neckline −/+ the pattern height">Target</th><th title="Where the pattern fails: beyond the right shoulder before the break; after it, back through the neckline by 35% of the height">Invalid at</th><th title="Left shoulder → head → right shoulder → today">Pattern</th><th>Broke / retested</th><th title="Since 2022: median 30-day move in the pattern's direction, how often it went that way, and vs the average coin">History (2022+)</th><th>Liquidity</th></tr></thead><tbody id="hsBodyH"></tbody></table></div>
-        <div class="card-head" style="margin-top:4px"><h2 style="font-size:1rem">Posted to highlights</h2><span class="note">each new near-neckline, break and retest, when it happened</span></div>
-        <div class="hl-list" id="hlHs"></div>
-      </div>
-      <div class="card" id="setupCard">
-        <div class="card-head"><h2>Possible tops and bottoms</h2>
-          <div class="seg" id="setupKind"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="top" aria-pressed="false">Tops</button><button type="button" data-v="bottom" aria-pressed="false">Bottoms</button><button type="button" data-v="hs_top" aria-pressed="false">Head &amp; shoulders</button><button type="button" data-v="accum_breakout" aria-pressed="false">Breakouts</button></div>
-        </div>
-        <p class="note" style="margin:0 0 12px" id="setupIntro"></p>
-        <div class="note" id="setupCluster" style="margin:0 0 12px; padding:10px 12px; border:1px solid var(--line); border-radius:10px" hidden></div>
-        <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Setup</th><th>Side</th><th title="Median result 30 days after the setup (entry next open, no stop), before 2022">30d median ≤2021</th><th>Win ≤2021</th><th title="Same, from 2022 on">30d median 2022+</th><th>Win 2022+</th><th>Cases</th><th id="setupRegHead" title="Same setup, only on days with today's market regime (all years)">Today's regime</th></tr></thead><tbody id="setupStats"></tbody></table></div>
-        <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Setup</th><th>Chart</th><th>Close</th><th title="Where the setup is wrong: beyond the swing high/low (+/- 0.5 ATR), or 1.5 ATR under a breakout">Invalidation</th><th title="Entry at the next open, out at the invalidation level if touched, else marked at the latest close (closed after 30 days). No fees.">So far</th><th>Liquidity</th></tr></thead><tbody id="setupBody"></tbody></table></div>
-      </div>
-    </div>
-    <div class="hl-panel" data-panel="moves" hidden>
-      <div class="card" id="movesCard">
-        <div class="card-head"><h2>Big 4-hour moves</h2>
-          <div class="seg" id="mvKind"><button type="button" data-v="" aria-pressed="true">Big moves</button><button type="button" data-v="hl" aria-pressed="false">30-day highs / lows</button><button type="button" data-v="all" aria-pressed="false">All</button></div>
-        </div>
-        <p class="note" style="margin:0 0 12px" id="mvIntro"></p>
-        <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Move</th><th title="Since late 2023, liquid coins">Cases</th><th title="Median change one day later, from the next 4h open">1 day later</th><th>Higher after 1 day</th><th title="Median change three days later">3 days later</th><th>Higher after 3 days</th><th title="Median of the coin's 3-day change minus the median liquid coin's">vs the average coin, 3d</th></tr></thead><tbody id="mvStats"></tbody></table></div>
-        <div class="tbl-wrap" style="max-height: 50vh"><table><thead><tr><th>Candle closed</th><th>Pair</th><th>Move</th><th>4h change</th><th title="Volume vs the average of the previous 30 candles">Volume</th><th>Close</th><th title="From that candle's close to the latest closed 4h candle">Since</th><th>Liquidity</th></tr></thead><tbody id="mvBody"></tbody></table></div>
-      </div>
-    </div>
-    <div class="hl-panel" data-panel="ideas" hidden>
-      <div class="card">
-        <div class="card-head"><h2>Trade ideas</h2>
-          <div class="seg" id="ideaSide"><button type="button" data-v="" aria-pressed="true">Long and short</button><button type="button" data-v="long" aria-pressed="false">Long</button><button type="button" data-v="short" aria-pressed="false">Short</button></div>
-        </div>
-        <p class="note" style="margin:0 0 12px" id="ideaIntro"></p>
-        <div class="mk-grid" id="ideaScore" style="margin:0 0 14px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr))"></div>
-        <div class="tbl-wrap" style="max-height: 72vh"><table><thead><tr><th>Pair</th><th>Idea</th><th>Signals agreeing</th><th>Track record</th><th>Entry ref.</th><th>Stop</th><th title="How the idea has done since: entry at the next day's open, out at the stop if touched, else marked at the latest close (closed after 30 days). No fees.">So far</th><th>Confluence</th><th>RSI</th><th>Mkt cap (est.)</th><th>Liquidity</th></tr></thead><tbody id="ideaBody"></tbody></table></div>
-      </div>
-    </div>
-    <div class="hl-panel" data-panel="channels" hidden>
-      <div class="card" id="chanCard">
-        <div class="card-head"><h2>Channels</h2>
-          <div style="display:flex; gap:8px; flex-wrap:wrap">
-            <div class="seg" id="chanKind"><button type="button" data-v="" aria-pressed="true">Watch list</button><button type="button" data-v="long" aria-pressed="false">Long-term</button><button type="button" data-v="bottom" aria-pressed="false">Bottom</button><button type="button" data-v="mid" aria-pressed="false">Midline</button><button type="button" data-v="top" aria-pressed="false">Top</button><button type="button" data-v="break" aria-pressed="false">Breaks</button><button type="button" data-v="all" aria-pressed="false">All channels</button></div>
-            <div class="seg" id="chanTf"><button type="button" data-v="" aria-pressed="true">Daily + 4h</button><button type="button" data-v="1d" aria-pressed="false">Daily</button><button type="button" data-v="4h" aria-pressed="false">4h</button></div>
+      <div class="hx-grid" id="hxGrid-shortlist"></div>
+      <details class="hx-more"><summary>Full list, closed picks and how picks are made</summary>
+        <div class="hx-more-in">
+          <div class="card">
+            <div class="card-head"><h2>Bee's Shortlist</h2><span class="note" id="slNote"></span></div>
+            <details class="hl-how" style="margin:0 0 12px"><summary class="note">How picks are made and closed</summary><p class="note" style="margin:8px 0 0" id="slIntro">Only you can see or change this list: it's stored owner-only and never published to the public site. <b>Entry</b> is the close of the latest closed daily candle on the day you approve. <b>Stop</b> = entry − 2 × ATR(14, daily), locked at approval. <b>R</b> = (price − entry) ÷ (entry − stop). <b>Stop hit</b>: a daily low since approval went below the stop. <b>Review</b>: a proven bearish signal (consistent edge, 100+ cases) fired on the pair since approval.</p></details>
+            <div class="tbl-wrap"><table><thead><tr><th>Pair</th><th>Status</th><th>Picked</th><th>Entry</th><th>Stop</th><th>Price</th><th>Since entry</th><th>R</th><th>Confluence</th><th>Signals</th><th id="slThNote">Note</th><th id="slThAct"></th></tr></thead><tbody id="slActive"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="card-head" id="slCandHead"><h2>Suggested for review</h2><span class="note" id="slCandNote"></span></div>
+            <p class="note" style="margin:0 0 12px">Pairs with confluence ≥ 7 of 10 that fired at least one <b>proven</b> bullish signal (consistent edge in both 2017–21 and 2022+, at least 100 cases) on the last 3 daily candles or the last closed week. Ranked by number of proven signals, volume confirmation, confluence and strength vs BTC. Nothing is added until you approve it.</p>
+            <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Proven signals</th><th>Confluence</th><th>vs BTC 30</th><th>RSI</th><th>Price</th><th>Stop if approved</th><th>Risk</th><th></th></tr></thead><tbody id="slCand"></tbody></table></div>
+          </div>
+          <div class="card" id="slConfirm" hidden>
+            <div class="card-head"><h2 id="slConfTitle">Approve</h2></div>
+            <div class="stat-row" id="slConfStats" style="margin-bottom:12px"></div>
+            <label class="label" for="slNoteIn">Note (optional)</label>
+            <textarea id="slNoteIn" maxlength="500" placeholder="Why this one, plan, size…"></textarea>
+            <div class="row-end" style="margin-top:10px"><span class="note" id="slConfStatus"></span><button class="btn" id="slCancel" type="button">Cancel</button><button class="btn primary" id="slDo" type="button">Approve</button></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>Closed</h2><span class="note">Removed from the shortlist, with result at removal</span></div>
+            <div class="tbl-wrap" style="max-height: 40vh"><table><thead><tr><th>Pair</th><th>Approved</th><th>Entry</th><th>Closed</th><th>Exit</th><th>Result</th><th>R</th><th>Reason</th></tr></thead><tbody id="slClosed"></tbody></table></div>
           </div>
         </div>
-        <p class="note" style="margin:0 0 12px" id="chanIntro"></p>
-        <p class="note" style="margin:0 0 8px" id="chanStatsNote"></p>
-        <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Status</th><th title="Daily-chart cases since 2022 (and up to 2021)">Cases 2022+</th><th title="Median price change over 30 days from the next day's open">Price 30d later</th><th title="Share of cases where the price was higher 30 days later">Higher after 30d</th><th title="Median of (the coin's 30-day change − the average liquid coin's change over the same days). Positive = the coin did better than the market">Coin vs the average coin</th><th title="Share of cases where the coin did better than the average liquid coin over 30 days">Beat the average coin</th><th title="Long trades: stop 10% of the width under the bottom line, target 10% under the top line, first one hit within 120 days. Average result in R (R = the amount risked).">Long trade: target hit / avg R</th><th title="Same comparison, only channels 365+ days long">Long-term channels: coin vs average</th></tr></thead><tbody id="chanStats"></tbody></table></div>
-        <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Chart</th><th>Status</th><th title="0% = on the bottom line, 50% = midline, 100% = on the top line">Where in channel</th><th>Channel</th><th>Width</th><th title="Touches on the bottom / top line, and reactions at the midline">Touches (mid)</th><th title="Touches on the lines, midline reactions, and length">Quality</th><th>Bottom line</th><th>Midline</th><th>Top line</th><th title="Since 2022, daily charts: median 30-day result of coins in this status (in this kind of channel: long-term, narrow or all) vs the average liquid coin, and how often they beat it">History vs market</th><th title="Events only: from the next candle's open to the latest close, in the event's direction. No fees.">Since event</th><th>Liquidity</th></tr></thead><tbody id="chanBody"></tbody></table></div>
+      </details>
+    </div>
+    <div class="hl-panel" data-panel="calls" hidden>
+      <div class="hx-sec">
+        <div><h2>Channel calls</h2><p>Coins at a tested entry inside a clean channel, confirmed by a proven signal and the bull score.</p></div>
+        <div class="hx-sec-r"><div class="seg" id="hxCallSide"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="long" aria-pressed="false">Long</button><button type="button" data-v="short" aria-pressed="false">Short</button></div><span class="note" id="hxNote-calls"></span></div>
       </div>
+      <div class="hx-grid" id="hxGrid-calls"></div>
+      <details class="hx-more"><summary>Full table, posted calls and how calls are chosen</summary>
+        <div class="hx-more-in">
+          <div class="card" id="callsCardH">
+            <div class="card-head"><h2>Channel calls</h2><span class="note" id="callsNoteH"></span></div>
+            <p class="note" style="margin:0 0 12px" id="callsIntroH"></p>
+            <div class="tbl-wrap" style="max-height: 50vh; margin-bottom:12px"><table><thead><tr><th>Grade</th><th>Pair</th><th>Side</th><th>Channel status</th><th>Channel</th><th title="Proven signals in the same direction: daily in the last 3 days or the latest weekly candle">Agreeing signals</th><th title="0-10 confluence of trend and momentum (daily)">Bull score</th><th>Close</th><th title="Longs: 10% of the channel width under the bottom line. Shorts: back above the line that was lost, +10% of the width">Stop / invalid</th><th>Target 1</th><th>Target 2</th><th title="Reward to target 1 ÷ risk to the stop">R:R</th><th title="Since 2022: this channel status's median 30-day result vs the average coin, and how often it beat the market">History vs market</th><th>Liquidity</th></tr></thead><tbody id="callsBodyH"></tbody></table></div>
+            <div class="card-head" style="margin-top:4px"><h2 style="font-size:1rem">Posted to highlights</h2><span class="note">each new call, when it happened (last 90 days)</span></div>
+            <div class="hl-list" id="hlCalls"></div>
+          </div>
+        </div>
+      </details>
+    </div>
+    <div class="hl-panel" data-panel="breakouts" hidden>
+      <div class="hx-sec">
+        <div><h2>Long-term breakouts</h2><p>Daily closes above a channel that held for 250+ days, graded on the three checks that separated winners.</p></div>
+        <div class="hx-sec-r"><div class="seg" id="hxLtGrade"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="A" aria-pressed="false">Grade A</button><button type="button" data-v="recent" aria-pressed="false">Last 30 days</button></div><span class="note" id="hxNote-breakouts"></span></div>
+      </div>
+      <div class="hx-grid" id="hxGrid-breakouts"></div>
+      <details class="hx-more"><summary>Full dossiers and track record</summary>
+        <div class="hx-more-in">
+          <div class="card" id="ltCardH">
+            <div class="card-head"><h2>Long-term channel breakouts</h2><span class="note" id="ltNoteH"></span></div>
+            <div class="tbl-wrap" style="max-height: 70vh"><table><thead><tr><th>Grade</th><th>Pair</th><th>Broke out</th><th>Long-term channel</th><th title="The three checks that separated winners from losers in testing">Graded checks</th><th title="The first weekly close after the breakout must stay above the line">Weekly close</th><th title="From the breakout close: now, and the best so far">Since breakout · best</th><th>Top line now</th><th title="Channel width projected above the top line">Width target</th><th title="Since 2022, breakouts with this grade: median 90-day result, share that gained 50%+ and that doubled within 180 days">History of this grade</th></tr></thead><tbody id="ltBodyH"></tbody></table></div>
+          </div>
+        </div>
+      </details>
+    </div>
+    <div class="hl-panel" data-panel="patterns" hidden>
+      <div class="hx-sec">
+        <div><h2>Patterns</h2><p>Head-and-shoulders necklines in play, and possible tops and bottoms from the leading setups.</p></div>
+        <div class="hx-sec-r"><div class="seg" id="hxPatKind"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="bear" aria-pressed="false">Bearish</button><button type="button" data-v="bull" aria-pressed="false">Bullish</button></div><span class="note" id="hxNote-patterns"></span></div>
+      </div>
+      <div class="hx-grid" id="hxGrid-patterns"></div>
+      <details class="hx-more"><summary>Full tables, posted events and track record</summary>
+        <div class="hx-more-in">
+          <div class="card" id="hsCardH">
+            <div class="card-head"><h2>Head and shoulders: neckline action</h2><span class="note" id="hsNoteH"></span></div>
+            <div class="tbl-wrap" style="max-height: 45vh; margin-bottom:12px"><table><thead><tr><th>Pair</th><th>Pattern</th><th>Status</th><th title="Neckline today (extended), and the distance from the close">Neckline</th><th title="Measured move: neckline −/+ the pattern height">Target</th><th title="Where the pattern fails: beyond the right shoulder before the break; after it, back through the neckline by 35% of the height">Invalid at</th><th title="Left shoulder → head → right shoulder → today">Pattern</th><th>Broke / retested</th><th title="Since 2022: median 30-day move in the pattern's direction, how often it went that way, and vs the average coin">History (2022+)</th><th>Liquidity</th></tr></thead><tbody id="hsBodyH"></tbody></table></div>
+            <div class="card-head" style="margin-top:4px"><h2 style="font-size:1rem">Posted to highlights</h2><span class="note">each new near-neckline, break and retest, when it happened</span></div>
+            <div class="hl-list" id="hlHs"></div>
+          </div>
+          <div class="card" id="setupCard">
+            <div class="card-head"><h2>Possible tops and bottoms</h2>
+              <div class="seg" id="setupKind"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="top" aria-pressed="false">Tops</button><button type="button" data-v="bottom" aria-pressed="false">Bottoms</button><button type="button" data-v="hs_top" aria-pressed="false">Head &amp; shoulders</button><button type="button" data-v="accum_breakout" aria-pressed="false">Breakouts</button></div>
+            </div>
+            <p class="note" style="margin:0 0 12px" id="setupIntro"></p>
+            <div class="note" id="setupCluster" style="margin:0 0 12px; padding:10px 12px; border:1px solid var(--line); border-radius:10px" hidden></div>
+            <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Setup</th><th>Side</th><th title="Median result 30 days after the setup (entry next open, no stop), before 2022">30d median ≤2021</th><th>Win ≤2021</th><th title="Same, from 2022 on">30d median 2022+</th><th>Win 2022+</th><th>Cases</th><th id="setupRegHead" title="Same setup, only on days with today's market regime (all years)">Today's regime</th></tr></thead><tbody id="setupStats"></tbody></table></div>
+            <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Setup</th><th>Chart</th><th>Close</th><th title="Where the setup is wrong: beyond the swing high/low (+/- 0.5 ATR), or 1.5 ATR under a breakout">Invalidation</th><th title="Entry at the next open, out at the invalidation level if touched, else marked at the latest close (closed after 30 days). No fees.">So far</th><th>Liquidity</th></tr></thead><tbody id="setupBody"></tbody></table></div>
+          </div>
+        </div>
+      </details>
+    </div>
+    <div class="hl-panel" data-panel="moves" hidden>
+      <div class="hx-sec">
+        <div><h2>Big 4-hour moves</h2><p>Pumps and dumps on liquid coins as each 4-hour candle closes (last 7 days).</p></div>
+        <div class="hx-sec-r"><div class="seg" id="hxMvDir"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="up" aria-pressed="false">Up</button><button type="button" data-v="down" aria-pressed="false">Down</button></div><span class="note" id="hxNote-moves"></span></div>
+      </div>
+      <div class="hx-grid" id="hxGrid-moves"></div>
+      <details class="hx-more"><summary>30-day highs and lows, full table and what usually follows</summary>
+        <div class="hx-more-in">
+          <div class="card" id="movesCard">
+            <div class="card-head"><h2>Big 4-hour moves</h2>
+              <div class="seg" id="mvKind"><button type="button" data-v="" aria-pressed="true">Big moves</button><button type="button" data-v="hl" aria-pressed="false">30-day highs / lows</button><button type="button" data-v="all" aria-pressed="false">All</button></div>
+            </div>
+            <p class="note" style="margin:0 0 12px" id="mvIntro"></p>
+            <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Move</th><th title="Since late 2023, liquid coins">Cases</th><th title="Median change one day later, from the next 4h open">1 day later</th><th>Higher after 1 day</th><th title="Median change three days later">3 days later</th><th>Higher after 3 days</th><th title="Median of the coin's 3-day change minus the median liquid coin's">vs the average coin, 3d</th></tr></thead><tbody id="mvStats"></tbody></table></div>
+            <div class="tbl-wrap" style="max-height: 50vh"><table><thead><tr><th>Candle closed</th><th>Pair</th><th>Move</th><th>4h change</th><th title="Volume vs the average of the previous 30 candles">Volume</th><th>Close</th><th title="From that candle's close to the latest closed 4h candle">Since</th><th>Liquidity</th></tr></thead><tbody id="mvBody"></tbody></table></div>
+          </div>
+        </div>
+      </details>
+    </div>
+    <div class="hl-panel" data-panel="ideas" hidden>
+      <div class="hx-sec">
+        <div><h2>Trade ideas</h2><p>Proven signals agreeing on the same coin at the latest daily close, with their track record.</p></div>
+        <div class="hx-sec-r"><div class="seg" id="hxIdeaSide"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="long" aria-pressed="false">Long</button><button type="button" data-v="short" aria-pressed="false">Short</button></div><span class="note" id="hxNote-ideas"></span></div>
+      </div>
+      <div class="hx-grid" id="hxGrid-ideas"></div>
+      <details class="hx-more"><summary>Every idea of the last 30 days, scorecard and rules</summary>
+        <div class="hx-more-in">
+          <div class="card">
+            <div class="card-head"><h2>Trade ideas</h2>
+              <div class="seg" id="ideaSide"><button type="button" data-v="" aria-pressed="true">Long and short</button><button type="button" data-v="long" aria-pressed="false">Long</button><button type="button" data-v="short" aria-pressed="false">Short</button></div>
+            </div>
+            <p class="note" style="margin:0 0 12px" id="ideaIntro"></p>
+            <div class="mk-grid" id="ideaScore" style="margin:0 0 14px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr))"></div>
+            <div class="tbl-wrap" style="max-height: 72vh"><table><thead><tr><th>Pair</th><th>Idea</th><th>Signals agreeing</th><th>Track record</th><th>Entry ref.</th><th>Stop</th><th title="How the idea has done since: entry at the next day's open, out at the stop if touched, else marked at the latest close (closed after 30 days). No fees.">So far</th><th>Confluence</th><th>RSI</th><th>Mkt cap (est.)</th><th>Liquidity</th></tr></thead><tbody id="ideaBody"></tbody></table></div>
+          </div>
+        </div>
+      </details>
+    </div>
+    <div class="hl-panel" data-panel="channels" hidden>
+      <div class="hx-sec">
+        <div><h2>Channels</h2><p>Coins at a decision point in a clean parallel channel: near a line, at the midline or breaking out.</p></div>
+        <div class="hx-sec-r"><div class="seg" id="hxChTf"><button type="button" data-v="1d" aria-pressed="true">Daily</button><button type="button" data-v="4h" aria-pressed="false">4-hour</button></div><span class="note" id="hxNote-channels"></span></div>
+      </div>
+      <div class="hx-grid" id="hxGrid-channels"></div>
+      <details class="hx-more"><summary>Every channel, filters and track record</summary>
+        <div class="hx-more-in">
+          <div class="card" id="chanCard">
+            <div class="card-head"><h2>Channels</h2>
+              <div style="display:flex; gap:8px; flex-wrap:wrap">
+                <div class="seg" id="chanKind"><button type="button" data-v="" aria-pressed="true">Watch list</button><button type="button" data-v="long" aria-pressed="false">Long-term</button><button type="button" data-v="bottom" aria-pressed="false">Bottom</button><button type="button" data-v="mid" aria-pressed="false">Midline</button><button type="button" data-v="top" aria-pressed="false">Top</button><button type="button" data-v="break" aria-pressed="false">Breaks</button><button type="button" data-v="all" aria-pressed="false">All channels</button></div>
+                <div class="seg" id="chanTf"><button type="button" data-v="" aria-pressed="true">Daily + 4h</button><button type="button" data-v="1d" aria-pressed="false">Daily</button><button type="button" data-v="4h" aria-pressed="false">4h</button></div>
+              </div>
+            </div>
+            <p class="note" style="margin:0 0 12px" id="chanIntro"></p>
+            <p class="note" style="margin:0 0 8px" id="chanStatsNote"></p>
+            <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Status</th><th title="Daily-chart cases since 2022 (and up to 2021)">Cases 2022+</th><th title="Median price change over 30 days from the next day's open">Price 30d later</th><th title="Share of cases where the price was higher 30 days later">Higher after 30d</th><th title="Median of (the coin's 30-day change − the average liquid coin's change over the same days). Positive = the coin did better than the market">Coin vs the average coin</th><th title="Share of cases where the coin did better than the average liquid coin over 30 days">Beat the average coin</th><th title="Long trades: stop 10% of the width under the bottom line, target 10% under the top line, first one hit within 120 days. Average result in R (R = the amount risked).">Long trade: target hit / avg R</th><th title="Same comparison, only channels 365+ days long">Long-term channels: coin vs average</th></tr></thead><tbody id="chanStats"></tbody></table></div>
+            <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Chart</th><th>Status</th><th title="0% = on the bottom line, 50% = midline, 100% = on the top line">Where in channel</th><th>Channel</th><th>Width</th><th title="Touches on the bottom / top line, and reactions at the midline">Touches (mid)</th><th title="Touches on the lines, midline reactions, and length">Quality</th><th>Bottom line</th><th>Midline</th><th>Top line</th><th title="Since 2022, daily charts: median 30-day result of coins in this status (in this kind of channel: long-term, narrow or all) vs the average liquid coin, and how often they beat it">History vs market</th><th title="Events only: from the next candle's open to the latest close, in the event's direction. No fees.">Since event</th><th>Liquidity</th></tr></thead><tbody id="chanBody"></tbody></table></div>
+          </div>
+        </div>
+      </details>
     </div>
     <div class="hl-panel" data-panel="bots" hidden>
       <div class="card">
@@ -1298,11 +1415,17 @@ function hlDay(d) {
 }
 function renderFeed() {
   const dir = S.feedDir || "", kind = S.feedKind || "", q = (S.feedQ || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/USDT$/, "");
-  const items = hlFeedItems().filter(x => (!dir || x.dir === dir) && (!kind || x.cat === kind) && (!q || x.sym.replace(/USDT$/, "").includes(q)));
+  let items = hlFeedItems().filter(x => (!dir || x.dir === dir) && (!kind || x.cat === kind) && (!q || x.sym.replace(/USDT$/, "").includes(q)));
+  if (!q) { const grp = {}, out = [];                     // one line per day for Shortlist picks and for closes
+    items.forEach(x => { if (x.cat !== "sl") { out.push(x); return; } const k = x.d + "|" + x.ev; if (!grp[k]) { grp[k] = { group: [], cat: "sl", ev: x.ev, d: x.d, t: x.t, sym: "", dir: "" }; out.push(grp[k]); }
+      grp[k].group.push(x); if (x.t > grp[k].t) grp[k].t = x.t; });
+    Object.values(grp).forEach(g => { if (g.group.length === 1) Object.assign(g, g.group[0], { group: null }); else { const ups = g.group.filter(z => z.dir === "bullish").length;
+      g.dir = ups === g.group.length ? "bullish" : ups === 0 ? "bearish" : ""; } });
+    items = out; }
   const L = $("#hlFeed"), lim = S.feedLim || 80; L.replaceChildren();
   const frag = document.createDocumentFragment(); let day = null;
-  items.slice(0, lim).forEach(x => { if (x.d !== day) { day = x.d; const h = document.createElement("div"); h.className = "hl-day"; h.textContent = hlDay(day); frag.append(h); }
-    frag.append(x.h ? hlRow(x.h, true, true) : x.mv ? mvFeedRow(x) : slFeedRow(x)); });
+  items.slice(0, lim).forEach(x => { if (x.d !== day) { day = x.d; const h = document.createElement("div"); h.className = "hx-day"; h.textContent = hlDay(day); frag.append(h); }
+    frag.append(hxFeedItem(x)); });
   L.append(frag);
   if (!items.length) L.innerHTML = '<div class="empty">Nothing matches these filters.</div>';
   const oldest = items.length ? items[items.length - 1].d : null;
@@ -1335,8 +1458,157 @@ segment("hlFeedDir", "v", v => { S.feedDir = v; S.feedLim = 80; renderFeed(); })
 $("#hlFeedKind").onchange = e => { S.feedKind = e.target.value; S.feedLim = 80; renderFeed(); };
 $("#hlFeedQ").oninput = e => { S.feedQ = e.target.value; S.feedLim = 80; renderFeed(); };
 $("#hlMore").onclick = () => { S.feedLim = (S.feedLim || 80) + 120; renderFeed(); };
+// ---------- Highlights cards (one card per item; the full tables stay one click away in "details")
+const hxEl = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const hxDir = d => d === "bullish" || d === "long" || d === "up" ? "up" : d === "bearish" || d === "short" || d === "down" ? "down" : d === "warn" ? "warn" : "neutral";
+function hxAv(sym, dir) { return hxEl("span", "hx-av " + hxDir(dir), sym === "Bee's Shortlist" ? "SL" : sym.replace(/USDT$/, "").slice(0, 4)); }
+function hxCard(o) {
+  const c = hxEl("div", "hx-card " + hxDir(o.dir)); c.tabIndex = 0; c.setAttribute("role", "link");
+  const go = o.go || (() => openPair(o.sym, o.tf || "1d")); c.onclick = go; c.onkeydown = e => { if (e.key === "Enter") go(); };
+  const top = hxEl("div", "hx-top"), id = hxEl("div", "hx-id"), nm = hxEl("b", "", o.sym.replace(/USDT$/, "")); id.append(nm, hxEl("small", "", "/USDT"));
+  if (venueOf(o.sym)) id.append(hxEl("small", "", " · " + venueOf(o.sym)));
+  if (o.sub) id.append(hxEl("div", "hx-sub", o.sub));
+  const bd = hxEl("div", "hx-badges"); (o.badges || []).forEach(b => b && bd.append(b));
+  top.append(hxAv(o.sym, o.dir), id, bd); c.append(top);
+  if (o.head) c.append(hxEl("div", "hx-head", o.head));
+  if (o.metrics && o.metrics.length) { const m = hxEl("div", "hx-metrics");
+    o.metrics.forEach(x => { if (!x) return; const d = hxEl("div"); d.append(hxEl("span", "", x[0])); const v = hxEl("b", x[2] || "", x[1]); d.append(v); if (x[3]) d.append(hxEl("small", "", x[3])); if (x[4]) d.title = x[4]; m.append(d); });
+    if (m.children.length % 2) m.lastElementChild.style.gridColumn = "1 / -1";     // an odd last cell spans the row
+    c.append(m); }
+  if (o.bar) c.append(o.bar);
+  if (o.tags && o.tags.length) { const t = hxEl("div", "hx-tags"); o.tags.slice(0, o.maxTags || 4).forEach(x => { const sp = Array.isArray(x) ? hxEl("span", x[1], x[0]) : hxEl("span", "", x); t.append(sp); });
+    if (o.tags.length > (o.maxTags || 4)) t.append(hxEl("span", "", "+" + (o.tags.length - (o.maxTags || 4)) + " more")); c.append(t); }
+  const f = hxEl("div", "hx-foot"); f.append(hxEl("span", "", o.foot || ""), hxEl("span", "hx-go", "Chart ›")); c.append(f);
+  return c;
+}
+const pctTo = (p, ref) => isNum(p) && isNum(ref) && ref ? fPct(100 * (p / ref - 1), 1) : "";
+function hxFill(name, cards, empty, note) {
+  const g = $("#hxGrid-" + name); if (!g) return; g.replaceChildren();
+  if (cards.length) { const fr = document.createDocumentFragment(); cards.forEach(c => fr.append(c)); g.append(fr); }
+  else g.append(hxEl("div", "hx-empty", empty));
+  const n = $("#hxNote-" + name); if (n) n.textContent = note || "";
+}
+function hxSeg(id, key, fn) { const box = $("#" + id); if (!box || box.dataset.wired) return; box.dataset.wired = "1";
+  $$("#" + id + " button").forEach(b => b.onclick = () => { $$("#" + id + " button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); S[key] = b.dataset.v; fn(); }); }
+const callSide = x => x.side === "long" ? "long" : "short";
+const chWord = x => { const sl = x.slope_pct_day; return !isNum(sl) || Math.abs(sl) < 0.05 ? "flat" : sl > 0 ? "rising" : "falling"; };
+function hxCalls() {
+  hxSeg("hxCallSide", "hxCallSide", hxCalls);
+  const C = callData(), D = chanData(), f = S.hxCallSide || "";
+  const rows = (C.rows || []).filter(x => !f || x.side === f).sort((a, b) => (a.grade > b.grade ? 1 : a.grade < b.grade ? -1 : b.score - a.score));
+  hxFill("calls", rows.map(x => { const ch = x.channel || {}, long = x.side === "long";
+    return hxCard({ sym: x.symbol, dir: x.side, sub: `${Math.round(ch.days || 0)}-day ${chWord(ch)} channel · ${(ch.touches || []).join("/")} touches`,
+      badges: [chip(long ? "Long" : "Short", long ? "up" : "down"), chip("Grade " + x.grade, x.grade === "A" ? "warn" : "neutral")],
+      head: (D.labels || {})[x.status] || x.status,
+      metrics: [["Price", fPx(x.close)], ["Stop", fPx(x.stop), "", isNum(x.risk_pct) ? (long ? "−" : "+") + fN(x.risk_pct, 1) + "%" : ""], ["Target", fPx(x.t1), long ? "pos" : "neg", pctTo(x.t1, x.close)], ["Reward : risk", isNum(x.rr) ? fN(x.rr, 1) + "×" : "—"]],
+      tags: x.signals.map(k => { const [tf, sg] = k.split(":"); return sigLabel(sg, long ? "bullish" : "bearish") + (tf === "1w" ? " (weekly)" : ""); }),
+      foot: `${x.date} · bull score ${x.bull_score}/10` + (x.hist && isNum(x.hist.rel30) ? ` · record ${fPct(x.hist.rel30, 1)} vs market` : "") });
+  }), "No channel entry is confirmed by other indicators right now. That is a valid answer: nothing forced.",
+  (C.rows || []).length ? `${(C.rows || []).length} now · ${(C.rows || []).filter(x => x.grade === "A").length} grade A` : "");
+}
+function hxBreakouts() {
+  hxSeg("hxLtGrade", "hxLtGrade", hxBreakouts);
+  const f = S.hxLtGrade || "", rows = (ltData().rows || []).filter(x => !f || (f === "A" ? x.grade === "A" : x.days_since <= 30));
+  hxFill("breakouts", rows.map(x => { const ck = x.checks || {}, wk = x.weekly;
+    return hxCard({ sym: x.symbol, dir: x.grade === "A" ? "up" : x.grade === "C" ? "down" : "neutral", sub: `${Math.round(ck.days || 0)}-day channel · broke out ${x.event_date} (${x.days_since}d ago)`,
+      badges: [chip("Grade " + x.grade, x.grade === "A" ? "up" : x.grade === "C" ? "down" : "neutral"), chip(wk === "held" ? "Weekly close held" : wk === "failed" ? "Weekly close failed" : "Weekly close pending", wk === "held" ? "up" : wk === "failed" ? "down" : "neutral")],
+      metrics: [["Since", fPct(x.since_pct, 1), cls(x.since_pct)], ["Best", fPct(x.max_pct, 1), "pos"], ["Line now", fPx(x.line_now)], ["Width target", isNum(x.target_width) ? fPx(x.target_width) : "—", "", isNum(x.target_width) ? pctTo(x.target_width, x.price) : ""]],
+      tags: [["RSI " + (ck.rsi ?? "—") + (ck.rsi_ok ? " in 55-75" : ck.rsi > 75 ? " overheated" : " weak"), ck.rsi_ok ? "ok" : "no"], [ck.flat_or_falling ? "From a range or downtrend" : "From an uptrend channel", ck.flat_or_falling ? "ok" : "no"],
+        [(ck.not_extended ? "Close to the line" : "Extended") + " (+" + fN(ck.ext_pct, 1) + "%)", ck.not_extended ? "ok" : "no"]],
+      foot: x.hist && isNum(x.hist.med90) ? `Grade ${x.grade} record: ${fPct(x.hist.med90, 1)} median after 90 days · doubled ${x.hist.x2}%` : "Long-term breakout" });
+  }), "No long-term channel breakout in this selection.", (ltData().rows || []).length ? `${(ltData().rows || []).length} in 180 days · ${(ltData().rows || []).filter(x => x.grade === "A" && x.days_since <= 30).length} grade A in 30 days` : "");
+}
+function hxPatterns() {
+  hxSeg("hxPatKind", "hxPatKind", hxPatterns);
+  const f = S.hxPatKind || "", ok = bear => !f || (f === "bear") === bear;
+  const hs = (hsData().rows || []).filter(x => x.status !== "after_break" && ok(x.kind === "top"));
+  const D = setupData(), last = (D.rows || []).reduce((m, x) => x.date > m ? x.date : m, "");
+  const st = (D.rows || []).filter(x => last && Date.parse(last) - Date.parse(x.date) <= 14 * 864e5 && ok(x.side !== "long"));
+  const cards = hs.map(x => { const top = x.kind === "top", P = x.points || {};
+    return hxCard({ sym: x.symbol, dir: top ? "down" : "up", sub: (P.ls ? `${P.ls[0].slice(5)} → ${P.head[0].slice(5)} → ${P.rs[0].slice(5)}` : "") + ` · ${x.days}-day pattern`,
+      badges: [chip(top ? "H&S top" : "Inverse H&S", top ? "down" : "up")], head: HS_ST[x.status] || x.status,
+      metrics: [["Neckline", fPx(x.neck), "", fPct(x.to_neck_pct, 1)], ["Target", fPx(x.target), top ? "neg" : "pos", fPct(x.to_target_pct, 1)], ["Invalid at", fPx(x.stop)]],
+      foot: (x.break_date ? "Broke " + x.break_date + (x.retest_date ? " · retest " + x.retest_date : "") : "Not broken yet") + (x.hist && isNum(x.hist.med30) ? ` · record ${fPct(x.hist.med30, 1)} after 30d` : "") }); });
+  st.forEach(x => { const long = x.side === "long";
+    cards.push(hxCard({ sym: x.symbol, dir: x.side, tf: x.tf === "1w" ? "1w" : "1d", sub: (x.tf === "1w" ? "Weekly" : "Daily") + " chart · " + x.date,
+      badges: [chip(long ? "Possible bottom" : "Possible top", long ? "up" : "down")], head: setupLabel(x.kind),
+      metrics: [["Close", fPx(x.close)], ["Invalid at", x.stop ? fPx(x.stop) : "—", "", x.stop ? (long ? "−" : "+") + fN(x.stop_pct, 1) + "%" : ""], isNum(x.target) ? ["Target", fPx(x.target), long ? "pos" : "neg", "−" + fN(x.target_pct, 1) + "%"] : null,
+        ["So far", x.out_pct == null ? "starts" : fPct(x.out_pct, 1), x.out_pct == null ? "" : cls(x.out_pct)]],
+      foot: "Setup · #" + x.liq_rank + " by liquidity" })); });
+  hxFill("patterns", cards, "No head-and-shoulders neckline in play and no new top or bottom setup in this selection.", `${hs.length} necklines in play · ${st.length} setups (14 days)`);
+}
+function hxMoves() {
+  hxSeg("hxMvDir", "hxMvDir", hxMoves);
+  const f = S.hxMvDir || "", L = (S.mv && S.mv.labels) || {};
+  const rows = ((S.mv && S.mv.rows) || []).filter(x => /^(pump|dump)/.test(x.kind) && (!f || (f === "up") === /pump/.test(x.kind)));
+  hxFill("moves", rows.map(x => { const up = /pump/.test(x.kind);
+    return hxCard({ sym: x.symbol, dir: up ? "up" : "down", tf: "4h", sub: "Candle closed " + fmtLocal(new Date((x.t + 14400) * 1000).toISOString()),
+      badges: [chip(L[x.kind] || (up ? "Pump" : "Dump"), up ? "up" : "down")], head: (up ? "Up " : "Down ") + fPct(x.ret_pct, 1).replace(/^[+−-]/, "") + " in one 4-hour candle",
+      metrics: [["Volume", isNum(x.rvol) ? fN(x.rvol, 1) + "×" : "—"], ["Close", fPx(x.close)], ["Since", fPct(x.since_pct, 1), cls(x.since_pct)]],
+      foot: "#" + x.liq_rank + " by liquidity" + (up ? " · pumps like this have mostly faded" : "") }); }),
+  "No big 4-hour move in the last 7 days.", rows.length ? rows.length + " in 7 days" : "");
+}
+function hxIdeas() {
+  hxSeg("hxIdeaSide", "hxIdeaSide", hxIdeas);
+  const ld = latestIdeaDay(), f = S.hxIdeaSide || "", rows = ideas().filter(x => x.date === ld && (!f || x.side === f)).sort((a, b) => b.agree - a.agree || b.best_edge_30d - a.best_edge_30d);
+  hxFill("ideas", rows.map(x => { const long = x.side === "long";
+    return hxCard({ sym: x.symbol, dir: x.side, sub: "#" + x.liq_rank + " by liquidity",
+      badges: [chip((long ? "Long" : "Short") + " · " + x.agree + " signal" + (x.agree > 1 ? "s" : ""), long ? "up" : "down"), x.conflict ? chip(x.conflict + " against", "warn") : null],
+      metrics: [["Entry ref.", fPx(x.close)], ["Stop", x.stop ? fPx(x.stop) : "—", "", x.stop ? (long ? "−" : "+") + fN(x.stop_pct, 1) + "%" : ""], ["Record 30d", fPct(x.best_edge_30d, 1), "", "vs average", "Strongest agreeing signal: average 30-day result vs the average pair, all past cases"],
+        ["So far", x.out_pct == null ? "starts" : fPct(x.out_pct, 1), x.out_pct == null ? "" : cls(x.out_pct)]],
+      tags: x.signals.map(z => sigWithDir(z[0], z[1]).replace(/ [↑↓]$/, "")), foot: isNum(x.confluence) ? "Bull score " + fN(x.confluence, 0) + "/10 · RSI " + fN(x.rsi14, 0) : "" }); }),
+  "No trade idea at the latest daily close.", ld ? `${rows.length} at the ${ld} close` : "");
+}
+function hxChannels() {
+  hxSeg("hxChTf", "hxChTf", hxChannels);
+  const D = chanData(), tf = S.hxChTf || "1d";
+  const rows = (D.rows || []).filter(x => x.tf === tf && x.status !== "inside").sort((a, b) => (b.days >= 365) - (a.days >= 365) || b.quality - a.quality).slice(0, 48);
+  hxFill("channels", rows.map(x => { const mid = (x.lo1 + x.hi1) / 2, bar = hxEl("div"), b = hxEl("div", "hx-bar"), dot = hxEl("i"), p = Math.max(-0.08, Math.min(1.08, x.pos));
+    dot.style.left = (100 * (p + 0.08) / 1.16) + "%"; b.append(dot); const lb = hxEl("div", "hx-barl"); lb.append(hxEl("span", "", "Bottom"), hxEl("span", "", "Middle"), hxEl("span", "", "Top")); bar.append(b, lb);
+    return hxCard({ sym: x.symbol, dir: CH_UP[x.status] || "neutral", tf: x.tf, sub: `${Math.round(x.days)}-day ${chWord(x)} channel · ${x.touches.join("/")} touches`,
+      badges: [chip(x.tf === "4h" ? "4h" : "Daily", "neutral")], head: (D.labels || {})[x.status] || x.status, bar,
+      metrics: [["Bottom", fPx(x.lo1), "", fPct(x.to_bottom_pct, 1)], ["Middle", fPx(mid), "", fPct(x.to_mid_pct, 1)], ["Top", fPx(x.hi1), "", fPct(x.to_top_pct, 1)]],
+      foot: "Quality " + fN(x.quality, 1) + " · width " + fN(x.width_pct, 0) + "%" + (x.hist && isNum(x.hist.rel30) ? ` · record ${fPct(x.hist.rel30, 1)} vs market` : "") }); }),
+  "No channel at a decision point on this timeframe.", rows.length ? `${rows.length} at a decision point (best first)` : "");
+}
+function hxShortlist() {
+  const scr = Object.fromEntries(S.scr.map(r => [r.symbol, r]));
+  const act = slRows().filter(d => d.status === "active").sort((a, b) => (b.entry_date || "").localeCompare(a.entry_date || ""));
+  hxFill("shortlist", act.map(d => { const short = d.side === "short", sg = short ? -1 : 1, r = scr[d.symbol];
+    const px = (livePx(d.symbol) || [r ? r.last_close : null])[0], ret = isNum(px) ? sg * (px / d.entry - 1) * 100 : null, R = isNum(px) && d.entry !== d.stop ? (px - d.entry) / (d.entry - d.stop) : null;
+    return hxCard({ sym: d.symbol, dir: d.side === "short" ? "short" : "long", sub: "Picked " + d.entry_date + (d.market ? " · BTC " + (d.market === "btc_above_200d" ? "above" : "below") + " 200-day" : ""),
+      badges: [chip(short ? "Short" : "Long", short ? "down" : "up"), isNum(px) && (short ? px > d.stop : px < d.stop) ? chip("Below stop", "down") : null],
+      metrics: [["Entry", fPx(d.entry)], ["Now", isNum(px) ? fPx(px) : "—"], ["Stop", fPx(d.stop)], ["Result", ret == null ? "—" : fPct(ret, 1), ret == null ? "" : cls(ret), R == null ? "" : (R >= 0 ? "+" : "") + R.toFixed(2) + "R"]],
+      tags: (Array.isArray(d.why) ? d.why : []).map(k => { const [tf, sg2] = k.split(":"); return sigLabel(sg2, short ? "bearish" : "bullish") + (tf === "1w" ? " (weekly)" : ""); }),
+      foot: "Live price" + (S.px && S.px.as_of ? " · " + fmtLocal(S.px.as_of) : "") }); }),
+  "No active pick right now.", act.length ? act.length + " active" : "");
+}
+function hxFeedItem(x) {
+  let sym = x.sym, dir = x.dir, kind = "", head = "", ev = "", time = "", go;
+  if (x.group) { const G = x.group, L = G.filter(z => z.sl.side !== "short").length, sh = G.length - L; sym = "Bee's Shortlist";
+    if (x.ev === "pick") { head = `${G.length} new picks` + (L && sh ? `: ${L} long, ${sh} short` : L ? ", all long" : ", all short");
+      ev = G.map(z => z.sl.symbol.replace(/USDT$/, "") + (L && sh ? (z.sl.side === "short" ? " (short)" : " (long)") : "")).join(" · "); }
+    else { head = `${G.length} picks closed`; ev = G.map(z => { const d = z.sl, r = (d.side === "short" ? -1 : 1) * (d.exit / d.entry - 1) * 100; return d.symbol.replace(/USDT$/, "") + " " + fPct(r, 1); }).join(" · "); }
+    go = () => { location.hash = "highlights/shortlist"; }; }
+  else if (x.h) { const h = x.h; kind = { chan_call: "Channel call", ltbo: "Long-term breakout", hs_event: "Head and shoulders", bot: "Bot", sig: "Signal" }[x.cat] || "Signal";
+    head = kindText(h); ev = hlEvidence(h);
+    go = () => { if (h.kind.startsWith("bot_")) { const b = hlDet(h).bot; if (b) { S.botId = b; store.set("botId", b); } location.hash = "bot/each"; } else openPair(h.symbol, "1d"); }; }
+  else if (x.mv) { const m = x.mv, up = /pump/.test(m.kind); kind = "4h move"; head = (up ? "Up " : "Down ") + fPct(m.ret_pct, 1).replace(/^[+−-]/, "") + " in one 4-hour candle";
+    time = fmtLocal(new Date((m.t + 14400) * 1000).toISOString()).replace(/^.*?, \d{4}, /, ""); ev = `Volume ${isNum(m.rvol) ? fN(m.rvol, 1) + "×" : "—"} normal · close ${fPx(m.close)}` + (isNum(m.since_pct) ? ` · ${fPct(m.since_pct, 1)} since` : "") + ` · #${m.liq_rank} by liquidity`;
+    go = () => openPair(m.symbol, "4h"); }
+  else { const d = x.sl, short = d.side === "short"; kind = "Bee's Shortlist";
+    if (x.ev === "pick") { head = "Picked (" + (short ? "short" : "long") + ")"; ev = `Entry ${fPx(d.entry)} · stop ${fPx(d.stop)}` + (isNum(d.risk_pct) ? ` (${fN(d.risk_pct, 1)}% away)` : "") + (Array.isArray(d.why) && d.why.length ? " · " + d.why.slice(0, 3).map(k => sigLabel(k.split(":")[1], short ? "bearish" : "bullish")).join(", ") : ""); }
+    else { const res = (short ? -1 : 1) * (d.exit / d.entry - 1) * 100; head = "Closed " + fPct(res, 1); ev = `Entry ${fPx(d.entry)} → exit ${fPx(d.exit)}` + (d.close_reason ? " · " + d.close_reason : ""); }
+    go = () => openPair(d.symbol, "1d"); }
+  const it = hxEl("div", "hx-item"); it.tabIndex = 0; it.setAttribute("role", "link"); it.onclick = go; it.onkeydown = e => { if (e.key === "Enter") go(); };
+  const mid = hxEl("div"), t = hxEl("div", "hx-t"); t.append(hxEl("b", "", sym.replace(/USDT$/, ""))); if (kind) t.append(hxEl("span", "hx-k", kind)); mid.append(t, hxEl("div", "hx-h", head)); if (ev) mid.append(hxEl("div", "hx-e", ev));
+  const r = hxEl("div", "hx-r"); const isNewX = S.prevVisit && x.t > S.prevVisit; if (isNewX) r.append(chip("New", "new"));
+  r.append(chip(dir === "bullish" ? "Bullish" : dir === "bearish" ? "Bearish" : x.group ? "Long and short" : "Info", hxDir(dir))); if (time) r.append(hxEl("small", "", time));
+  it.append(hxAv(sym, dir), mid, r); return it;
+}
+function renderHx() { hxShortlist(); hxCalls(); hxBreakouts(); hxPatterns(); hxMoves(); hxIdeas(); hxChannels(); }
 function renderHighlights() {
-  renderFeed(); hlCounts();
+  renderFeed(); hlCounts(); renderHx();
   $("#hlHeadNote").textContent = S.ov ? "Daily close " + S.ov.last_date + " · 4h and live data every 15 minutes" : "";
   const bots = S.hl.filter(isBotHl), list = $("#hlBot"); list.replaceChildren();
   bots.slice(0, 120).forEach(h => list.append(hlRow(h, true)));
@@ -1790,7 +2062,7 @@ function renderClosedSL(closed) {
 function confirmPanel(title, stats, btnText, onDo) {
   $("#slConfTitle").textContent = title; const st = $("#slConfStats"); st.replaceChildren();
   stats.forEach(([k, v]) => { const d = document.createElement("div"); const l = document.createElement("span"); l.className = "label"; l.textContent = k; const b = document.createElement("b"); b.textContent = v; d.append(l, b); st.append(d); });
-  $("#slDo").textContent = btnText; $("#slConfStatus").textContent = ""; $("#slConfirm").hidden = false; $("#slConfirm").scrollIntoView({ behavior: "smooth", block: "center" });
+  $("#slDo").textContent = btnText; $("#slConfStatus").textContent = ""; $("#slConfirm").hidden = false; const dd = $("#slConfirm").closest("details"); if (dd) dd.open = true; $("#slConfirm").scrollIntoView({ behavior: "smooth", block: "center" });
   SL.pending = onDo;
 }
 function askApprove(r, sig) {
