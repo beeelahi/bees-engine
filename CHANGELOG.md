@@ -5,6 +5,8 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- Live checks for the daily ops review: `tools/live_check.py` (published data fresh, complete and consistent) and
+  `tools/site_smoke.js URL` (every tab of the live site on desktop and phone, no JavaScript errors).
 - Database upkeep (`db_maint.py`, once a day after the daily rebuild): quick integrity check of every database
   (full check of binance.db on Sundays), an online, verified backup of each (last 2 kept, skipped when disk is
   short), WAL checkpoint and planner statistics. Problems raise an alert; results show in the ops status.
