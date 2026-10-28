@@ -11,7 +11,7 @@ const server = http.createServer((q, r) => { const u = decodeURIComponent(q.url.
   if (!f.startsWith(dir) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); return r.end(); }
   r.writeHead(200, { "Content-Type": TYPES[path.extname(f)] || "application/octet-stream" }); fs.createReadStream(f).pipe(r); });
 const ROUTES = ["overview", "highlights", "highlights/shortlist", "highlights/calls", "highlights/breakouts", "highlights/patterns", "highlights/moves",
-  "highlights/ideas", "highlights/channels", "highlights/bots", "bot", "bot/each", "bot/record", "bot/fade", "signals", "signals/library", "screener", "watchlist",
+  "highlights/ideas", "highlights/channels", "highlights/bots", "bot", "mmbee", "mmbee/backtest", "bot/each", "bot/record", "bot/fade", "signals", "signals/library", "screener", "watchlist",
   "listings", "lab", "pair/BTCUSDT/1d", "pair/BTCUSDT/1w", "pair/BTCUSDT/1M", "pair/BTCUSDT/4h", "pair/BTCUSDT/1h", "pair/ZIGUSDT/1d", "me",
   "top50", "record", "library", "shortlist"];
 (async () => {
@@ -24,6 +24,10 @@ const ROUTES = ["overview", "highlights", "highlights/shortlist", "highlights/ca
     p.on("console", m => { if (m.type() === "error" && !/Failed to load resource/.test(m.text())) errs.push("console: " + m.text()); });
     if (LIVE) await p.addInitScript(() => { try { localStorage.setItem("guest", "1"); } catch (e) {} });   // skip the welcome screen
     await p.goto(base + "#overview", { waitUntil: "networkidle" }); await p.waitForTimeout(LIVE ? 2500 : 800);
+    // errors while the page loads (a script that fails to parse stops everything) and a page that never started
+    const booted = await p.evaluate(() => { const t = document.querySelector("#freshText"); return !!t && t.textContent.trim() !== "Loading data…"; });
+    if (errs.length || !booted) { const why = errs.concat(booted ? [] : ["the page script never ran (still Loading data…)"]).join(" | ");
+      console.log(`${vp.n.padEnd(8)} page load                 FAIL ${why}`); fails.push(`${vp.n} page load: ${why}`); }
     for (const r of ROUTES) {
       errs = [];
       await p.evaluate(h => { location.hash = h; }, r); await p.waitForTimeout((r.startsWith("pair") ? 900 : 450) * (LIVE ? 2 : 1));

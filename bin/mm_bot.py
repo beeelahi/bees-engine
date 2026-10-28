@@ -96,6 +96,17 @@ class MM:
         bal = self.ex.balances()
         for c in self.cfg["coins"]:
             sym = c["symbol"]
+            if c.get("mode") == "bee":                 # MM-Bee: sell-first ladder from the daily close (mm_bee.py)
+                import mm_bee
+                if not hasattr(self, "bees"):
+                    self.bees = {}
+                b = self.bees.setdefault(sym, mm_bee.BeeLadder(self.ex, c, self.con, self.log))
+                bids, asks = self.ex.book(sym, 5)
+                if bids and asks:
+                    b.step((bids[0][0] + asks[0][0]) / 2)
+                    self.digest += b.events
+                    b.events = []
+                continue
             if c.get("mode") == "grid":                # sell-high / rebuy-lower ladder (mm_grid_live.py)
                 import mm_grid_live
                 if not hasattr(self, "grids"):

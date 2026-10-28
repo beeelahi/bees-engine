@@ -270,6 +270,22 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
 .me-hero { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; } .me-hero .avatar { width: 56px; height: 56px; font-size: 20px; cursor: default; }
 .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 90; background: var(--panel-2); border: 1px solid var(--line); color: var(--fg); padding: 10px 16px; border-radius: 999px; box-shadow: 0 10px 30px rgba(0,0,0,.4); font-size: 13.5px; } .toast[hidden] { display: none; }
 @media (max-width: 640px) { .brand .sub { display: none; } .chart-main { height: 300px; } input.search { width: 130px; } .hl { grid-template-columns: 1fr auto; } .hl .when { grid-column: 1 / -1; } }
+.mb-row { margin-top: 20px; } .mb-verdict { font-size: 16px; line-height: 1.55; margin: 0 0 8px; max-width: 75ch; } #mbKpis { margin-top: 20px; }
+.mb-rules { margin: 0; padding-left: 20px; display: grid; gap: 8px; line-height: 1.5; }
+.mb-rules b { font-family: var(--font-num); font-weight: 600; }
+.mb-split { display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: var(--panel-2); margin: 6px 0 10px; }
+.mb-split i { display: block; height: 100%; }
+.mb-split-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); }
+.mb-split-legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; background: var(--c); vertical-align: middle; }
+.mb-wallet { display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; margin-top: 16px; font-size: 13px; }
+.mb-wallet dt { color: var(--muted); } .mb-wallet dd { margin: 0; text-align: right; font-family: var(--font-num); }
+.mb-tall { max-height: 30rem; }
+.mb-ladder tr.now td { background: var(--accent-soft); color: var(--accent); font-weight: 600; text-align: center; }
+.mb-feed { list-style: none; margin: 0; padding: 0; max-height: 30rem; overflow: auto; display: grid; gap: 2px; }
+.mb-feed li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+.mb-feed .ic { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font-size: 13px; font-weight: 700; }
+.mb-feed .ic.up { background: var(--up-soft); color: var(--up); } .mb-feed .ic.down { background: var(--down-soft); color: var(--down); } .mb-feed .ic.info { background: var(--accent-soft); color: var(--accent); }
+.mb-feed small { display: block; color: var(--muted); font-size: 11.5px; margin-top: 2px; }
 </style>
 
 <header class="top" id="top">
@@ -298,6 +314,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <a href="#overview" data-view="overview">Overview</a>
       <a href="#highlights" data-view="highlights">Trade Ideas<span class="badge" id="hlBadge" hidden></span></a>
       <a href="#bot" data-view="bot">Trading bots</a>
+      <a href="#mmbee" data-view="mmbee">MM-Bee</a>
       <a href="#screener" data-view="screener">Screener</a>
       <a href="#watchlist" data-view="watchlist">Watchlist</a>
       <a href="#signals" data-view="signals">Signals</a>
@@ -656,6 +673,99 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
     </div>
   </section>
 
+  <section class="view" id="v-mmbee" hidden>
+    <div class="card sub-head">
+      <div class="card-head"><h2>MM-Bee · ZIG market making</h2><span class="pill" id="mbPill"><span class="dot"></span><span id="mbPillText">Loading…</span></span></div>
+      <p class="note sub-lead">Paper trading on live MEXC prices: every order is simulated against MEXC's real trades and order book, and no order reaches the exchange. <b id="mbLead">&nbsp;</b></p>
+      <div class="hl-nav sub-nav" data-for="mmbee" role="tablist" aria-label="MM-Bee sections">
+        <button type="button" role="tab" data-s="live">Live paper<i></i></button>
+        <button type="button" role="tab" data-s="backtest">Backtest: last 15 days<i></i></button>
+      </div>
+    </div>
+    <div class="sub-panel" data-s="live" hidden>
+    <div class="grid-kpi" id="mbKpis">
+      <div class="card kpi"><div class="label">Ahead of just holding</div><div class="v" id="mbEdge">—</div><div class="note" id="mbEdgeNote">&nbsp;</div></div>
+      <div class="card kpi"><div class="label">Profit locked in</div><div class="v" id="mbProfit">—</div><div class="note" id="mbProfitNote">&nbsp;</div></div>
+      <div class="card kpi"><div class="label">Completed rounds</div><div class="v" id="mbRounds">—</div><div class="note" id="mbRoundsNote">&nbsp;</div></div>
+      <div class="card kpi"><div class="label">ZIG price</div><div class="v" id="mbPrice">—</div><div class="note" id="mbPriceNote">&nbsp;</div></div>
+      <div class="card kpi"><div class="label">Base price</div><div class="v" id="mbBase">—</div><div class="note" id="mbBaseNote">&nbsp;</div></div>
+      <div class="card kpi"><div class="label">Last fill</div><div class="v" id="mbLast">—</div><div class="note" id="mbLastNote">&nbsp;</div></div>
+    </div>
+    <div class="grid-2 mb-row">
+      <div class="card">
+        <div class="card-head"><h3>How MM-Bee trades</h3><span class="note">The rules, with today's numbers</span></div>
+        <ol class="mb-rules" id="mbRules"></ol>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Where the coins are</h3><span class="note" id="mbBudgetNote"></span></div>
+        <div class="mb-split" id="mbSplit"></div>
+        <div class="mb-split-legend" id="mbSplitLegend"></div>
+        <div class="mb-wallet" id="mbWallet"></div>
+      </div>
+    </div>
+    <div class="card mb-row">
+      <div class="card-head"><h3>Ahead of holding, over time</h3><span class="note">Wallet value minus the untouched starting wallet, USDT, hourly</span></div>
+      <div class="legend" id="mbLegend"></div>
+      <div class="chart-eq" id="mbCurve"></div>
+    </div>
+    <div class="grid-2 mb-row">
+      <div class="card">
+        <div class="card-head"><h3>Order ladder now</h3><span class="note" id="mbLadderNote"></span></div>
+        <div class="tbl-wrap mb-tall"><table class="mb-ladder"><thead><tr><th>Order</th><th>Side</th><th>Price</th><th>From price</th><th>ZIG</th><th>Rounds</th></tr></thead><tbody id="mbLadder"></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>What happened</h3><span class="note" id="mbFeedNote"></span></div>
+        <ul class="mb-feed" id="mbFeed"></ul>
+      </div>
+    </div>
+    <div class="card mb-row">
+      <div class="card-head"><h3>MM-Bee against the other paper settings</h3><span class="note">Same market, same live data, each with its own simulated wallet</span></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Setting</th><th>Rules</th><th>Running</th><th>Rounds</th><th>Profit locked in</th><th>Ahead of holding</th><th>Fills</th><th>Open orders</th></tr></thead><tbody id="mbCompare"></tbody></table></div>
+    </div>
+    <div class="card mb-row">
+      <div class="card-head"><h3>Every MM-Bee fill</h3><span class="note" id="mbFillNote"></span></div>
+      <div class="tbl-wrap mb-tall"><table><thead><tr><th>Time (UTC)</th><th>Side</th><th>Price</th><th>ZIG</th><th>USDT</th><th>Type</th></tr></thead><tbody id="mbFills"></tbody></table></div>
+    </div>
+    </div>
+    <div class="sub-panel" data-s="backtest" hidden>
+      <div class="card mb-row">
+        <div class="card-head"><h3 id="btTitle">Backtest</h3><span class="note" id="btRange"></span></div>
+        <p class="mb-verdict" id="btVerdict">&nbsp;</p>
+        <p class="note" id="btMethod">&nbsp;</p>
+      </div>
+      <div class="grid-kpi mb-row">
+        <div class="card kpi"><div class="label">Ahead of just holding</div><div class="v" id="btEdge">—</div><div class="note" id="btEdgeNote">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Profit locked in</div><div class="v" id="btProfit">—</div><div class="note" id="btProfitNote">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Completed rounds</div><div class="v" id="btRounds">—</div><div class="note" id="btRoundsNote">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">ZIG over the period</div><div class="v" id="btMove">—</div><div class="note" id="btMoveNote">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Wallet value</div><div class="v" id="btValue">—</div><div class="note" id="btValueNote">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Worst dip vs holding</div><div class="v" id="btDip">—</div><div class="note">lowest point of the gap, from its high</div></div>
+      </div>
+      <div class="card mb-row">
+        <div class="card-head"><h3>Ahead of holding, hour by hour</h3><span class="note">USDT on the right; the ZIG price on the left</span></div>
+        <div class="legend" id="btLegend"></div>
+        <div class="chart-eq" id="btCurve"></div>
+      </div>
+      <div class="grid-2 mb-row">
+        <div class="card">
+          <div class="card-head"><h3>Day by day</h3><span class="note">UTC days</span></div>
+          <div class="tbl-wrap mb-tall"><table><thead><tr><th>Day</th><th>Sells</th><th>Buy-backs</th><th>Profit locked in</th><th>ZIG close</th></tr></thead><tbody id="btDays"></tbody></table></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>What it did</h3><span class="note" id="btFeedNote"></span></div>
+          <ul class="mb-feed" id="btFeed"></ul>
+        </div>
+      </div>
+      <div class="card mb-row">
+        <div class="card-head"><h3>Every backtest fill</h3><span class="note" id="btFillNote"></span></div>
+        <div class="tbl-wrap mb-tall"><table><thead><tr><th>Candle close (UTC)</th><th>Side</th><th>Price</th><th>ZIG</th><th>USDT</th><th>Type</th></tr></thead><tbody id="btFills"></tbody></table></div>
+      </div>
+      <div class="card mb-row">
+        <div class="card-head"><h3>Where its orders stand at the end</h3><span class="note" id="btLadderNote"></span></div>
+        <div class="tbl-wrap mb-tall"><table class="mb-ladder"><thead><tr><th>Order</th><th>Side</th><th>Price</th><th>From price</th><th>ZIG</th><th>Rounds</th></tr></thead><tbody id="btLadder"></tbody></table></div>
+      </div>
+    </div>
+  </section>
   <section class="view" id="v-screener" hidden>
     <div class="controls">
       <div class="seg" id="tfSeg" role="group" aria-label="Indicator timeframe"><button type="button" data-tf="d" aria-pressed="true">Daily</button><button type="button" data-tf="w" aria-pressed="false">Weekly</button><button type="button" data-tf="m" aria-pressed="false">Monthly</button></div>
@@ -1046,6 +1156,7 @@ async function loadAll() {
     try { S.px = await j("data/prices.json"); } catch (e) { S.px = null; }
     try { S.mv = await j("data/moves.json"); } catch (e) { S.mv = null; }
     try { S.p4 = await j("data/paper4h.json"); } catch (e) { S.p4 = null; }
+    try { S.mm = await j("data/mmbee.json"); } catch (e) { S.mm = null; }
     toObjs(ov.dictionary).forEach(d => { S.dict[d.col] = d; });
   } catch (e) {
     $("#freshText").textContent = "Data not published yet"; $("#freshPill").className = "pill warn";
@@ -1742,6 +1853,156 @@ function renderMarket() {
 
 // ---------- overview
 let rChart = null;
+// ---------- MM-Bee: paper market making on ZIG (data/mmbee.json, built from the paper files only) + its backtest
+let mbChart = null, btChart = null;
+const fZ = v => isNum(v) ? v.toFixed(6) : "—";
+const fUs = v => isNum(v) ? (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
+const fQ = v => isNum(v) ? Math.round(v).toLocaleString("en-US") : "—";
+const mbT = s => s ? s.slice(0, 16).replace("T", " ") : "—";
+const mbAgo = s => { if (!s) return ""; const h = (Date.now() - Date.parse(s)) / 36e5; return h < 1 ? Math.max(1, Math.round(h * 60)) + " min ago" : h < 48 ? h.toFixed(1) + " h ago" : (h / 24).toFixed(1) + " days ago"; };
+const MB_NAME = { bee: "MM-Bee", base: "Grid 1.5%", tight: "Grid 1%", wide: "Grid 2%" };
+const MB_STATE = { armed: ["Waiting to sell", "The price is above this level; the order rests once the price is under it"], selling: ["Sell resting", ""], sold: ["Buy to place", ""], buying: ["Buy resting", ""], bought: ["Resell to place", ""] };
+function mbSet(id, text, c) { const e = $("#" + id); if (!e) return; e.textContent = text; e.classList.remove("pos", "neg", "cold"); if (c) e.classList.add(c); }
+function mbLine(id, parts) { const el = $("#" + id); el.replaceChildren(); parts.forEach(p => { if (Array.isArray(p)) { const b = document.createElement("b"); b.textContent = p[0]; if (p[1]) b.className = p[1]; el.append(b); } else el.append(document.createTextNode(p)); }); }
+function mbHrs(a, b) { return (Date.parse(b) - Date.parse(a)) / 36e5; }
+function renderMMHead() {
+  const D = S.mm, B = D && D.variants && D.variants.bee, pill = $("#mbPill"), pt = $("#mbPillText");
+  if (!D) { pill.className = "pill warn"; pt.textContent = "No data yet"; $("#mbLead").textContent = "MM-Bee data is published with the next engine run."; return; }
+  const age = (Date.now() - Date.parse(D.generated_utc)) / 6e4;
+  if (!B || !B.bee) { pill.className = "pill warn"; pt.textContent = "Starting"; $("#mbLead").textContent = "MM-Bee is starting on the server; its first orders appear here within 15 minutes."; return; }
+  pill.className = "pill " + (age < 45 ? "ok" : "warn"); pt.textContent = (age < 45 ? "Running · updated " : "Last update ") + mbAgo(D.generated_utc);
+  $("#mbLead").textContent = `Running since ${mbT(B.started_utc)} UTC (${mbHrs(B.started_utc, D.generated_utc).toFixed(1)} hours). Simulated wallet: ${fQ(B.start_coins)} ZIG and ${fQ(B.start_usdt)} USDT; it trades ${fQ(B.settings.units * B.settings.size)} ZIG per ladder.`;
+  const bt = D.backtest, nb = $('.sub-nav[data-for="mmbee"] button[data-s="backtest"] i');
+  if (nb) nb.textContent = bt ? fUs(bt.vs_hold_usdt) : "";
+}
+function mbRules(c, base, baseFrom, ladders) {
+  const p0 = base * (1 + c.first), p1 = c.gap_from === "prev" ? p0 * (1 + c.gap) : base * (1 + c.first + c.gap), pl = c.gap_from === "prev" ? p0 * (1 + c.gap) ** (c.units - 1) : base * (1 + c.first + c.gap * (c.units - 1));
+  return [
+    ["Base price: ", [fZ(base)], ` (${baseFrom}).`],
+    [`Sell first: ${c.units} sells of ${fQ(c.size)} ZIG. The first is ${(100 * c.first).toFixed(1)}% above the base at `, [fZ(p0)], `, then one every ${(100 * c.gap).toFixed(1)}% of the ${c.gap_from === "prev" ? "previous sell" : "base"}: ${fZ(p1)}, … up to ${fZ(pl)}.`],
+    [`When a sell fills, the same ${fQ(c.size)} ZIG is bought back ${(100 * c.rebuy).toFixed(1)}% under it. For the first sell: `, [fZ(p0) + " → " + fZ(p0 * (1 - c.rebuy))], "."],
+    [`When the buy fills, the round is booked (about ${(100 * c.rebuy).toFixed(1)}% of the sale, `, [fUs(c.size * p0 * c.rebuy) + " USDT"], ` on the first unit) and the ZIG goes up for sale again ${(100 * c.resell).toFixed(1)}% above the buy price. Each unit loops: sell, buy, sell.`],
+    ["Everything sold and nothing bought back: the buys simply wait."],
+    [`No fill for ${c.idle_hours} hours: the base moves to the latest hourly close and the unsold ladder orders move with it. If every unit is sold by then, a fresh ladder of ${fQ(c.units * c.size)} ZIG opens from the new base (at most ${c.extra_ladders} extra; ladders used: `, [`${ladders} of ${1 + c.extra_ladders}`], ")."],
+    [`Budget: ${fQ(c.units * c.size)} ZIG per ladder; buys are paid from what the sells raised, with at most `, [fQ(c.max_usdt) + " USDT"], " of the wallet's own USDT on top. Every order is post-only (maker; MEXC maker fee 0%)."],
+  ];
+}
+function mbLadder(tbId, units, px, ladders) {
+  const rows = units.map(u => { const [ld, k, st, kind, sp, bp, q, cyc] = u, buy = st === "sold" || st === "buying"; return { ld, k, st, kind, side: buy ? "BUY" : "SELL", p: buy ? bp : sp, q, cyc }; }).sort((a, b) => b.p - a.p);
+  const tb = $("#" + tbId); tb.replaceChildren(); let placed = false;
+  const nowRow = () => { const tr = document.createElement("tr"); tr.className = "now"; const t = td(`Price now ${fZ(px)}`); t.colSpan = 6; tr.append(t); tb.append(tr); placed = true; };
+  rows.forEach(r => { if (!placed && r.p < px) nowRow();
+    const tr = document.createElement("tr"), name = (ladders > 1 ? "L" + (r.ld + 1) + " " : "") + "#" + (r.k + 1), [lab, tip] = MB_STATE[r.st] || [r.st, ""];
+    tr.append(td(name, "", r.kind === "ladder" ? "first-ladder order" : "looping unit"), tdNode(chip(lab, r.side === "SELL" ? "down" : "up")), td(fZ(r.p), "num", tip), td(fPct(100 * (r.p / px - 1)), "num"), td(fQ(r.q), "num"), td(String(r.cyc), "num"));
+    tb.append(tr); });
+  if (!placed) nowRow();
+  return { sells: rows.filter(r => r.st === "selling").length, buys: rows.filter(r => r.st === "buying").length };
+}
+function mbFeed(ulId, events, c) {
+  const feed = $("#" + ulId); feed.replaceChildren();
+  (events || []).slice(0, 300).forEach(e => { const [t, ev, ld, k, p, q, pr, note] = e;
+    let ic = "i", kind = "info", title = "", sub = "";
+    if (ev === "sold") { ic = "S"; kind = "down"; title = `Sold ${fQ(q)} ZIG at ${fZ(p)}`; sub = `${note === "cycle" ? "looping" : "ladder"} unit #${k + 1} · buy-back placed at ${fZ(p * (1 - c.rebuy))}`; }
+    else if (ev === "bought") { ic = "B"; kind = "up"; title = `Bought back ${fQ(q)} ZIG at ${fZ(p)} · ${fUs(pr)} USDT`; sub = `unit #${k + 1} · up for sale again at ${fZ(p * (1 + c.resell))}`; }
+    else if (ev === "ladder") { ic = "L"; title = `Ladder ${ld + 1} opened: ${c.units} × ${fQ(c.size)} ZIG from ${fZ(p)}`; sub = note; }
+    else if (ev === "revise") { ic = "R"; title = `Base revised to ${fZ(p)}`; sub = note; }
+    else { title = ev; sub = note || ""; }
+    const li = document.createElement("li"), i = document.createElement("span"), b = document.createElement("div"), s2 = document.createElement("small");
+    i.className = "ic " + kind; i.textContent = ic; b.textContent = title; s2.textContent = mbT(t) + " UTC · " + sub; b.append(s2); li.append(i, b); feed.append(li); });
+  if (!(events || []).length) { const li = document.createElement("li"); li.className = "empty"; li.textContent = "Nothing yet."; feed.append(li); }
+}
+function mbFills(tbId, list, emptyText) {
+  const fb = $("#" + tbId); fb.replaceChildren();
+  (list || []).forEach(f => { const [t, side, p, q, liq] = f; const tr = document.createElement("tr");
+    tr.append(td(mbT(t), "num"), tdNode(chip(side === "SELL" ? "Sell" : "Buy", side === "SELL" ? "down" : "up")), td(fZ(p), "num"), td(fQ(q), "num"), td(fQ(p * q), "num"), td(liq === "taker" ? "limit, filled at once" : "resting (maker)", "")); fb.append(tr); });
+  if (!(list || []).length) { const tr = document.createElement("tr"), t = td(emptyText, "empty"); t.colSpan = 6; tr.append(t); fb.append(tr); }
+}
+function mbChartMake(box) {
+  return LightweightCharts.createChart(box, { layout: { background: { type: "solid", color: "transparent" }, textColor: css("--muted"), fontSize: 11 }, grid: { vertLines: { color: css("--line") }, horzLines: { color: css("--line") } },
+    rightPriceScale: { borderColor: css("--line") }, leftPriceScale: { borderColor: css("--line") }, timeScale: { borderColor: css("--line"), timeVisible: true }, autoSize: true, localization: { locale: "en-US" } });
+}
+function mbPts(snaps, f) { const by = new Map(); (snaps || []).forEach(x => by.set(Math.floor(Date.parse(x[0]) / 1000), f(x))); return [...by].sort((a, b) => a[0] - b[0]).map(([time, value]) => ({ time, value })); }
+function mbLegend(id, items) { const lg = $("#" + id); lg.replaceChildren(); items.forEach(([col, t]) => { const sp = document.createElement("span"), i = document.createElement("i"); i.style.background = col; sp.append(i, document.createTextNode(t)); lg.append(sp); }); }
+const usdFmt = { type: "custom", formatter: v => (v >= 0 ? "+" : "") + v.toFixed(2), minMove: 0.01 }, zigFmt = { type: "custom", formatter: v => v.toFixed(5), minMove: 0.000001 };
+function renderMMBee() {
+  renderMMHead();
+  const D = S.mm, V = D && D.variants, B = V && V.bee;
+  if (!B || !B.bee) { ["mbRules", "mbLadder", "mbFeed", "mbCompare", "mbFills"].forEach(id => $("#" + id).replaceChildren()); return; }
+  const c = B.settings || {}, m = B.bee, px = B.price, units = B.units || [];
+  mbSet("mbEdge", fUs(B.vs_hold_usdt) + " USDT", cls(B.vs_hold_usdt));
+  $("#mbEdgeNote").textContent = `Wallet ${fQ(B.value_usdt)} vs ${fQ(B.hold_usdt)} USDT if untouched`;
+  mbSet("mbProfit", fUs(B.profit_usdt) + " USDT", cls(B.profit_usdt));
+  $("#mbProfitNote").textContent = "booked each time a sold unit is bought back";
+  mbSet("mbRounds", String(m.rounds || 0));
+  $("#mbRoundsNote").textContent = `${B.fills} fills · ${fQ(B.traded_usdt)} USDT traded`;
+  mbSet("mbPrice", fZ(px));
+  $("#mbPriceNote").textContent = `${fPct(100 * (px / B.start_price - 1))} since start (${fZ(B.start_price)})`;
+  mbSet("mbBase", fZ(m.base));
+  $("#mbBaseNote").textContent = `${m.base_from}, set ${mbT(m.base_utc)}`;
+  mbSet("mbLast", m.last_fill_utc ? mbAgo(m.last_fill_utc) : "none yet");
+  $("#mbLastNote").textContent = `if nothing fills, the base is revised at ${mbT(new Date(Date.parse(m.active_utc) + (c.idle_hours || 12) * 36e5).toISOString())} UTC`;
+  const ol = $("#mbRules"); ol.replaceChildren();
+  mbRules(c, m.base, m.base_from, m.ladders).forEach(parts => { const li = document.createElement("li"); parts.forEach(p => { if (Array.isArray(p)) { const b = document.createElement("b"); b.textContent = p[0]; li.append(b); } else li.append(document.createTextNode(p)); }); ol.append(li); });
+  const sum = st => units.filter(u => st.includes(u[2])).reduce((a, u) => a + u[6], 0);
+  const onSale = sum(["armed", "selling", "bought"]), out = sum(["sold", "buying"]), total = onSale + out;
+  const bar = $("#mbSplit"), lg = $("#mbSplitLegend"); bar.replaceChildren(); lg.replaceChildren();
+  [[onSale, "var(--accent)", `${fQ(onSale)} ZIG for sale`], [out, "var(--up)", `${fQ(out)} ZIG sold, waiting to buy back`]].forEach(([v, col, t]) => {
+    const i = document.createElement("i"); i.style.width = (total ? 100 * v / total : 0) + "%"; i.style.background = col; bar.append(i);
+    const sp = document.createElement("span"); sp.style.setProperty("--c", col); sp.textContent = t; lg.append(sp); });
+  $("#mbBudgetNote").textContent = `${fQ(total)} ZIG in ${m.ladders} ladder${m.ladders > 1 ? "s" : ""}`;
+  const w = $("#mbWallet"); w.replaceChildren();
+  [["ZIG in wallet", fQ(B.coins)], ["USDT in wallet", fQ(B.usdt)], ["Sold so far", fQ(m.proceeds_usdt) + " USDT"], ["Bought back so far", fQ(m.spent_usdt) + " USDT"], ["Started with", `${fQ(B.start_coins)} ZIG + ${fQ(B.start_usdt)} USDT`]].forEach(([k, v]) => {
+    const dt = document.createElement("dt"), dd = document.createElement("dd"); dt.textContent = k; dd.textContent = v; w.append(dt, dd); });
+  const n = mbLadder("mbLadder", units, px, m.ladders); $("#mbLadderNote").textContent = `${n.sells} sells and ${n.buys} buys resting`;
+  mbFeed("mbFeed", B.events, c); $("#mbFeedNote").textContent = `${(B.events || []).length} events`;
+  const cb = $("#mbCompare"); cb.replaceChildren();
+  Object.entries(V).sort((a, b) => (a[0] === "bee" ? -1 : b[0] === "bee" ? 1 : a[0] < b[0] ? -1 : 1)).forEach(([nm, v]) => { const s = v.settings || {};
+    const rule = s.mode === "bee" || nm === "bee" ? `Sell first +${(100 * s.first).toFixed(0)}%, then every ${(100 * s.gap).toFixed(0)}%; buy −${(100 * s.rebuy).toFixed(1)}%, sell +${(100 * s.resell).toFixed(0)}%` : `Grid every ${(100 * (s.step || 0)).toFixed(1)}%, ${s.levels} levels × ${fQ(s.size)}`;
+    const tr = document.createElement("tr"); tr.append(td(MB_NAME[nm] || nm), td(rule, ""), td(mbHrs(v.started_utc, D.generated_utc).toFixed(1) + " h", "num"), td(String(v.rounds), "num"), td(fUs(v.profit_usdt), "num " + cls(v.profit_usdt)), td(fUs(v.vs_hold_usdt), "num " + cls(v.vs_hold_usdt)), td(String(v.fills), "num"), td(String(v.open_orders), "num")); cb.append(tr); });
+  mbFills("mbFills", B.fill_list, `No fills yet. The nearest sell rests ${fPct(100 * (Math.min(...units.filter(u => u[2] === "selling").map(u => u[4]).concat([Infinity])) / px - 1))} above the price.`);
+  $("#mbFillNote").textContent = `${B.fills} fills, newest first`;
+  if (mbChart) { mbChart.remove(); mbChart = null; }
+  const box = $("#mbCurve");
+  if (typeof LightweightCharts !== "undefined" && (B.snaps || []).length >= 2) {
+    box.replaceChildren(); mbChart = mbChartMake(box);
+    const cols = { bee: css("--accent"), base: css("--warn"), tight: css("--up"), wide: css("--muted") }, leg = [];
+    Object.entries(V).forEach(([nm, v]) => { const pts = mbPts(v.snaps, x => x[2] - x[3]); if (pts.length < 2) return; const col = cols[nm] || css("--cold");
+      mbChart.addLineSeries({ color: col, lineWidth: nm === "bee" ? 3 : 1, priceLineVisible: false, lastValueVisible: nm === "bee", priceFormat: usdFmt }).setData(pts); leg.push([col, MB_NAME[nm] || nm]); });
+    mbLegend("mbLegend", leg); mbChart.timeScale().fitContent();
+  } else { mbLegend("mbLegend", []); box.innerHTML = '<div class="empty">The chart starts after the second hourly snapshot.</div>'; }
+}
+function renderMBBacktest() {
+  renderMMHead();
+  const T = S.mm && S.mm.backtest;
+  if (!T) { $("#btTitle").textContent = "Backtest"; $("#btVerdict").textContent = "The backtest is published with the next engine run."; return; }
+  const c = T.settings, mv = 100 * (T.end_price / T.start_price - 1), days = mbHrs(T.start_utc, T.end_utc) / 24;
+  $("#btTitle").textContent = `As if MM-Bee had started on ${T.start_utc.slice(0, 10)}`;
+  $("#btRange").textContent = `${mbT(T.start_utc)} → ${mbT(T.end_utc)} UTC · ${days.toFixed(1)} days · ${T.candles} hourly candles`;
+  mbLine("btVerdict", [`ZIG went from ${fZ(T.start_price)} to ${fZ(T.end_price)} (`, [fPct(mv, 1), cls(mv)], `). MM-Bee completed `, [String(T.rounds)], ` buy-back rounds and locked in `, [fUs(T.profit_usdt) + " USDT", cls(T.profit_usdt)],
+    `, leaving the wallet `, [fUs(T.vs_hold_usdt) + " USDT", cls(T.vs_hold_usdt)], ` ${T.vs_hold_usdt >= 0 ? "ahead of" : "behind"} simply holding the same ${fQ(T.start_coins)} ZIG and ${fQ(T.start_usdt)} USDT.`]);
+  $("#btMethod").textContent = `Method: the exact MM-Bee code run on MEXC's 1-hour ZIG candles. An order placed at a candle's close can only fill on a later candle that trades through its price, so a unit never sells and buys back inside one hour; real trading would usually fill a little more. Maker fee 0%, no slippage (all orders are resting limits). Rerun every hour as new candles arrive.`;
+  mbSet("btEdge", fUs(T.vs_hold_usdt) + " USDT", cls(T.vs_hold_usdt)); $("#btEdgeNote").textContent = `${fQ(T.value_usdt)} vs ${fQ(T.hold_usdt)} USDT if untouched`;
+  mbSet("btProfit", fUs(T.profit_usdt) + " USDT", cls(T.profit_usdt)); $("#btProfitNote").textContent = `${fUs(T.profit_usdt / Math.max(days, 1e-9))} USDT a day on average`;
+  mbSet("btRounds", String(T.rounds)); $("#btRoundsNote").textContent = `${T.sells} sells, ${T.buys} buys · ladders used ${T.ladders} of ${1 + c.extra_ladders}`;
+  mbSet("btMove", fPct(mv, 1), cls(mv)); $("#btMoveNote").textContent = `range ${fZ(T.low)} – ${fZ(T.high)}`;
+  mbSet("btValue", fQ(T.value_usdt) + " USDT"); $("#btValueNote").textContent = `now ${fQ(T.coins)} ZIG + ${fQ(T.usdt)} USDT`;
+  mbSet("btDip", fUs(T.worst_dip_vs_hold_usdt) + " USDT", T.worst_dip_vs_hold_usdt < 0 ? "neg" : "");
+  const closeByDay = {}; (T.equity || []).forEach(x => { closeByDay[x[0].slice(0, 10)] = x[1]; });
+  const db = $("#btDays"); db.replaceChildren();
+  [...(T.days || [])].reverse().forEach(d => { const tr = document.createElement("tr"); tr.append(td(d.date, "num"), td(String(d.sold), "num"), td(String(d.bought), "num"), td(d.profit_usdt ? fUs(d.profit_usdt) : "—", "num " + (d.profit_usdt ? cls(d.profit_usdt) : "")), td(fZ(closeByDay[d.date]), "num")); db.append(tr); });
+  mbFeed("btFeed", T.events, c); $("#btFeedNote").textContent = `${(T.events || []).length} events, newest first`;
+  mbFills("btFills", T.fill_list, "No fills in this period."); $("#btFillNote").textContent = `${T.fills} fills (${T.taker_fills} placed as a limit the price had already passed)`;
+  const n = mbLadder("btLadder", T.units || [], T.end_price, T.ladders); $("#btLadderNote").textContent = `${n.sells} sells and ${n.buys} buys resting at ${mbT(T.end_utc)} UTC`;
+  if (btChart) { btChart.remove(); btChart = null; }
+  const box = $("#btCurve");
+  if (typeof LightweightCharts !== "undefined" && (T.equity || []).length >= 2) {
+    box.replaceChildren(); btChart = mbChartMake(box);
+    btChart.addLineSeries({ color: css("--accent"), lineWidth: 3, priceLineVisible: false, priceFormat: usdFmt, priceScaleId: "right" }).setData(mbPts(T.equity, x => x[2] - x[3]));
+    btChart.addLineSeries({ color: css("--muted"), lineWidth: 1, lineStyle: 2, priceLineVisible: false, priceFormat: zigFmt, priceScaleId: "left" }).setData(mbPts(T.equity, x => x[1]));
+    btChart.applyOptions({ leftPriceScale: { visible: true } });
+    mbLegend("btLegend", [[css("--accent"), "MM-Bee ahead of holding (USDT, right)"], [css("--muted"), "ZIG price (left)"]]); btChart.timeScale().fitContent();
+  } else { mbLegend("btLegend", []); box.innerHTML = '<div class="empty">No backtest curve yet.</div>'; }
+}
 function renderRecord() {
   const R = S.bot; if (!R) return; const P = R.portfolio || {}, pc = P.paper_curve || [];
   const usd = v => isNum(v) ? "$" + v.toLocaleString("en-US", { maximumFractionDigits: 0 }) : "—";
@@ -2633,18 +2894,18 @@ function renderBot() {
 const fUsd2 = v => isNum(v) ? (v < 0 ? "−$" : "$") + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
 
 // ---------- routing + controls
-const VIEWS = ["me", "overview", "bot", "lab", "highlights", "screener", "watchlist", "signals", "listings", "pair"];
+const VIEWS = ["me", "overview", "bot", "mmbee", "lab", "highlights", "screener", "watchlist", "signals", "listings", "pair"];
 // sub-sections inside a tab (#bot/record, #signals/library ...); old tab names still open the right place
-const SUBS = { bot: ["portfolio", "each", "record", "fade"], signals: ["latest", "library"] };
+const SUBS = { bot: ["portfolio", "each", "record", "fade"], signals: ["latest", "library"], mmbee: ["live", "backtest"] };
 const ALIAS = { top50: ["overview", "t50"], record: ["bot", "record"], library: ["signals", "library"] };
-S.sub = { bot: "portfolio", signals: "latest" };
+S.sub = { bot: "portfolio", signals: "latest", mmbee: "live" };
 function setSub(view, sub) {
   const list = SUBS[view]; if (!list) return;
   if (!list.includes(sub) || (view === "bot" && sub === "fade" && $("#botNavFade").hidden)) sub = list[0];
   S.sub[view] = sub;
   $$('.sub-nav[data-for="' + view + '"] button').forEach(b => { const on = b.dataset.s === sub; b.setAttribute("aria-selected", String(on)); if (on && !$("#v-" + view).hidden) b.scrollIntoView({ block: "nearest", inline: "nearest" }); });
   $$("#v-" + view + " > .sub-panel").forEach(x => { x.hidden = x.dataset.s !== sub; });
-  ({ bot: { portfolio: renderBot, each: renderBot, record: renderRecord, fade: renderBot }, signals: { latest: renderSignals, library: renderLibrary } })[view][sub]();
+  ({ bot: { portfolio: renderBot, each: renderBot, record: renderRecord, fade: renderBot }, signals: { latest: renderSignals, library: renderLibrary }, mmbee: { live: renderMMBee, backtest: renderMBBacktest } })[view][sub]();
 }
 $$(".sub-nav button").forEach(b => b.onclick = () => { location.hash = b.closest(".sub-nav").dataset.for + "/" + b.dataset.s; });
 function show(v) {
@@ -2660,7 +2921,7 @@ function show(v) {
   if (!VIEWS.includes(v)) v = "overview"; VIEWS.forEach(x => { $("#v-" + x).hidden = x !== v; });
   $$("nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.view === v ? "page" : "false"));
   ({ me: () => { if (!ME.user) { if (AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); return; } renderMe(); }, overview: () => { renderOverview(); renderTop50(); if (focus === "t50") setTimeout(() => $("#t50Card").scrollIntoView({ behavior: "smooth", block: "start" }), 150); },
-    bot: () => { $("#botNavFade").hidden = !S.p4; subCounts(); setSub("bot", S.sub.bot); }, lab: renderLab, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch,
+    bot: () => { $("#botNavFade").hidden = !S.p4; subCounts(); setSub("bot", S.sub.bot); }, mmbee: () => { renderMMHead(); setSub("mmbee", S.sub.mmbee); }, lab: renderLab, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch,
     signals: () => { subCounts(); setSub("signals", S.sub.signals); }, listings: renderListings, pair: renderPair })[v](); }
 function subCounts() {
   const R = S.bot, PF = R && R.portfolio, fill = (view, sub, n, title) => { const b = $('.sub-nav[data-for="' + view + '"] button[data-s="' + sub + '"]'); if (!b) return; b.querySelector("i").textContent = n ? String(n) : ""; b.title = title || ""; };
@@ -2672,7 +2933,7 @@ function subCounts() {
   $("#sigHeadNote").textContent = last ? "Daily close " + last + " (UTC)" : "";
 }
 // ---------- Back: return to the exact spot you clicked from (same page, same row), with the button or the browser
-const VIEW_NAME = { overview: "Overview", shortlist: "Bee's Shortlist", top50: "Top 50", bot: "Trading bots", record: "Trading bots", lab: "Setup Lab", highlights: "Trade Ideas", screener: "Screener", watchlist: "Watchlist", signals: "Signals", library: "Signals", listings: "Listings", pair: "Pair chart" };
+const VIEW_NAME = { overview: "Overview", shortlist: "Bee's Shortlist", top50: "Top 50", bot: "Trading bots", record: "Trading bots", mmbee: "MM-Bee", lab: "Setup Lab", highlights: "Trade Ideas", screener: "Screener", watchlist: "Watchlist", signals: "Signals", library: "Signals", listings: "Listings", pair: "Pair chart" };
 const backStack = []; let lastClick = null, restoring = false;
 function spotOf(el) {
   const item = el && el.closest && el.closest("tr, .hl, .tile, li, [data-k], button, a");

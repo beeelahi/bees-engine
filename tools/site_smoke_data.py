@@ -57,11 +57,70 @@ def main(out):
         print("site_smoke_data: bots skipped:", e)
     E.run(con)
     con.close()
+    paper_mm(E.OUT)
     with open(os.path.join(HERE, "..", "web", "index.html"), encoding="utf-8") as f:
         page = P.wrap(f.read())
     with open(os.path.join(out, "index.html"), "w", encoding="utf-8") as f:
         f.write(page)
     print("site_smoke_data: package written to", out)
+
+
+def paper_mm(out_data):
+    """A short MM-Bee + grid paper run on a synthetic ZIG walk, exported as the MM-Bee tab's data (mmbee.json)."""
+    import json
+    import tempfile
+    import time as T
+    from decimal import Decimal
+    import mm_paper as MP
+    import mm_site
+
+    class Pub:
+        def __init__(s):
+            s.bk, s.tr, s._offset, s.t = ([(0.0420, 1e7)], [(0.0421, 1e7)]), [], 0, 0
+
+        def info(s, sym): return {"base": "ZIG", "quote": "USDT", "step": Decimal("0.01"), "tick": Decimal("0.000001"), "min_quote": Decimal("1"), "trading": True}
+        def qty(s, sym, q): return (Decimal(str(q)) / Decimal("0.01")).to_integral_value(rounding="ROUND_DOWN") * Decimal("0.01")
+        def px(s, sym, p, up=False): return (Decimal(str(p)) / Decimal("0.000001")).to_integral_value(rounding="ROUND_UP" if up else "ROUND_DOWN") * Decimal("0.000001")
+        def book(s, sym, limit=20): return s.bk
+        def trades(s, sym, limit=1000): return list(s.tr)
+        def klines(s, sym, interval, limit=3): return [(0, 0.0410, 1)]
+        def sync_time(s): pass
+
+    tmp = tempfile.mkdtemp()
+    MP.DATA = tmp
+    MP.mm_bot.STOP = MP.mm_bee.STOP = MP.mm_grid_live.STOP = os.path.join(tmp, "STOP")
+    pub = Pub()
+    feed = MP.Feed(pub)
+    clock = [int(T.time() * 1000) - 3 * 86_400_000]
+    feed.now_ms = lambda: clock[0]
+    feed.refresh("ZIGUSDT")
+    grid = {"symbol": "ZIGUSDT", "mode": "grid", "step": 0.015, "levels": 20, "size": 15000, "floor": 700000, "start_coins": 1000000,
+            "band": [0.03, 0.08], "max_usdt": 10000, "buy_rungs": 15, "buy_orders_live": 15, "sell_orders_live": 10}
+    runs = [MP.Variant(n, c, feed, None, log=lambda *a: None) for n, c in MP.variants(grid)]
+    runs.append(MP.Variant("bee", MP.bee_coin({"symbol": "ZIGUSDT"}, {}), feed, None, log=lambda *a: None))
+    rnd, px = random.Random(11), 0.0420
+    for i in range(72 * 4):
+        clock[0] += 900_000
+        px = max(0.03, px * (1 + rnd.gauss(0.0004, 0.012)))
+        pub.bk = ([(px * 0.9995, 1e7)], [(px * 1.0005, 1e7)])
+        pub.tr = [(clock[0] - 1000, px * (1 + rnd.choice((-1, 1)) * 0.004), 1e6, rnd.choice(("BUY", "SELL")))]
+        feed.refresh("ZIGUSDT")
+        for v in runs:
+            v.step()
+            if i % 4 == 0:
+                v.ex.set_meta("snap_t", 0)
+    for v in runs:
+        v.con.close()
+    import mm_bee_backtest as BT                 # backtest on a synthetic hourly walk
+    t0, cs, p = BT.t_of(BT.START) - 2 * 86400, [], 0.058
+    for i in range(18 * 24):
+        o = p
+        p = max(0.02, p * (1 + rnd.gauss(-0.0006, 0.01)))
+        cs.append((t0 + i * 3600, o, max(o, p) * 1.004, min(o, p) * 0.996, p))
+    with open(os.path.join(tmp, "mm_bee_backtest.json"), "w") as f:
+        json.dump(BT.run(cs), f)
+    mm_site.export(out_data, data=tmp)
+    print("site_smoke_data: MM-Bee paper data:", sorted(json.load(open(os.path.join(out_data, "mmbee.json")))["variants"]))
 
 
 if __name__ == "__main__":

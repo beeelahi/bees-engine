@@ -39,3 +39,15 @@ cross pay the taker fee. Fees default to MEXC standard spot (maker 0%, taker 0.0
 
 Ops commands: `mm-paper-start`, `mm-paper-report` (value vs just holding, completed rounds, grid profit, fills,
 fees, holdings, open orders per variant), `mm-paper-log`, `mm-paper-stop`. Pause without stopping: `MM_PAPER_STOP`.
+
+
+## MM-Bee (sell-first ladder)
+
+Rules and settings: see the header of `bin/mm_bee.py` (defaults in `mm_bee.DEFAULTS`; override per coin in mm.json with a `"bee"` block, or `"bee": false` to switch the paper run off). Interpretation choices, for Bilal to confirm before going live:
+
+* the 2% gap is 2% of the base (his worked example: close 0.05 -> 0.0515, 0.0525, 0.0535); `"gap_from": "prev"` makes it 2% of the previous sell;
+* "revise the base" uses the latest completed hourly close;
+* "use more ZIG" opens one more ladder of 300,000 ZIG (`extra_ladders`: 1) when every unit is sold and 12 hours pass without a fill;
+* a first-ladder sell the market is already above is not chased: it rests once the price is back under it.
+
+Paper: variant `bee` in bees-mm-paper (wallet 600,000 ZIG + 10,000 USDT). Backtest: `bin/mm_bee_backtest.py`. Website: the MM-Bee tab.

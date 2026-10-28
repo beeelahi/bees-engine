@@ -922,6 +922,17 @@ def main():
             light_publish = True
     except Exception as e:
         log.warning(f"Live prices skipped: {e}")
+    try:                                       # MM-Bee backtest on the real ZIG hourly candles (once per new candle)
+        import mm_bee_backtest
+        mm_bee_backtest.refresh(con, log=log.info)
+    except Exception as e:
+        log.warning(f"MM-Bee backtest skipped: {e}")
+    try:                                       # MM-Bee tab: paper market-making results (paper files only)
+        import mm_site
+        if mm_site.export(os.path.join(ROOT, "web_export")):
+            light_publish = True
+    except Exception as e:
+        log.warning(f"MM-Bee results skipped: {e}")
     if light_publish:
         try:
             import publish_site

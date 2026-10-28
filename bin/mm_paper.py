@@ -36,6 +36,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mexc_exchange as X  # noqa: E402
 import mm_bot  # noqa: E402
 import mm_grid_live  # noqa: E402
+import mm_bee  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CFG = os.path.join(ROOT, "mm.json")
@@ -118,6 +119,9 @@ class PaperEx:
 
     def qty(self, symbol, q):
         return self.pub.qty(symbol, q)
+
+    def klines(self, symbol, interval, limit=3):
+        return self.pub.klines(symbol, interval, limit)
 
     def px(self, symbol, p, up=False):
         return self.pub.px(symbol, p, up)
@@ -289,6 +293,18 @@ def variants(coin):
     return out
 
 
+def bee_coin(c, cfg):
+    """The MM-Bee settings for one coin: mm_bee.DEFAULTS, then mm.json's "bee" block (top level, or per coin).
+    Paper wallet: enough coins for every ladder it may open, and max_usdt of USDT. "bee": false turns it off."""
+    over = c.get("bee", cfg.get("bee", {}))
+    if over is False:
+        return None
+    b = dict(mm_bee.DEFAULTS, **(over or {}), symbol=c["symbol"])
+    b.setdefault("paper_coins", b["units"] * b["size"] * (1 + b["extra_ladders"]))
+    b.setdefault("paper_usdt", b["max_usdt"])
+    return b
+
+
 def grid_ok(c):
     need = ("symbol", "step", "levels", "size", "floor", "start_coins", "band", "max_usdt") if c.get("mode") == "grid" else \
         ("symbol", "spread_bps", "levels", "level_step_bps", "order_usdt", "target_coin_pct", "max_skew_bps", "band", "max_coin", "min_coin", "max_usdt", "max_daily_usdt")
@@ -303,7 +319,7 @@ class Variant:
         self.ex = PaperEx(feed, self.con, fees)
         inf = self.ex.info(coin["symbol"])
         grid = coin.get("mode") == "grid"
-        self.start_coins = float(coin.get("paper_coins", coin["start_coins"] if grid else coin["max_coin"] / 2))
+        self.start_coins = float(coin["paper_coins"] if "paper_coins" in coin else coin["start_coins"] if grid else coin["max_coin"] / 2)
         self.start_usdt = float(coin.get("paper_usdt", coin["max_usdt"]))
         self.ex.fund(inf["base"], self.start_coins)
         self.ex.fund(inf["quote"], self.start_usdt)
@@ -320,7 +336,9 @@ class Variant:
         mid = self.mid()
         if mid and self.ex.meta("start") is None:
             self.ex.set_meta("start", {"utc": now(), "mid": mid, "coins": self.start_coins, "usdt": self.start_usdt,
-                                       "settings": {k: self.coin.get(k) for k in ("step", "spread_bps", "levels", "size", "floor", "band", "buy_rungs")}})
+                                       "settings": {k: self.coin.get(k) for k in ("mode", "step", "spread_bps", "levels", "size", "floor", "band", "buy_rungs",
+                                                                               "units", "first", "gap", "gap_from", "rebuy", "resell", "idle_hours", "max_usdt", "extra_ladders")
+                                                    if self.coin.get(k) is not None}})
         if mid:
             self.ex.set_meta("last_mid", mid)
         self.mm.step()
@@ -363,6 +381,9 @@ def report(path=CFG, data=DATA):
             fills = con.execute("SELECT COUNT(*), COALESCE(SUM(fee_usdt),0), COALESCE(SUM(liquidity='taker'),0), COALESCE(SUM(price*qty),0) FROM p_fills").fetchone()
             g = con.execute("SELECT COALESCE(SUM(rounds),0), COALESCE(SUM(profit_usdt),0) FROM grid_meta").fetchone() \
                 if con.execute("SELECT 1 FROM sqlite_master WHERE name='grid_meta'").fetchone() else (0, 0)
+            if con.execute("SELECT 1 FROM sqlite_master WHERE name='bee_meta'").fetchone():
+                bg = con.execute("SELECT COALESCE(SUM(rounds),0), COALESCE(SUM(profit_usdt),0) FROM bee_meta").fetchone()
+                g = (g[0] + bg[0], g[1] + bg[1])
             opn = con.execute("SELECT COUNT(*) FROM p_orders WHERE status IN ('NEW','PARTIALLY_FILLED')").fetchone()[0]
             low = con.execute("SELECT MIN(coins) FROM p_snap").fetchone()[0]
         finally:
@@ -403,7 +424,10 @@ def data_dump(data=DATA):
                 "grid": q("SELECT level, state, sell_px, rebuy_px, qty FROM grid ORDER BY level") if has("grid") else [],
                 "rungs": q("SELECT level, state, buy_px, resell_px, qty FROM grid_buy ORDER BY level") if has("grid_buy") else [],
                 "grid_meta": q("SELECT anchor, rounds, profit_usdt FROM grid_meta") if has("grid_meta") else [],
-                "log": q("SELECT utc, event, level, price, qty, profit FROM grid_log ORDER BY utc DESC LIMIT 200") if has("grid_log") else []}
+                "log": q("SELECT utc, event, level, price, qty, profit FROM grid_log ORDER BY utc DESC LIMIT 200") if has("grid_log") else [],
+                "bee_units": q("SELECT ladder, k, state, kind, sell_px, buy_px, qty, cycles, updated_utc FROM bee_units ORDER BY ladder, k") if has("bee_units") else [],
+                "bee_meta": q("SELECT base, base_utc, base_from, ladders, rounds, profit_usdt, proceeds_usdt, spent_usdt, last_fill_utc, active_utc FROM bee_meta") if has("bee_meta") else [],
+                "bee_log": q("SELECT utc, event, ladder, k, price, qty, profit, note FROM bee_log ORDER BY rowid DESC LIMIT 300") if has("bee_log") else []}
         finally:
             con.close()
     return out
@@ -416,7 +440,7 @@ def main():
     if "--report" in sys.argv:
         print(report())
         return 0
-    mm_bot.STOP = mm_grid_live.STOP = STOP          # paper has its own pause switch; the live MM_STOP is not touched
+    mm_bot.STOP = mm_grid_live.STOP = mm_bee.STOP = STOP          # paper has its own pause switch; the live MM_STOP is not touched
     try:
         cfg, coins = load_coins()
     except (OSError, ValueError) as e:
@@ -438,6 +462,10 @@ def main():
         for name, cv in variants(c):
             vname = name if len(good) == 1 else f"{name}_{c['symbol'].lower()}"
             runs.append(Variant(vname, cv, feed, cfg.get("paper_fees")))
+    for c in good:                       # MM-Bee: Bilal's sell-first ladder, on paper beside the grid settings
+        bc = bee_coin(c, cfg)
+        if bc:
+            runs.append(Variant("bee" if len(good) == 1 else f"bee_{c['symbol'].lower()}", bc, feed, cfg.get("paper_fees")))
     print(f"mm_paper: started, {len(runs)} variant(s), loop {LOOP_S}s, no API key in use")
     while True:
         try:
