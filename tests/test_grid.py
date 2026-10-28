@@ -106,6 +106,34 @@ class GridLiveTest(unittest.TestCase):
             self.assertGreaterEqual(ex.coins, self.cfg["floor"] - 1e-6)
         self.assertEqual(con.execute("SELECT COUNT(*) FROM grid_buy").fetchone()[0], 15)
 
+    def test_nearest_levels_stay_resting(self):
+        """Regression (ZIG paper, Oct 2026): after levels 1-3 sold and were rebought, the slots stayed with far
+        levels 11-13 and price trading back through levels 1-3 earned nothing. The nearest levels must rest."""
+        a = 0.04
+        ex = FakeMexc(a)
+        g = GL.GridLive(ex, dict(self.cfg, buy_rungs=0), sqlite3.connect(":memory:"), log=lambda *x: None)
+        g.step(a)
+        up = a * 1.015 ** 3 * 1.002
+        for px, hi, lo in ((up, up, a), (a * 0.995, up, a * 0.995), (a * 0.995, a, a * 0.99)):
+            ex.advance(px, hi, lo, px); g.step(px)
+        for _ in range(3):                      # rebuys are filled by now; give it a couple of cycles
+            ex.advance(a, a, a, a); g.step(a)
+        resting = sorted(lvl for lvl, st, *_ in g.rows("selling"))
+        self.assertEqual(resting, list(range(1, 11)), "the ten nearest sell levels should be resting")
+        _, r0, _ = g.meta()
+        ex.advance(up, up, a, up); g.step(up)
+        ex.advance(a * 0.99, up, a * 0.99, a * 0.99); g.step(a * 0.99)
+        ex.advance(a * 0.99, a, a * 0.985, a * 0.99); g.step(a * 0.99)
+        self.assertGreaterEqual(g.meta()[1] - r0, 3, "price went through levels 1-3 again: three more rounds")
+
+    def test_nearest_rungs_stay_resting(self):
+        ex, g = self.run_grid(walk(2500, seed=11), dict(self.cfg, buy_orders_live=4))
+        mid = ex.px_
+        live = sorted((r[2] for r in g.brows("buying")), reverse=True)
+        armed = [r[2] for r in g.brows("armed") if r[2] < mid]
+        if live and armed:
+            self.assertGreaterEqual(min(live), max(armed) - 1e-12, "an armed rung nearer the market sits idle")
+
 
 if __name__ == "__main__":
     unittest.main()

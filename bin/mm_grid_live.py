@@ -7,6 +7,8 @@ Live "sell high, rebuy lower" grid on MEXC (Python 3.9 stdlib only). Same rules 
   * all orders are post-only (LIMIT_MAKER): never take liquidity, never trade with ourselves. If a rebuy can't
     rest because the market already traded below it, it is placed as a plain LIMIT at the rebuy price (we only
     ever buy at or below the planned rebuy price);
+  * the slots go to the levels nearest the market (as in the backtest): a nearer armed level displaces the
+    farthest resting order, which re-arms;
   * pauses (cancels its resting sells) while the mid is outside `band`; rebuys stay working.
   * buy-first rungs (`buy_rungs`, 0 = off): the mirror image below the anchor, paid from USDT. A rung buys `size`
     coins at anchor / (1+step)^k and, once filled, re-sells them one step higher; then the rung re-arms. At most
@@ -145,6 +147,10 @@ class GridLive:
                 except Exception:
                     pass
             return
+        self.make_room("buying", [r[2] for r in self.brows("armed") if r[2] < mid],
+                       int(c.get("buy_orders_live", 6)) - len(live), far=min, rows=self.brows, upd=self.bupd,
+                       cid_col=4, cid_key="buy_cid")
+        live = self.brows("buying")
         # USDT budget: rebuys owed by the sell ladder come first; rungs use at most max_usdt in total
         owed = sum(q * rp for lvl, st, sp, rp, a, b, q in self.rows() if st in ("sold", "rebuying"))
         committed = sum(q * bp for lvl, st, bp, rp, a, b, q in self.brows() if st != "armed")
@@ -169,6 +175,34 @@ class GridLive:
                 room -= 1
             except Exception as e:
                 self.log(f"mm grid: rung buy L{lvl} not placed: {e}")
+
+    def make_room(self, state, wanted, room, far, rows, upd, cid_col, cid_key, max_swaps=3):
+        """Keep the orders nearest the market resting, as the backtest (mm_grid.Grid) does. When every slot is taken
+        and an armed level is nearer the market than the farthest resting order, cancel that farthest order (it
+        re-arms) so the nearer level can be placed this cycle. Returns how many slots were freed. An order that
+        filled (fully or partly) while being cancelled is left to the normal progress step on the next cycle."""
+        freed = 0
+        wanted = sorted(wanted, reverse=far is min)      # nearest the market first
+        for p in wanted[:max_swaps]:
+            if room + freed > 0:
+                break
+            live = rows(state)
+            if not live:
+                break
+            r = far(live, key=lambda x: x[2])
+            if (far is max and r[2] <= p) or (far is min and r[2] >= p):
+                break
+            try:
+                self.ex.cancel(self.sym, r[cid_col])
+            except Exception:
+                pass
+            s, filled, _ = self.order_status(r[cid_col])
+            if s in ("CANCELED", "EXPIRED", "REJECTED") and filled == 0:
+                upd(r[0], state="armed", **{cid_key: None})
+                freed += 1
+            else:
+                break
+        return freed
 
     def rows(self, state=None):
         q = "SELECT level, state, sell_px, rebuy_px, sell_cid, buy_cid, qty FROM grid WHERE symbol=?" + (" AND state=?" if state else "") + " ORDER BY level"
@@ -266,6 +300,8 @@ class GridLive:
             return "paused (price outside band)"
         cap_out = int((c["start_coins"] - c["floor"]) // c["size"])
         room = min(c.get("sell_orders_live", 6) - len(live_sells), cap_out - out - len(live_sells))
+        room += self.make_room("selling", [r[2] for r in self.rows("armed") if r[2] > mid], room, far=max,
+                               rows=self.rows, upd=self.upd, cid_col=4, cid_key="sell_cid")
         for lvl, st, sp, rp, scid, bcid, q in self.rows("armed"):
             if room <= 0:
                 break

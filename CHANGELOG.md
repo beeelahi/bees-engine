@@ -5,6 +5,7 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Changed
+- Market-making grid (live code and paper): the orders nearest the market now always rest, as in the backtest. Before, after a level sold and was rebought while the price stayed above it, its slot stayed with a far level, so the price moving back through the nearest levels earned nothing (seen on the ZIG paper run: levels 1-3 idle, 4-13 resting). The farthest resting order is cancelled and re-armed to make room (at most 3 per cycle). Same for buy-first rungs. On 8 simulated price paths: 52% more completed rounds.
 - Highlights is now **Trade Ideas** (its signal-based section is renamed Signal confluence). Latest uses the same
   cards as the sections, grouped by day, 36 at a time.
 - Overview redesigned: Market today first; What matters today as a grid of tiles; a new Best trade ideas right now
