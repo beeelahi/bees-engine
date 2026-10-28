@@ -114,7 +114,9 @@ def paper_mm(out_data):
     grid = {"symbol": "ZIGUSDT", "mode": "grid", "step": 0.015, "levels": 20, "size": 15000, "floor": 700000, "start_coins": 1000000,
             "band": [0.03, 0.08], "max_usdt": 10000, "buy_rungs": 15, "buy_orders_live": 15, "sell_orders_live": 10}
     runs = [MP.Variant(n, c, feed, None, log=lambda *a: None) for n, c in MP.variants(grid)]
-    runs.append(MP.Variant("bee", MP.bee_coin({"symbol": "ZIGUSDT"}, {}), feed, None, log=lambda *a: None))
+    for vn, extra in MP.BEE_VARIANTS:
+        bc = dict(MP.bee_coin({"symbol": "ZIGUSDT"}, {}, extra), btc_guard=0, vol_fast=0, drip_max=0)   # no BTC feed / sleeps here
+        runs.append(MP.Variant(vn, bc, feed, None, log=lambda *a: None))
     rnd, px = random.Random(11), 0.0420
     for i in range(72 * 4):
         clock[0] += 900_000
@@ -135,7 +137,8 @@ def paper_mm(out_data):
         p = max(0.02, p * (1 + rnd.gauss(-0.0006, 0.01)))
         cs.append((t0 + i * 3600, o, max(o, p) * 1.004, min(o, p) * 0.996, p))
     with open(os.path.join(tmp, "mm_bee_backtest.json"), "w") as f:
-        runs = [dict(BT.run(cs, start=st), id=sid, label=lab) for sid, st, lab in BT.SCENARIOS]
+        runs = [dict(BT.run(cs, start=st, settings=gs), id=sid, label=lab, strategy=g, strategy_label=gl)
+                for g, gl, gs in BT.STRATEGIES for sid, st, lab in BT.SCENARIOS if BT.t_of(st) - 86400 >= cs[0][0]]
         json.dump(dict(runs[0], runs=runs), f)
     mm_site.export(out_data, data=tmp)
     print("site_smoke_data: MM-Bee paper data:", sorted(json.load(open(os.path.join(out_data, "mmbee.json")))["variants"]))

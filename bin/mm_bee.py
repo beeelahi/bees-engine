@@ -21,10 +21,29 @@ Rules (defaults below; any can be set per coin in mm.json with "mode": "bee"):
   * every order is post-only (LIMIT_MAKER). A buy whose price the market already went under, or a resell whose price
     it already went over, is placed as a plain LIMIT at the planned price (it only ever trades at that price or
     better). A first-ladder sell that the market is already above is not chased: it waits until it can rest.
+Version 2 (Bilal, 29 Oct 2026), switched on with "rebase_hours" (default 4):
+  * the base follows every 4-hour close: at each new 4h close the unsold first-ladder sells (and accumulation buys not
+    yet filled) are re-priced from that close. Units already sold keep their buy-back, units in a loop keep theirs;
+    the ladder is rebuilt from +3% for the units still unsold, so the more has been sold the fewer orders move;
+  * the move is staggered so the book does not jump at once: the `stagger_first` (5) orders nearest the price move
+    right after the close, the rest `stagger_delay_s` (150 s) later; an order whose new price is within `min_move`
+    (0.3%) of its current one is left alone (it keeps its place in the queue);
+  * the wallet's own USDT is not used at the start: buys only follow sells. Once `acc_after` (3) ladder sells have
+    filled (a cushion exists), `acc_units` buy-first units (0 = off) may rest below the base, `acc_first` (3%) under it
+    and every `acc_gap` (2%) lower, paid from at most `max_usdt` of the wallet's USDT; each one, once bought, is sold
+    `resell` (3%) higher, then bought back `rebuy` lower, and loops like the others (its round is booked on the sell);
+  * with rebasing on, the 12-hour rule only opens the extra ladder (when everything is sold and nothing filled);
+  * orders move one at a time (cancel one, place its replacement, wait `drip_min`..`drip_max` = 2-4 s at random,
+    next), so a rebase reads as ordinary order flow rather than the whole ladder jumping at once;
+  * BTC guard (`btc_guard` 2%): when BTC rises 2%+ over about two hours while ZIG is up less than `btc_zig_max` (1%),
+    every sell is pulled for `btc_pause_h` (8) hours, so ZIG is not sold cheap before it follows BTC (buys stay);
+  * volatility mode (`vol_fast` 10%): while ZIG has moved 10%+ in the running 4-hour or day candle, the base follows
+    every 1-hour close, until both are back under `vol_calm` (5%). Set either to 0 to switch it off.
 State lives in the bot's database (tables bee_units, bee_meta, bee_log), so restarts are safe. Kill switch: the STOP
 file cancels every order this ladder placed.
 """
 import os
+import random
 import time
 from datetime import datetime, timezone
 
@@ -32,7 +51,14 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 STOP = os.path.join(ROOT, "MM_STOP")
 
 DEFAULTS = {"mode": "bee", "units": 20, "size": 15000, "first": 0.03, "gap": 0.02, "gap_from": "base",
-            "rebuy": 0.031, "resell": 0.03, "idle_hours": 12, "max_usdt": 10000, "extra_ladders": 1}
+            "rebuy": 0.031, "resell": 0.03, "idle_hours": 12, "max_usdt": 10000, "extra_ladders": 1,
+            "rebase_hours": 4, "stagger_first": 5, "stagger_delay_s": 150, "min_move": 0.003,
+            "acc_units": 0, "acc_after": 3, "acc_first": 0.03, "acc_gap": 0.02, "recycle": "off",
+            "btc_guard": 0.02, "btc_symbol": "BTCUSDT", "btc_zig_max": 0.01, "btc_pause_h": 8,
+            "vol_fast": 0.10, "vol_calm": 0.05, "drip_min": 2.0, "drip_max": 4.0}
+META_COLS = ("base", "base_utc", "base_from", "ladders", "rounds", "profit_usdt", "proceeds_usdt", "spent_usdt",
+             "last_fill_utc", "active_utc", "rebase_ms", "phase2", "ladder_sold", "acc_opened", "pause_until", "fast",
+             "guard_ms")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS bee_units(symbol TEXT, ladder INTEGER, k INTEGER, state TEXT, kind TEXT, sell_px REAL,
@@ -62,6 +88,21 @@ def ladder_prices(base, c, n=None):
     return [base * (1 + c["first"] + c["gap"] * k) for k in range(n)]
 
 
+def acc_prices(base, c, n=None):
+    n = c["acc_units"] if n is None else n
+    return [base * (1 - c["acc_first"] - c["acc_gap"] * k) for k in range(n)]
+
+
+def last_candle(ex, symbol, interval, clock=time.time):
+    """(close, close_ms) of the last COMPLETED candle."""
+    rows = ex.klines(symbol, interval, 3)
+    t = clock() * 1000
+    done = [r for r in rows if r[2] <= t]
+    if not done:
+        raise RuntimeError(f"mm bee: no completed {interval} candle for {symbol}")
+    return done[-1][1], done[-1][2]
+
+
 def last_close(ex, symbol, interval, clock=time.time):
     """Close of the last COMPLETED candle (MEXC: "1d" days in UTC, "60m" hours)."""
     rows = ex.klines(symbol, interval, 3)
@@ -73,10 +114,16 @@ def last_close(ex, symbol, interval, clock=time.time):
 
 
 class BeeLadder:
-    def __init__(self, ex, c, con, log=print, clock=time.time):
-        self.ex, self.c, self.con, self.log, self.clock = ex, dict(DEFAULTS, **c), con, log, clock
+    def __init__(self, ex, c, con, log=print, clock=time.time, sleep=time.sleep):
+        self.ex, self.c, self.con, self.log, self.clock, self.sleep = ex, dict(DEFAULTS, **c), con, log, clock, sleep
         self.sym = c["symbol"]
         con.executescript(SCHEMA)
+        have = {r[1] for r in con.execute("PRAGMA table_info(bee_meta)")}
+        for col, typ in (("rebase_ms", "INTEGER"), ("phase2", "INTEGER"), ("ladder_sold", "INTEGER"), ("acc_opened", "INTEGER"),
+                         ("pause_until", "REAL"), ("fast", "INTEGER"), ("guard_ms", "INTEGER")):
+            if col not in have:                                  # v1 database: add the v2 columns
+                con.execute(f"ALTER TABLE bee_meta ADD COLUMN {col} {typ} DEFAULT 0")
+        con.commit()
         self.seq = 0
         self.events = []
 
@@ -85,10 +132,13 @@ class BeeLadder:
 
     # ---------------------------------------------------------------- state
     def meta(self):
-        r = self.con.execute("SELECT base, base_utc, base_from, ladders, rounds, profit_usdt, proceeds_usdt, spent_usdt, "
-                             "last_fill_utc, active_utc FROM bee_meta WHERE symbol=?", (self.sym,)).fetchone()
-        keys = ("base", "base_utc", "base_from", "ladders", "rounds", "profit_usdt", "proceeds_usdt", "spent_usdt", "last_fill_utc", "active_utc")
-        return dict(zip(keys, r)) if r else None
+        r = self.con.execute("SELECT " + ", ".join(META_COLS) + " FROM bee_meta WHERE symbol=?", (self.sym,)).fetchone()
+        if not r:
+            return None
+        m = dict(zip(META_COLS, r))
+        for k in ("rebase_ms", "phase2", "ladder_sold", "acc_opened", "pause_until", "fast", "guard_ms"):
+            m[k] = m[k] or 0
+        return m
 
     def set_meta(self, **kw):
         sets = ", ".join(f"{k}=?" for k in kw)
@@ -130,8 +180,8 @@ class BeeLadder:
         c, m = self.c, self.meta()
         n_ladder = 0 if m is None else m["ladders"]
         if m is None:
-            self.con.execute("INSERT INTO bee_meta VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                             (self.sym, base, self.now(), base_from, 1, 0, 0.0, 0.0, 0.0, None, self.now()))
+            self.con.execute("INSERT INTO bee_meta(symbol, " + ", ".join(META_COLS) + ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                             (self.sym, base, self.now(), base_from, 1, 0, 0.0, 0.0, 0.0, None, self.now(), 0, 0, 0, 0, 0, 0, 0))
         else:
             self.set_meta(base=base, base_utc=self.now(), base_from=base_from, ladders=n_ladder + 1, active_utc=self.now())
         for k, px in enumerate(ladder_prices(base, c)):
@@ -151,6 +201,10 @@ class BeeLadder:
                 self.open_ladder(base, "hourly close, 12 h without a fill, all sold: new ladder")
                 return "new ladder"
             self.note("revise", latest, 0, base, 0, 0, "new ladder needed but the wallet lacks the coins")
+        if c["rebase_hours"]:                    # v2: the 4-hour rebase moves the orders; nothing more to do here
+            self.set_meta(active_utc=self.now())
+            self.con.commit()
+            return "idle"
         movable = []
         for u in self.units():
             ladder, k, st, kind, sp, bp, scid, bcid, q, cyc = u
@@ -199,10 +253,16 @@ class BeeLadder:
                 s, filled = self.status(scid)
                 if s == "FILLED" or (s in DONE and filled > 0):
                     qq = q if s == "FILLED" else filled
-                    self.upd(ladder, k, state="sold", sell_cid=None, qty=qq, buy_px=sp * (1 - c["rebuy"]))
+                    gain = qq * (sp - bp) if kind == "acc" and bp else 0.0     # an accumulation unit books on its sell
+                    if gain:
+                        m["rounds"] += 1
+                        m["profit_usdt"] += gain
+                    if kind == "ladder":
+                        m["ladder_sold"] += 1
+                    self.upd(ladder, k, state="sold", sell_cid=None, qty=qq, buy_px=sp * (1 - c["rebuy"]), cycles=cyc + (kind == "acc"))
                     m["proceeds_usdt"] += qq * sp
-                    self.set_meta(proceeds_usdt=m["proceeds_usdt"])
-                    self.note("sold", ladder, k, sp, qq, 0, kind)
+                    self.set_meta(proceeds_usdt=m["proceeds_usdt"], rounds=m["rounds"], profit_usdt=m["profit_usdt"], ladder_sold=m["ladder_sold"])
+                    self.note("sold", ladder, k, sp, qq, gain, kind)
                     filled_any = True
                 elif s in DONE:
                     self.upd(ladder, k, state="armed" if kind == "ladder" else "bought", sell_cid=None)
@@ -210,13 +270,16 @@ class BeeLadder:
                 s, filled = self.status(bcid)
                 if s == "FILLED" or (s in DONE and filled > 0):
                     qq = q if s == "FILLED" else filled
-                    gain = qq * (sp - bp)
-                    m["rounds"] += 1
-                    m["profit_usdt"] += gain
+                    acc = kind == "acc"
+                    gain = 0.0 if acc else qq * (sp - bp)
+                    if not acc:
+                        m["rounds"] += 1
+                        m["profit_usdt"] += gain
                     m["spent_usdt"] += qq * bp
                     self.set_meta(rounds=m["rounds"], profit_usdt=m["profit_usdt"], spent_usdt=m["spent_usdt"])
-                    self.upd(ladder, k, state="bought", kind="cycle", buy_cid=None, qty=qq, sell_px=bp * (1 + c["resell"]), cycles=cyc + 1)
-                    self.note("bought", ladder, k, bp, qq, gain)
+                    self.upd(ladder, k, state="bought", kind="acc" if acc else "cycle", buy_cid=None, qty=qq,
+                             sell_px=bp * (1 + c["resell"]), cycles=cyc + (0 if acc else 1))
+                    self.note("bought", ladder, k, bp, qq, gain, kind)
                     filled_any = True
                 elif s in DONE:
                     self.upd(ladder, k, state="sold", buy_cid=None)
@@ -225,6 +288,15 @@ class BeeLadder:
             m = self.meta()
         self.con.commit()
         # 2) buys for sold units (paid from the sells; never more than max_usdt of the wallet's own USDT)
+        self.place_buys(mid)
+        # 3) resells for bought units
+        self.place_resells()
+        # 4) first-ladder sells that can rest above the market
+        self.place_armed(mid)
+        return self.after(mid, m)
+
+    def place_buys(self, mid):
+        c, m = self.c, self.meta()
         for ladder, k, st, kind, sp, bp, scid, bcid, q, cyc in self.units("sold"):
             resting = sum(u[8] * u[5] for u in self.units("buying"))
             if m["spent_usdt"] + resting + q * bp - m["proceeds_usdt"] > c["max_usdt"]:
@@ -240,7 +312,11 @@ class BeeLadder:
                     self.log(f"mm bee: buy {ladder}/{k} not placed: {e}")
                     continue
             self.upd(ladder, k, state="buying", buy_cid=cid, buy_px=float(px))     # the price as placed (tick-rounded)
-        # 3) resells for bought units
+        self.con.commit()
+
+    def place_resells(self):
+        if self.paused():
+            return
         for ladder, k, st, kind, sp, bp, scid, bcid, q, cyc in self.units("bought"):
             px, qq = self.ex.px(self.sym, sp, up=True), self.ex.qty(self.sym, q)
             cid = self.cid("S")
@@ -253,16 +329,194 @@ class BeeLadder:
                     self.log(f"mm bee: resell {ladder}/{k} not placed: {e}")
                     continue
             self.upd(ladder, k, state="selling", sell_cid=cid, sell_px=float(px))
-        # 4) first-ladder sells that can rest above the market
-        self.place_armed(mid)
-        # 5) 12 hours without a fill: revise the base, and rest the moved / new ladder at once (same price moment)
-        if self.clock() - ts(m["active_utc"]) >= c["idle_hours"] * 3600:
+        self.con.commit()
+
+    def after(self, mid, m):
+        c = self.c
+        # 5) v2: BTC guard and the volatility mode, then follow the 4-hour close (staggered), then accumulation
+        res = "ok"
+        self.guards(mid)
+        if c["rebase_hours"]:
+            res = self.rebase(mid) or res
+        if c["acc_units"] and not m["acc_opened"] and self.meta()["ladder_sold"] >= c["acc_after"]:
+            self.open_acc()
+            res = "accumulation opened"
+        # 6) 12 hours without a fill: (v1) revise the base; always: open the extra ladder when everything is sold
+        if self.clock() - ts(self.meta()["active_utc"]) >= c["idle_hours"] * 3600:
             r = self.revise(mid)
             self.place_armed(mid)
             return r
-        return "ok"
+        return res
+
+    # ---------------------------------------------------------------- v2: the 4-hour rebase
+    def movable(self):
+        """Orders that follow the base: unsold first-ladder sells, and accumulation buys not filled yet. With
+        recycle "breakeven" or "ladder", units holding coins they bought back also rejoin the sell ladder (so a unit
+        bought on the way down is not stuck far above the price): "breakeven" never below its buy price, "ladder"
+        wherever the ladder puts it."""
+        rec = self.c.get("recycle", "off") != "off"
+        sells = [u for u in self.units() if (u[3] == "ladder" or (rec and u[3] in ("cycle", "acc"))) and u[2] in ("armed", "selling", "bought")
+                 and (u[3] == "ladder" or u[2] != "armed")]
+        buys = [u for u in self.units() if u[3] == "acc" and u[9] == 0 and u[2] in ("sold", "buying")]
+        return sorted(sells, key=lambda u: u[4]), sorted(buys, key=lambda u: -(u[5] or 0))
+
+    def rebase(self, mid):
+        c, m = self.c, self.meta()
+        try:
+            iv = "60m" if m["fast"] else {1: "60m", 4: "4h", 24: "1d"}.get(int(c["rebase_hours"]), "4h")
+            close, close_ms = last_candle(self.ex, self.sym, iv, self.clock)
+        except Exception as e:
+            self.log(f"mm bee: 4h close unavailable: {e}")
+            return None
+        if close_ms > m["rebase_ms"]:
+            first = not m["rebase_ms"] and abs(close / m["base"] - 1) < 1e-12
+            self.set_meta(base=close, base_utc=self.now(), base_from=f"{iv.replace('60m', '1h')} close", rebase_ms=close_ms, phase2=1)
+            self.con.commit()
+            if first:
+                return None
+            n = self.reprice(close, mid, limit=c["stagger_first"])
+            if c["stagger_delay_s"] <= 0:
+                n += self.reprice(close, mid)
+                self.set_meta(phase2=0)
+            if n:
+                self.note("rebase", m["ladders"] - 1, 0, close, 0, 0, f"{iv.replace('60m', '1h')} close; {n} orders moved")
+            self.con.commit()
+            return "rebased"
+        if m["phase2"] and self.clock() * 1000 >= m["rebase_ms"] + c["stagger_delay_s"] * 1000:
+            n = self.reprice(m["base"], mid)
+            self.set_meta(phase2=0)
+            if n:
+                self.note("rebase", m["ladders"] - 1, 0, m["base"], 0, 0, f"rest of the book: {n} orders moved")
+            self.con.commit()
+            return "rebased (rest)"
+        return None
+
+    def reprice(self, base, mid, limit=None):
+        """Move the nearest `limit` (all when None) movable orders of each side to the ladder from `base`."""
+        c, moved = self.c, 0
+        sells, buys = self.movable()
+        for units, prices, side in ((sells, ladder_prices(base, c, len(sells)), "S"), (buys, acc_prices(base, c, len(buys)), "B")):
+            for u, px in list(zip(units, prices))[:limit]:
+                ladder, k, st, kind, sp, bp, scid, bcid, q, cyc = u
+                if side == "S" and kind != "ladder" and c.get("recycle") == "breakeven" and bp:
+                    px = max(px, bp)                           # a bought-back unit never sells under its cost
+                cur = sp if side == "S" else bp
+                if cur and abs(px / cur - 1) < c["min_move"]:
+                    continue                                   # close enough: keep its place in the queue
+                cid = scid if side == "S" else bcid
+                if cid:
+                    try:
+                        self.ex.cancel(self.sym, cid)
+                    except Exception:
+                        pass
+                    s, filled = self.status(cid)
+                    if s == "FILLED" or filled > 0 or s not in DONE:
+                        continue                               # it traded while we moved it: the progress step books it
+                if side == "S" and kind != "ladder":
+                    self.upd(ladder, k, state="bought", sell_px=px, sell_cid=None)
+                    self.con.commit()
+                    self.place_resells()
+                elif side == "S":
+                    self.upd(ladder, k, state="armed", sell_px=px, sell_cid=None)
+                    self.con.commit()
+                    self.place_armed(mid)
+                else:
+                    self.upd(ladder, k, state="sold", buy_px=px, buy_cid=None)
+                    self.con.commit()
+                    self.place_buys(mid)
+                moved += 1
+                self.drip()                                    # one order at a time: cancel one, place one, wait
+        self.con.commit()
+        self.place_armed(mid)
+        self.place_buys(mid)
+        self.place_resells()
+        return moved
+
+    def drip(self):
+        """A short, uneven pause between two order moves (drip_min..drip_max seconds), so a rebase looks like
+        ordinary order flow on the book rather than the whole ladder jumping at once."""
+        lo, hi = self.c["drip_min"], self.c["drip_max"]
+        if hi > 0:
+            self.sleep(random.uniform(lo, hi))
+
+    def open_acc(self):
+        """Buy-first units below the base, once the cushion exists (acc_after ladder sells filled)."""
+        c, m = self.c, self.meta()
+        lad = 1000 + m["ladders"]                              # their own ladder number, apart from the sell ladders
+        for k, px in enumerate(acc_prices(m["base"], c)):
+            self.con.execute("INSERT OR IGNORE INTO bee_units VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                             (self.sym, lad, k, "sold", "acc", None, px, None, None, float(c["size"]), 0, self.now()))
+        self.set_meta(acc_opened=1)
+        self.note("accumulate", lad, 0, m["base"], c["acc_units"] * c["size"], 0,
+                  f"{c['acc_units']} buy units from {100 * c['acc_first']:.1f}% under the base")
+        self.con.commit()
+        self.place_buys(None)
+
+    def paused(self):
+        m = self.meta()
+        return bool(m and m["pause_until"] and self.clock() < m["pause_until"])
+
+    def guards(self, mid):
+        """BTC guard: BTC up btc_guard (2%) over the last ~2 hours while ZIG is up less than btc_zig_max (1%): every
+        sell is pulled for btc_pause_h (8) hours, so ZIG is not sold cheap before it follows BTC. Buys stay.
+        Volatility mode: ZIG has moved more than vol_fast (10%) in the running 4-hour or day candle (or the last
+        closed 4-hour one): the base follows every 1-hour close until both running candles are back under
+        vol_calm (5%). Checked once per minute."""
+        c, m = self.c, self.meta()
+        tick = int(self.clock() // 60)
+        if tick == m["guard_ms"]:
+            return
+        self.set_meta(guard_ms=tick)
+        if c["btc_guard"] and not self.paused():
+            try:
+                b, z = self.ex.klines(c["btc_symbol"], "60m", 3), self.ex.klines(self.sym, "60m", 3)
+                now_ms = self.clock() * 1000
+                bd, zd = [r for r in b if r[2] <= now_ms], [r for r in z if r[2] <= now_ms]
+                if len(bd) >= 2 and len(zd) >= 2 and len(b[-1]) > 3 and len(z[-1]) > 3:
+                    # from the open of the second-to-last closed hour to the latest price (2 to 3 hours)
+                    br, zr = b[-1][1] / bd[-2][3] - 1, z[-1][1] / zd[-2][3] - 1
+                    if br >= c["btc_guard"] and zr < c["btc_zig_max"]:
+                        self.set_meta(pause_until=self.clock() + c["btc_pause_h"] * 3600)
+                        n = self.pull_sells()
+                        self.note("btc guard", m["ladders"] - 1, 0, mid or 0, 0, 0,
+                                  f"BTC {100 * br:+.1f}%, ZIG {100 * zr:+.1f}%: {n} sells pulled for {c['btc_pause_h']} h")
+            except Exception as e:
+                self.log(f"mm bee: BTC guard skipped: {e}")
+        if c["vol_fast"]:
+            try:
+                k4, kd = self.ex.klines(self.sym, "4h", 2), self.ex.klines(self.sym, "1d", 1)
+                if k4 and kd and len(k4[-1]) > 3:
+                    mv = lambda r: abs(r[1] / r[3] - 1) if r[3] else 0.0           # noqa: E731
+                    run4, rund = mv(k4[-1]), mv(kd[-1])
+                    last4 = mv(k4[-2]) if len(k4) > 1 else 0.0
+                    if not m["fast"] and max(run4, rund, last4) > c["vol_fast"]:
+                        self.set_meta(fast=1)
+                        self.note("fast mode", m["ladders"] - 1, 0, mid or 0, 0, 0, f"ZIG moved {100 * max(run4, rund, last4):.1f}%: base follows every 1h close")
+                    elif m["fast"] and run4 < c["vol_calm"] and rund < c["vol_calm"]:
+                        self.set_meta(fast=0)
+                        self.note("calm", m["ladders"] - 1, 0, mid or 0, 0, 0, "moves back under 5%: base follows the 4h close again")
+            except Exception as e:
+                self.log(f"mm bee: volatility check skipped: {e}")
+        self.con.commit()
+
+    def pull_sells(self):
+        n = 0
+        for ladder, k, st, kind, sp, bp, scid, bcid, q, cyc in self.units("selling"):
+            try:
+                self.ex.cancel(self.sym, scid)
+            except Exception:
+                pass
+            s, filled = self.status(scid)
+            if s == "FILLED" or filled > 0 or s not in DONE:
+                continue
+            self.upd(ladder, k, state="armed" if kind == "ladder" else "bought", sell_cid=None)
+            n += 1
+        self.con.commit()
+        return n
 
     def place_armed(self, mid):
+        if self.paused():
+            return
         for ladder, k, st, kind, sp, bp, scid, bcid, q, cyc in self.units("armed"):
             if sp <= mid:
                 continue

@@ -15,6 +15,7 @@ Wallet as on paper: 600,000 ZIG (two ladders of 300,000) + 10,000 USDT.
     python3 bin/mm_bee_backtest.py                 last run's summary from the database candles
 Called by the engine (binance_sync) once per new hourly candle; writes data/mm_bee_backtest.json for the MM-Bee tab.
 """
+import bisect
 import json
 import os
 import sqlite3
@@ -29,10 +30,15 @@ OUT = os.path.join(ROOT, "data", "mm_bee_backtest.json")
 START = "2026-10-13T00:00:00Z"        # "created 15 days ago" (Bilal, 28 Oct 2026)
 # every scenario shown on the MM-Bee tab: (id, start, label). The bot goes live at a daily close (00:00 UTC) and takes
 # that day's close as its base, exactly as the live code does.
-SCENARIOS = [("15d", START, "Started 13 Oct (15 days)"),
-             ("5d", "2026-10-24T00:00:00Z", "Live 5 days ago (24 Oct)")]     # Bilal, 29 Oct 2026
+SCENARIOS = [("5d", "2026-10-24T00:00:00Z", "Live 5 days ago (24 Oct)"),        # Bilal, 29 Oct 2026
+             ("15d", START, "Started 13 Oct (15 days)"),
+             ("1y", "2025-11-01T00:00:00Z", "Started 1 Nov 2025 (1 year)")]
+# the strategies compared on the MM-Bee tab: (id, label, settings over mm_bee.DEFAULTS)
+STRATEGIES = [("v2", "MM-Bee v2 (base follows each 4h close)", {}),
+              ("plus", "MM-Bee+ (v2, bought-back units rejoin the ladder; no 1h mode)", {"recycle": "ladder", "vol_fast": 0}),
+              ("v1", "MM-Bee v1 (daily base, 12 h revision)", {"rebase_hours": 0})]
 SYMBOL = "ZIGUSDT"
-VERSION = 2                            # bump when the strategy or the backtest changes: the next engine run reruns it
+VERSION = 4                            # bump when the strategy or the backtest changes: the next engine run reruns it
 H = 3600
 
 
@@ -47,8 +53,10 @@ def t_of(s):
 class CandleEx:
     """Exchange stand-in driven by candles [(open_s, o, h, l, c)], bar length `bar` seconds."""
 
-    def __init__(self, candles, bar, coins, usdt):
+    def __init__(self, candles, bar, coins, usdt, others=None):
         self.c, self.bar, self.i = candles, bar, 0
+        self.times = [r[0] for r in candles]
+        self.others = {k: (v, [r[0] for r in v]) for k, v in (others or {}).items()}
         self.w = {"ZIG": [float(coins), 0.0], "USDT": [float(usdt), 0.0]}
         self.o, self.fills = {}, []
 
@@ -60,18 +68,25 @@ class CandleEx:
         return self.c[self.i][4]
 
     def klines(self, symbol, interval, limit=3):
-        step = 86400 if interval == "1d" else H
+        """Candles as the exchange would give them at the bot's clock: [(open_ms, close, close_ms, open, high, low)],
+        oldest first; the last one may still be running (close_ms after the clock). `symbol` may be another
+        series given in `others` (BTCUSDT for the BTC guard)."""
+        step = {"1d": 86400, "4h": 4 * H}.get(interval, H)
         t = self.now()
-        cur = t - t % step                                     # the open period at the bot's clock
-        last = None
-        for r in self.c[:self.i + 1]:                          # close of the last candle inside the last full period
-            if cur - step <= r[0] < cur:
-                last = r[4]
-        if last is None:
-            for r in self.c[:self.i + 1]:
-                if r[0] < cur:
-                    last = r[4]
-        return [((cur - step) * 1000, last, cur * 1000)] if last is not None else []
+        rows, times = (self.c, self.times) if symbol == SYMBOL or symbol not in self.others else self.others[symbol]
+        j = bisect.bisect_right(times, t - self.bar) - 1         # the last candle that has closed by the clock
+        if j < 0:
+            return []
+        cur = t - t % step
+        out = []
+        for p0 in range(cur - (limit - 1) * step, cur + 1, step):
+            a = bisect.bisect_left(times, p0)
+            z = min(bisect.bisect_left(times, p0 + step), j + 1)
+            if a >= z:
+                continue
+            seg = rows[a:z]
+            out.append((p0 * 1000, seg[-1][4], (p0 + step) * 1000, seg[0][1], max(r[2] for r in seg), min(r[3] for r in seg)))
+        return out
 
     # exchange interface used by BeeLadder
     def info(self, s):
@@ -145,19 +160,22 @@ class CandleEx:
                 self._fill(cid, "maker")
 
 
-def run(candles, start=START, bar=H, settings=None, coins=None, usdt=None):
+def run(candles, start=START, bar=H, settings=None, coins=None, usdt=None, end=None, btc=None):
     """Backtest from `start` (ISO, UTC) over candles [(open_s, o, h, l, c)] sorted by time. Needs the day before."""
-    c = dict(mm_bee.DEFAULTS, **(settings or {}), symbol=SYMBOL)
+    if end:
+        candles = [r for r in candles if r[0] < t_of(end)]
+    # orders move at the candle close in the backtest: the 150-second stagger is shorter than one candle
+    c = dict(mm_bee.DEFAULTS, **dict({"stagger_delay_s": 0}, **(settings or {})), symbol=SYMBOL)
     coins = c["units"] * c["size"] * (1 + c["extra_ladders"]) if coins is None else coins
     usdt = c["max_usdt"] if usdt is None else usdt
     t0 = t_of(start)
     first = next((i for i, r in enumerate(candles) if r[0] >= t0), None)
     if first is None or first == 0 or candles[0][0] > t0 - 86400:
         raise RuntimeError("mm bee backtest: need candles from the day before the start")
-    ex = CandleEx(candles, bar, coins, usdt)
+    ex = CandleEx(candles, bar, coins, usdt, others={c["btc_symbol"]: btc} if btc else None)
     ex.i = first - 1                                    # the bot starts at the close just before START
     con = sqlite3.connect(":memory:")
-    bee = mm_bee.BeeLadder(ex, c, con, log=lambda *a: None, clock=ex.now)
+    bee = mm_bee.BeeLadder(ex, c, con, log=lambda *a: None, clock=ex.now, sleep=lambda s: None)
     p0 = ex.mid()
     equity, steps = [], 0
     while True:
@@ -206,7 +224,8 @@ def run(candles, start=START, bar=H, settings=None, coins=None, usdt=None):
             "taker_fills": sum(1 for f in ex.fills if f[4] == "taker"),
             "equity": equity, "fill_list": ex.fills[::-1], "events": events, "units": units,
             "days": sorted(days.values(), key=lambda d: d["date"]),
-            "method": "1-hour MEXC candles; orders fill only on a later candle that trades through their price; maker fee 0%."}
+            "method": "1-hour MEXC candles; orders fill only on a later candle that trades through their price; maker fee 0%.",
+            "guards": [e for e in events if e[1] in ("btc guard", "fast mode", "calm")][:50]}
 
 
 def candles_from_db(con, symbol=SYMBOL, since_s=None):
@@ -216,7 +235,7 @@ def candles_from_db(con, symbol=SYMBOL, since_s=None):
 
 def refresh(con, out=OUT, log=print):
     """Re-run when a new hourly candle exists. Returns True when the file was rewritten."""
-    since = t_of(START) - 2 * 86400
+    since = min(t_of(x[1]) for x in SCENARIOS) - 2 * 86400
     rows = candles_from_db(con, SYMBOL, since)
     now_s = datetime.now(timezone.utc).timestamp()
     rows = [r for r in rows if r[0] + H <= now_s]          # completed candles only
@@ -230,11 +249,20 @@ def refresh(con, out=OUT, log=print):
                 return False
     except (OSError, ValueError):
         pass
+    btc = [r for r in candles_from_db(con, "BTCUSDT", since) if r[0] + H <= now_s] or None
     runs = []
-    for sid, start, label in SCENARIOS:
-        r = run(rows, start=start)
-        r.update(id=sid, label=label)
-        runs.append(r)
+    for gid, glabel, gset in STRATEGIES:
+        for sid, start, label in SCENARIOS:
+            try:
+                r = run(rows, start=start, settings=gset, btc=btc)
+            except RuntimeError:                           # not enough history for this window
+                continue
+            r.update(id=sid, label=label, strategy=gid, strategy_label=glabel)
+            if sid == "1y":                                # keep the page light: a year of detail is summarised
+                r["equity"] = r["equity"][::12]
+                r["fill_list"] = r["fill_list"][:150]
+                r["events"] = r["events"][:150]
+            runs.append(r)
     res = dict(runs[0], runs=runs)                         # top level = the first scenario (older pages read it)
     res["last_candle_utc"] = last
     res["version"] = VERSION
@@ -244,7 +272,7 @@ def refresh(con, out=OUT, log=print):
         json.dump(res, f, separators=(",", ":"))
     os.replace(tmp, out)
     for r in runs:
-        log(f"mm bee backtest {r['id']}: since {r['start_utc']}, {r['rounds']} rounds, {r['profit_usdt']:+,.2f} USDT locked in, "
+        log(f"mm bee backtest {r['strategy']}/{r['id']}: since {r['start_utc']}, {r['rounds']} rounds, {r['profit_usdt']:+,.2f} USDT locked in, "
             f"{r['vs_hold_usdt']:+,.2f} vs holding")
     return True
 

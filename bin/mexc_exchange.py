@@ -113,10 +113,11 @@ class Mexc:
         return sorted(out, key=lambda x: x[0])
 
     def klines(self, symbol, interval, limit=3):
-        """Recent candles as [(open_ms, close, close_ms)], oldest first. MEXC intervals: 60m, 4h, 1d ..."""
+        """Recent candles as [(open_ms, close, close_ms, open, high, low)], oldest first; the last one may still be
+        running. MEXC intervals: 60m, 4h, 1d ..."""
         d = self._call("GET", "/api/v3/klines", {"symbol": symbol, "interval": interval, "limit": limit})
         step = {"60m": 3_600_000, "4h": 14_400_000, "1d": 86_400_000}.get(interval)
-        return [(int(r[0]), float(r[4]), int(r[0]) + step if step else int(r[6])) for r in d]
+        return [(int(r[0]), float(r[4]), int(r[0]) + step if step else int(r[6]), float(r[1]), float(r[2]), float(r[3])) for r in d]
 
     def qty(self, symbol, q):
         st = self.info(symbol)["step"]

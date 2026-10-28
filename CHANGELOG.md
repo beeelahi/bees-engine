@@ -5,6 +5,10 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- MM-Bee v2 (Bilal, 29 Oct): the base follows every 4-hour close; the 5 nearest orders move right after it, the rest 150 s later; orders move one at a time 2-4 s apart; a change under 0.3% leaves the order in place; sold units keep their buy-backs. BTC guard (BTC +2% in ~2 h while ZIG < +1%: sells pulled for 8 h) and fast mode (ZIG 10%+ in the 4h/day candle: base follows every 1h close until under 5%). Optional accumulation after the first sells.
+- MM-Bee+ (paper variant bee_plus): v2 with bought-back units rejoining the sell ladder ("recycle"), no fast mode. Over a year of ZIG it was +20,175 USDT ahead of holding (v2 +12,758) and, on the same year mirrored into an uptrend, +42,942 (v2 -21,836).
+- Backtest: v2, MM-Bee+ and v1 over 5 days, 15 days and 1 year, with BTC candles for the guard; the MM-Bee tab compares them and the two paper runs.
+- research/mm_bee_study*.py: settings grid, recycle on real / mirrored / flat paths, guards.
 - Bots live view (bin/bot_live.py -> bot_live.json, every engine run): a daily signal is shown entered at the 00:00 UTC open right after the close, with its stop, profit-take and break-even move checked on hourly candles; Fade 4h shorts are shown from the open after the signal candle. Before, the page showed "order for the next open" until the following close although the trade had been running since the open. View only: the paper record is unchanged.
 - Simulator entry modes for research (bot_sim: entry = open / limit / stop) and research/entry_study.py; results in docs/RESEARCH.md (current rules kept: they beat every variant on the unseen period).
 - MM-Bee backtest: second scenario "live 5 days ago" (from the 24 Oct 00:00 UTC daily close) beside the 15-day run; the tab switches between them and shows the wallet's own change next to holding.

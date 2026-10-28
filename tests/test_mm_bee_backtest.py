@@ -76,7 +76,8 @@ class BacktestTest(unittest.TestCase):
         self.assertFalse(BT.refresh(con, out, log=lambda *a: None))            # same last candle: not rerun
         res = json.load(open(out))
         self.assertIn("last_candle_utc", res)
-        self.assertEqual([r["id"] for r in res["runs"]], [x[0] for x in BT.SCENARIOS])
+        self.assertEqual(sorted({(r["strategy"], r["id"]) for r in res["runs"]}),
+                         sorted((g, w) for g, _, _ in BT.STRATEGIES for w in ("5d", "15d")))     # 1y: not enough data here
         self.assertEqual(res["rounds"], res["runs"][0]["rounds"])
         for r in res["runs"]:
             self.assertAlmostEqual(r["change_usdt"], r["value_usdt"] - r["start_value_usdt"], places=1)

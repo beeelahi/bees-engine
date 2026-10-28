@@ -684,6 +684,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       </div>
     </div>
     <div class="sub-panel" data-s="live" hidden>
+    <div class="mb-row"><div class="seg" id="mbVarSeg"><button type="button" data-v="bee" aria-pressed="true">MM-Bee v2 (your rules)</button><button type="button" data-v="bee_plus" aria-pressed="false">MM-Bee+ (recycling)</button></div></div>
     <div class="grid-kpi" id="mbKpis">
       <div class="card kpi"><div class="label">Ahead of just holding</div><div class="v" id="mbEdge">—</div><div class="note" id="mbEdgeNote">&nbsp;</div></div>
       <div class="card kpi"><div class="label">Profit locked in</div><div class="v" id="mbProfit">—</div><div class="note" id="mbProfitNote">&nbsp;</div></div>
@@ -730,10 +731,15 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
     </div>
     <div class="sub-panel" data-s="backtest" hidden>
       <div class="card mb-row">
-        <div class="card-head"><div class="seg" id="btSeg"><button type="button" data-v="5d" aria-pressed="true">Live 5 days ago</button><button type="button" data-v="15d" aria-pressed="false">Started 15 days ago</button></div><span class="note" id="btRange"></span></div>
-        <h3 id="btTitle">Backtest</h3>
+        <div class="card-head"><div class="seg" id="btStratSeg"><button type="button" data-v="v2" aria-pressed="true">MM-Bee v2</button><button type="button" data-v="plus" aria-pressed="false">MM-Bee+</button><button type="button" data-v="v1" aria-pressed="false">v1 (original)</button></div>
+          <div class="seg" id="btSeg"><button type="button" data-v="5d" aria-pressed="true">5 days</button><button type="button" data-v="15d" aria-pressed="false">15 days</button><button type="button" data-v="1y" aria-pressed="false">1 year</button></div></div>
+        <h3 id="btTitle">Backtest</h3><span class="note" id="btRange"></span>
         <p class="mb-verdict" id="btVerdict">&nbsp;</p>
         <p class="note" id="btMethod">&nbsp;</p>
+      </div>
+      <div class="card mb-row">
+        <div class="card-head"><h3>Every strategy, every period</h3><span class="note">Ahead of holding · profit locked in · completed rounds</span></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Strategy</th><th>5 days</th><th>15 days</th><th>1 year</th></tr></thead><tbody id="btMatrix"></tbody></table></div>
       </div>
       <div class="grid-kpi mb-row">
         <div class="card kpi"><div class="label">Ahead of just holding</div><div class="v" id="btEdge">—</div><div class="note" id="btEdgeNote">&nbsp;</div></div>
@@ -1863,7 +1869,7 @@ const fUs = v => isNum(v) ? (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toL
 const fQ = v => isNum(v) ? Math.round(v).toLocaleString("en-US") : "—";
 const mbT = s => s ? s.slice(0, 16).replace("T", " ") : "—";
 const mbAgo = s => { if (!s) return ""; const h = (Date.now() - Date.parse(s)) / 36e5; return h < 1 ? Math.max(1, Math.round(h * 60)) + " min ago" : h < 48 ? h.toFixed(1) + " h ago" : (h / 24).toFixed(1) + " days ago"; };
-const MB_NAME = { bee: "MM-Bee", base: "Grid 1.5%", tight: "Grid 1%", wide: "Grid 2%" };
+const MB_NAME = { bee: "MM-Bee v2", bee_plus: "MM-Bee+", base: "Grid 1.5%", tight: "Grid 1%", wide: "Grid 2%" };
 const MB_STATE = { armed: ["Waiting to sell", "The price is above this level; the order rests once the price is under it"], selling: ["Sell resting", ""], sold: ["Buy to place", ""], buying: ["Buy resting", ""], bought: ["Resell to place", ""] };
 function mbSet(id, text, c) { const e = $("#" + id); if (!e) return; e.textContent = text; e.classList.remove("pos", "neg", "cold"); if (c) e.classList.add(c); }
 function mbLine(id, parts) { const el = $("#" + id); el.replaceChildren(); parts.forEach(p => { if (Array.isArray(p)) { const b = document.createElement("b"); b.textContent = p[0]; if (p[1]) b.className = p[1]; el.append(b); } else el.append(document.createTextNode(p)); }); }
@@ -1889,7 +1895,13 @@ function mbRules(c, base, baseFrom, ladders) {
     ["Everything sold and nothing bought back: the buys simply wait."],
     [`No fill for ${c.idle_hours} hours: the base moves to the latest hourly close and the unsold ladder orders move with it. If every unit is sold by then, a fresh ladder of ${fQ(c.units * c.size)} ZIG opens from the new base (at most ${c.extra_ladders} extra; ladders used: `, [`${ladders} of ${1 + c.extra_ladders}`], ")."],
     [`Budget: ${fQ(c.units * c.size)} ZIG per ladder; buys are paid from what the sells raised, with at most `, [fQ(c.max_usdt) + " USDT"], " of the wallet's own USDT on top. Every order is post-only (maker; MEXC maker fee 0%)."],
-  ];
+  ].concat(c.rebase_hours ? [
+    [`The base follows every `, [`${c.rebase_hours === 24 ? "daily" : c.rebase_hours + "-hour"} close`], `: the ${c.stagger_first} sells nearest the price move right after it, the rest ${Math.round((c.stagger_delay_s || 0) / 60 * 10) / 10} minutes later, one order at a time (${c.drip_min}–${c.drip_max} s apart), and an order whose price would change by less than ${(100 * c.min_move).toFixed(1)}% stays put. Units already sold keep their buy-back.`],
+    ...(c.btc_guard ? [[`BTC guard: if BTC rises `, [`${(100 * c.btc_guard).toFixed(0)}%+ in about two hours`], ` while ZIG is up less than ${(100 * c.btc_zig_max).toFixed(0)}%, every sell is pulled for ${c.btc_pause_h} hours (buys stay).`]] : []),
+    ...(c.vol_fast ? [[`Fast mode: while ZIG has moved `, [`${(100 * c.vol_fast).toFixed(0)}%+`], ` in the running 4-hour or day candle, the base follows every 1-hour close, until both are back under ${(100 * c.vol_calm).toFixed(0)}%.`]] : []),
+    ...(c.recycle && c.recycle !== "off" ? [[`Recycling: units bought back on the way down `, ["rejoin the sell ladder"], c.recycle === "breakeven" ? " (never under their buy price), so they are not left stuck far above a falling price." : " where the ladder puts them, so they are not left stuck far above a falling price (such a sale can be under that unit's buy price)."]] : []),
+    ...(c.acc_units ? [[`Accumulation: after ${c.acc_after} sells, ${c.acc_units} buys rest from ${(100 * c.acc_first).toFixed(0)}% under the base, paid from the wallet's USDT.`]] : []),
+  ] : []);
 }
 function mbLadder(tbId, units, px, ladders) {
   const rows = units.map(u => { const [ld, k, st, kind, sp, bp, q, cyc] = u, buy = st === "sold" || st === "buying"; return { ld, k, st, kind, side: buy ? "BUY" : "SELL", p: buy ? bp : sp, q, cyc }; }).sort((a, b) => b.p - a.p);
@@ -1910,6 +1922,11 @@ function mbFeed(ulId, events, c) {
     else if (ev === "bought") { ic = "B"; kind = "up"; title = `Bought back ${fQ(q)} ZIG at ${fZ(p)} · ${fUs(pr)} USDT`; sub = `unit #${k + 1} · up for sale again at ${fZ(p * (1 + c.resell))}`; }
     else if (ev === "ladder") { ic = "L"; title = `Ladder ${ld + 1} opened: ${c.units} × ${fQ(c.size)} ZIG from ${fZ(p)}`; sub = note; }
     else if (ev === "revise") { ic = "R"; title = `Base revised to ${fZ(p)}`; sub = note; }
+    else if (ev === "rebase") { ic = "R"; title = `Base moved to ${fZ(p)}`; sub = note; }
+    else if (ev === "btc guard") { ic = "!"; kind = "down"; title = "BTC guard: sells pulled"; sub = note; }
+    else if (ev === "fast mode") { ic = "⚡"; title = "Fast mode on"; sub = note; }
+    else if (ev === "calm") { ic = "~"; title = "Fast mode off"; sub = note; }
+    else if (ev === "accumulate") { ic = "A"; kind = "up"; title = `Accumulation opened under ${fZ(p)}`; sub = note; }
     else { title = ev; sub = note || ""; }
     const li = document.createElement("li"), i = document.createElement("span"), b = document.createElement("div"), s2 = document.createElement("small");
     i.className = "ic " + kind; i.textContent = ic; b.textContent = title; s2.textContent = mbT(t) + " UTC · " + sub; b.append(s2); li.append(i, b); feed.append(li); });
@@ -1930,7 +1947,8 @@ function mbLegend(id, items) { const lg = $("#" + id); lg.replaceChildren(); ite
 const usdFmt = { type: "custom", formatter: v => (v >= 0 ? "+" : "") + v.toFixed(2), minMove: 0.01 }, zigFmt = { type: "custom", formatter: v => v.toFixed(5), minMove: 0.000001 };
 function renderMMBee() {
   renderMMHead();
-  const D = S.mm, V = D && D.variants, B = V && V.bee;
+  const D = S.mm, V = D && D.variants, B = V && (V[S.mbVar || "bee"] || V.bee);
+  $$("#mbVarSeg button").forEach(b => { b.hidden = !(V && V[b.dataset.v]); b.setAttribute("aria-pressed", String(b.dataset.v === (S.mbVar || "bee"))); });
   if (!B || !B.bee) { ["mbRules", "mbLadder", "mbFeed", "mbCompare", "mbFills"].forEach(id => $("#" + id).replaceChildren()); return; }
   const c = B.settings || {}, m = B.bee, px = B.price, units = B.units || [];
   mbSet("mbEdge", fUs(B.vs_hold_usdt) + " USDT", cls(B.vs_hold_usdt));
@@ -1978,16 +1996,24 @@ function renderMMBee() {
 function renderMBBacktest() {
   renderMMHead();
   const BTD = S.mm && S.mm.backtest, runs = BTD && BTD.runs ? BTD.runs : BTD ? [BTD] : [];
-  const T = runs.find(r => r.id === (S.btRun || "5d")) || runs[0];
-  $$("#btSeg button").forEach(b => { const r = runs.find(x => x.id === b.dataset.v); b.hidden = !r; b.setAttribute("aria-pressed", String(!!T && r === T)); if (r) b.title = r.label; });
+  const sg = r => r.strategy || "v2", want = S.btStrat || "v2", win = S.btRun || "5d";
+  const T = runs.find(r => sg(r) === want && r.id === win) || runs.find(r => sg(r) === want) || runs[0];
+  $$("#btSeg button").forEach(b => { const r = runs.find(x => sg(x) === (T ? sg(T) : want) && x.id === b.dataset.v); b.hidden = !r; b.setAttribute("aria-pressed", String(!!T && r === T)); if (r) b.title = r.label; });
+  $$("#btStratSeg button").forEach(b => { const r = runs.find(x => sg(x) === b.dataset.v); b.hidden = !r; b.setAttribute("aria-pressed", String(!!T && sg(T) === b.dataset.v)); if (r) b.title = r.strategy_label || ""; });
+  const mx = $("#btMatrix"); mx.replaceChildren();
+  [...new Set(runs.map(sg))].forEach(g => { const tr = document.createElement("tr"), first = runs.find(r => sg(r) === g);
+    tr.append(td(first.strategy_label || g, ""));
+    ["5d", "15d", "1y"].forEach(w => { const r = runs.find(x => sg(x) === g && x.id === w), c_ = document.createElement("td"); c_.className = "num";
+      if (r) { const b = document.createElement("b"); b.className = cls(r.vs_hold_usdt); b.textContent = fUs(r.vs_hold_usdt); c_.append(b, document.createTextNode(` · ${fUs(r.profit_usdt)} · ${r.rounds}`)); } else c_.textContent = "—";
+      tr.append(c_); }); mx.append(tr); });
   if (!T) { $("#btTitle").textContent = "Backtest"; $("#btVerdict").textContent = "The backtest is published with the next engine run."; return; }
   const c = T.settings, mv = 100 * (T.end_price / T.start_price - 1), days = mbHrs(T.start_utc, T.end_utc) / 24;
-  $("#btTitle").textContent = T.id === "5d" ? `As if MM-Bee had gone live on ${T.start_utc.slice(0, 10)} (00:00 UTC daily close)` : `As if MM-Bee had started on ${T.start_utc.slice(0, 10)}`;
+  $("#btTitle").textContent = `${T.strategy_label || "MM-Bee"}: as if it had gone live on ${T.start_utc.slice(0, 10)} (00:00 UTC)`;
   $("#btRange").textContent = `${mbT(T.start_utc)} → ${mbT(T.end_utc)} UTC · ${days.toFixed(1)} days · ${T.candles} hourly candles`;
   mbLine("btVerdict", [`ZIG went from ${fZ(T.start_price)} to ${fZ(T.end_price)} (`, [fPct(mv, 1), cls(mv)], `). MM-Bee completed `, [String(T.rounds)], ` buy-back rounds and locked in `, [fUs(T.profit_usdt) + " USDT", cls(T.profit_usdt)],
     `, leaving the wallet `, [fUs(T.vs_hold_usdt) + " USDT", cls(T.vs_hold_usdt)], ` ${T.vs_hold_usdt >= 0 ? "ahead of" : "behind"} simply holding the same ${fQ(T.start_coins)} ZIG and ${fQ(T.start_usdt)} USDT.`]
     .concat(isNum(T.change_usdt) ? [` The wallet itself went from ${fQ(T.start_value_usdt)} to ${fQ(T.value_usdt)} USDT (`, [fUs(T.change_usdt) + " USDT", cls(T.change_usdt)], `; holding: ${fUs(T.hold_change_usdt)} USDT), because the price moved.`] : []));
-  $("#btMethod").textContent = `Method: the exact MM-Bee code run on MEXC's 1-hour ZIG candles. An order placed at a candle's close can only fill on a later candle that trades through its price, so a unit never sells and buys back inside one hour; real trading would usually fill a little more. Maker fee 0%, no slippage (all orders are resting limits). Rerun every hour as new candles arrive.`;
+  $("#btMethod").textContent = `Method: the exact MM-Bee code run on MEXC's 1-hour ZIG candles (and BTC's for the BTC guard). An order placed at a candle's close can only fill on a later candle that trades through its price, so a unit never sells and buys back inside one hour; real trading would usually fill a little more. Order moves happen at the candle close (live they drip out one by one over a few minutes). Maker fee 0%, no slippage (all orders are resting limits). Rerun every hour as new candles arrive.`;
   mbSet("btEdge", fUs(T.vs_hold_usdt) + " USDT", cls(T.vs_hold_usdt)); $("#btEdgeNote").textContent = `${fQ(T.value_usdt)} vs ${fQ(T.hold_usdt)} USDT if untouched`;
   mbSet("btProfit", fUs(T.profit_usdt) + " USDT", cls(T.profit_usdt)); $("#btProfitNote").textContent = `${fUs(T.profit_usdt / Math.max(days, 1e-9))} USDT a day on average`;
   mbSet("btRounds", String(T.rounds)); $("#btRoundsNote").textContent = `${T.sells} sells, ${T.buys} buys · ladders used ${T.ladders} of ${1 + c.extra_ladders}`;
@@ -3011,6 +3037,8 @@ segment("chanTf", "v", v => { S.chanTf = v; renderChannels(); });
 segment("callSide", "v", v => { S.callSide = v; renderCalls("callsBodyW", v); });
 segment("mvKind", "v", v => { S.mvKind = v; renderMoves(); });
 segment("btSeg", "v", v => { S.btRun = v; renderMBBacktest(); });
+segment("btStratSeg", "v", v => { S.btStrat = v; renderMBBacktest(); });
+segment("mbVarSeg", "v", v => { S.mbVar = v; renderMMBee(); });
 segment("hsKind", "v", v => { S.hsKind = v; hsRows("hsBodyW", v); });
 $("#sigType").onchange = e => { S.sigType = e.target.value; renderSignals(); };
 $("#sigProven").onclick = e => { S.sigProvenOnly = !S.sigProvenOnly; e.currentTarget.setAttribute("aria-pressed", String(S.sigProvenOnly)); renderSignals(); };

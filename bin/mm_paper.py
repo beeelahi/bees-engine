@@ -293,13 +293,16 @@ def variants(coin):
     return out
 
 
-def bee_coin(c, cfg):
+BEE_VARIANTS = [("bee", {}), ("bee_plus", {"recycle": "ladder", "vol_fast": 0})]
+
+
+def bee_coin(c, cfg, extra=None):
     """The MM-Bee settings for one coin: mm_bee.DEFAULTS, then mm.json's "bee" block (top level, or per coin).
     Paper wallet: enough coins for every ladder it may open, and max_usdt of USDT. "bee": false turns it off."""
     over = c.get("bee", cfg.get("bee", {}))
     if over is False:
         return None
-    b = dict(mm_bee.DEFAULTS, **(over or {}), symbol=c["symbol"])
+    b = dict(mm_bee.DEFAULTS, **(over or {}), **(extra or {}), symbol=c["symbol"])
     b.setdefault("paper_coins", b["units"] * b["size"] * (1 + b["extra_ladders"]))
     b.setdefault("paper_usdt", b["max_usdt"])
     return b
@@ -337,7 +340,9 @@ class Variant:
         if mid and self.ex.meta("start") is None:
             self.ex.set_meta("start", {"utc": now(), "mid": mid, "coins": self.start_coins, "usdt": self.start_usdt,
                                        "settings": {k: self.coin.get(k) for k in ("mode", "step", "spread_bps", "levels", "size", "floor", "band", "buy_rungs",
-                                                                               "units", "first", "gap", "gap_from", "rebuy", "resell", "idle_hours", "max_usdt", "extra_ladders")
+                                                                               "units", "first", "gap", "gap_from", "rebuy", "resell", "idle_hours", "max_usdt", "extra_ladders",
+                                                                               "rebase_hours", "stagger_first", "stagger_delay_s", "min_move", "recycle", "acc_units",
+                                                                               "btc_guard", "btc_pause_h", "vol_fast", "vol_calm", "drip_min", "drip_max")
                                                     if self.coin.get(k) is not None}})
         if mid:
             self.ex.set_meta("last_mid", mid)
@@ -462,10 +467,11 @@ def main():
         for name, cv in variants(c):
             vname = name if len(good) == 1 else f"{name}_{c['symbol'].lower()}"
             runs.append(Variant(vname, cv, feed, cfg.get("paper_fees")))
-    for c in good:                       # MM-Bee: Bilal's sell-first ladder, on paper beside the grid settings
-        bc = bee_coin(c, cfg)
-        if bc:
-            runs.append(Variant("bee" if len(good) == 1 else f"bee_{c['symbol'].lower()}", bc, feed, cfg.get("paper_fees")))
+    for c in good:                       # MM-Bee: Bilal's sell-first ladder (v2), and MM-Bee+ (recycling), on paper
+        for vn, extra in BEE_VARIANTS:
+            bc = bee_coin(c, cfg, extra)
+            if bc:
+                runs.append(Variant(vn if len(good) == 1 else f"{vn}_{c['symbol'].lower()}", bc, feed, cfg.get("paper_fees")))
     print(f"mm_paper: started, {len(runs)} variant(s), loop {LOOP_S}s, no API key in use")
     while True:
         try:

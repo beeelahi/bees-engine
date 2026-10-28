@@ -37,9 +37,9 @@ class FakeEx:
 
     def klines(s, sym, interval, limit=3):
         t = int(s.clock() * 1000)
-        step = DAY if interval == "1d" else HOUR
+        step = {"1d": DAY, "4h": 4 * HOUR}.get(interval, HOUR)
         start = t - t % step
-        close = s.day_close if interval == "1d" else s.hour_close
+        close = {"1d": s.day_close, "4h": getattr(s, "h4_close", None) or s.day_close}.get(interval, s.hour_close)
         return [(start - step, close, start), (start, s.px_, start + step)]   # last one is still open
 
     def balances(s):
@@ -104,9 +104,10 @@ class BeeTest(unittest.TestCase):
         B.STOP = os.path.join(tempfile.mkdtemp(), "STOP")
         self.clock = Clock()
 
-    def make(self, px=0.05, **kw):
+    def make(self, px=0.05, cfg=None, **kw):
         ex = FakeEx(px, self.clock, **kw)
-        bee = B.BeeLadder(ex, {"symbol": "ZIGUSDT"}, sqlite3.connect(":memory:"), log=lambda *a: None, clock=self.clock)
+        c = dict({"symbol": "ZIGUSDT", "rebase_hours": 0}, **(cfg or {}))       # v1 rules unless a test says otherwise
+        bee = B.BeeLadder(ex, c, sqlite3.connect(":memory:"), log=lambda *a: None, clock=self.clock, sleep=lambda s: None)
         return ex, bee
 
     def tick(self, ex, bee, h, l, c, minutes=15):
@@ -221,6 +222,107 @@ class BeeTest(unittest.TestCase):
         ex, bee = self.make(0.05, coins=100_000)
         self.assertEqual(bee.step(0.05), "not enough coins")
         self.assertEqual(ex.resting("SELL"), [])
+
+
+class BeeV2Test(unittest.TestCase):
+    """v2: the base follows each 4-hour close, staggered; accumulation once a cushion exists."""
+
+    def setUp(self):
+        B.STOP = os.path.join(tempfile.mkdtemp(), "STOP")
+        self.clock = Clock(1_800_000_000.0 - 1_800_000_000.0 % (4 * 3600) + 60)    # just after a 4h close
+
+    def make(self, cfg=None):
+        ex = FakeEx(0.05, self.clock)
+        ex.h4_close = 0.05
+        self.waits = []
+        bee = B.BeeLadder(ex, dict({"symbol": "ZIGUSDT"}, **(cfg or {})), sqlite3.connect(":memory:"), log=lambda *a: None, clock=self.clock,
+                          sleep=self.waits.append)
+        return ex, bee
+
+    def test_staggered_rebase_on_each_4h_close(self):
+        ex, bee = self.make()
+        bee.step(0.05)
+        self.assertEqual(ex.resting("SELL")[0], 0.0515)
+        ex.h4_close = 0.048                                        # the next 4h close is lower
+        self.clock.t += 4 * 3600
+        ex.px_ = 0.048
+        bee.step(0.048)
+        old = {round(0.05 * (1.03 + 0.02 * k), 7) for k in range(20)}
+        sells = ex.resting("SELL")
+        moved = [p for p in sells if round(p, 7) not in old]
+        self.assertEqual(len(moved), 5)                            # only the 5 nearest move right after the close
+        self.assertEqual(len(self.waits), 5)                       # one at a time, 2-4 s apart
+        self.assertTrue(all(2.0 <= w <= 4.0 for w in self.waits))
+        self.assertAlmostEqual(min(sells), 0.048 * 1.03, places=7)
+        self.clock.t += 60
+        bee.step(0.048)
+        self.assertEqual(len([p for p in ex.resting("SELL") if round(p, 7) not in old]), 5)      # not yet: 150 s
+        self.clock.t += 120
+        bee.step(0.048)
+        sells = ex.resting("SELL")
+        self.assertEqual(len(sells), 20)
+        self.assertAlmostEqual(max(sells), 0.048 * (1.03 + 0.02 * 19), places=7)      # the rest followed
+
+    def test_small_moves_keep_their_place(self):
+        ex, bee = self.make()
+        bee.step(0.05)
+        before = sorted(ex.o)
+        ex.h4_close = 0.05005                                      # 0.1% move: under min_move
+        self.clock.t += 4 * 3600
+        bee.step(0.05)
+        self.clock.t += 200
+        bee.step(0.05)
+        self.assertEqual(sorted(cid for cid, o in ex.o.items() if o["status"] == "NEW"), before)
+
+    def test_sold_units_keep_their_buy_back_and_ladder_restarts_at_3pct(self):
+        ex, bee = self.make()
+        bee.step(0.05)
+        self.clock.t += 900
+        ex.bar(0.0526, 0.05, 0.0524)                               # two sells fill
+        bee.step(0.0524)
+        buys = ex.resting("BUY")
+        self.assertEqual(len(buys), 2)
+        ex.h4_close = 0.0524
+        self.clock.t += 4 * 3600
+        ex.px_ = 0.0524
+        bee.step(0.0524)
+        self.clock.t += 200
+        bee.step(0.0524)
+        self.assertEqual(ex.resting("BUY"), buys)                  # buy-backs untouched
+        sells = ex.resting("SELL")
+        self.assertEqual(len(sells), 18)
+        self.assertAlmostEqual(min(sells), 0.0524 * 1.03, places=7)
+
+    def test_no_wallet_usdt_used_before_sells_then_accumulation(self):
+        ex, bee = self.make({"acc_units": 3, "acc_after": 2})
+        bee.step(0.05)
+        self.assertEqual(ex.resting("BUY"), [])                    # sell first: the 10,000 USDT is untouched
+        self.assertEqual(ex.w["USDT"][1], 0.0)
+        self.clock.t += 900
+        ex.bar(0.0526, 0.05, 0.0524)
+        bee.step(0.0524)
+        buys = ex.resting("BUY")
+        self.assertEqual(len(buys), 2 + 3)                         # 2 buy-backs + 3 accumulation buys
+        acc = sorted(buys)[:3]
+        self.assertAlmostEqual(max(acc), round(0.05 * 0.97, 7), places=7)
+        self.clock.t += 900
+        ex.bar(0.0524, 0.0470, 0.0481)                             # down through the buy-backs and two acc buys
+        bee.step(0.0481)
+        self.clock.t += 900
+        ex.bar(0.0502, 0.0481, 0.0500)                             # back up: the two acc units sell 3% higher
+        bee.step(0.0500)
+        m = bee.meta()
+        acc_rounds = [e for e in bee.con.execute("SELECT event, note, profit FROM bee_log WHERE event='sold' AND note='acc'")]
+        self.assertEqual(len(acc_rounds), 2)
+        self.assertTrue(all(p > 0 for _, _, p in acc_rounds))
+        self.assertGreaterEqual(m["rounds"], 4)
+
+    def test_v1_database_is_upgraded(self):
+        con = sqlite3.connect(":memory:")
+        con.executescript(B.SCHEMA)
+        con.execute("INSERT INTO bee_meta VALUES('ZIGUSDT',0.05,'2026-10-28T00:00:00Z','x',1,0,0,0,0,NULL,'2026-10-28T00:00:00Z')")
+        b = B.BeeLadder(FakeEx(0.05, self.clock), {"symbol": "ZIGUSDT"}, con, log=lambda *a: None, clock=self.clock)
+        self.assertEqual(b.meta()["rebase_ms"], 0)
 
 
 class BeePaperTest(unittest.TestCase):
