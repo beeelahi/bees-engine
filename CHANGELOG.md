@@ -5,6 +5,11 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Changed
+- Highlights is now **Trade Ideas** (its signal-based section is renamed Signal confluence). Latest uses the same
+  cards as the sections, grouped by day, 36 at a time.
+- Overview redesigned: Market today first; What matters today as a grid of tiles; a new Best trade ideas right now
+  row (grade A channel calls, recent grade A long-term breakouts, necklines in play); Top gainers next to a new Top
+  losers; Top 50 shows its top 10 with Show all 50; the low-value number tiles are gone.
 - Highlights redesigned around cards: every section opens with a short title, one plain sentence and its filters,
   then one card per item (coin, side and grade badges, the status in words, price / stop / target or the section's
   key numbers in a 2 x 2 grid, the reasons as a short list, date and record in the footer; a coloured edge shows

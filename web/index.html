@@ -159,6 +159,10 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .hx-more-in > .card, .hx-more-in > details.card { box-shadow: none; }
 /* Latest feed */
 .hx-feed { display: grid; gap: 8px; }
+.hx-note { font-size: 12.5px; color: var(--muted); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.hx-grid > .hx-day { grid-column: 1 / -1; padding: 10px 2px 0; display: flex; align-items: center; gap: 12px; }
+.hx-grid > .hx-day::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.hx-grid > .hx-day:first-child { padding-top: 0; }
 .hx-day { font-size: 11.5px; font-weight: 650; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; padding: 14px 2px 2px; }
 .hx-day:first-child { padding-top: 0; }
 .hx-item { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px;
@@ -194,10 +198,14 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .lab-cond input:not([hidden]) { grid-column: 3; }
 .lab-cond button { grid-column: 4; grid-row: 1; }
 @media (max-width: 640px) { .lab-cond { grid-template-columns: minmax(0, 1fr) auto; } .lab-cond select, .lab-cond input:not([hidden]) { grid-column: 1; } .lab-cond button { grid-column: 2; grid-row: 1; } }
-.today-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.today-list li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: var(--panel-2); cursor: pointer; }
-.today-list li:hover { outline: 1px solid var(--accent); }
-.today-list .ic { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+.today-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+.today-list li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(16, 32, 74, 0.55); cursor: pointer; }
+.today-list li:hover, .today-list li:focus-visible { outline: none; border-color: rgba(4, 183, 248, 0.45); background: rgba(16, 32, 74, 0.8); }
+.today-list li b { display: block; font-size: 14px; line-height: 1.35; } .today-list li small { display: block; margin-top: 4px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.t50 td:nth-child(2), .t50 th:nth-child(2) { text-align: left; } .t50 tbody tr.more { display: none; } .t50.all tbody tr.more { display: table-row; }
+.ov-link { color: var(--accent); text-decoration: none; font-weight: 600; } .ov-link:hover { text-decoration: underline; }
+#mkCard .mk-mood { font-size: 16px; line-height: 1.55; max-width: 1100px; }
+.today-list .ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-weight: 700; font-size: 13px; }
 .today-list .ic.up { background: var(--up-soft); color: var(--up); } .today-list .ic.down { background: var(--down-soft); color: var(--down); }
 .today-list .ic.neutral { background: rgba(255,255,255,0.06); color: var(--muted); } .today-list .ic.warn { background: var(--warn-soft); color: var(--warn); }
 .today-list b { font-weight: 600; } .today-list small { display: block; color: var(--muted); font-size: 12px; }
@@ -288,7 +296,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
     <nav class="tabs" aria-label="Views">
       <a href="#me" data-view="me" id="navMe" hidden>★ My dashboard</a>
       <a href="#overview" data-view="overview">Overview</a>
-      <a href="#highlights" data-view="highlights">Highlights<span class="badge" id="hlBadge" hidden></span></a>
+      <a href="#highlights" data-view="highlights">Trade Ideas<span class="badge" id="hlBadge" hidden></span></a>
       <a href="#bot" data-view="bot">Trading bots</a>
       <a href="#screener" data-view="screener">Screener</a>
       <a href="#watchlist" data-view="watchlist">Watchlist</a>
@@ -302,10 +310,6 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
 
 <main class="wrap">
   <section class="view" id="v-overview">
-    <div class="card today" id="todayCard">
-      <div class="card-head"><h2>What matters today</h2><span class="note" id="todayAsOf"></span></div>
-      <ul class="today-list" id="todayList"></ul>
-    </div>
     <div class="card market" id="mkCard">
       <div class="card-head"><h2>Market today</h2><span class="note" id="mkAsOf"></span></div>
       <p class="mk-mood" id="mkMood"></p>
@@ -313,28 +317,32 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <div class="chart-mk" id="mkChart"></div>
       <div class="legend" id="mkLegend"></div>
     </div>
-    <div class="grid-kpi">
-      <div class="card kpi"><div class="label">Pairs in universe</div><div class="v" id="kUniverse">—</div><div class="note" id="kUniverseNote">&nbsp;</div></div>
-      <div class="card kpi clickable" id="kIdeaCard"><div class="label">Trade ideas, latest day</div><div class="v" id="kNew">—</div><div class="note" id="kNewNote">&nbsp;</div></div>
-      <div class="card kpi clickable" id="kBotCard"><div class="label">Bots portfolio (paper)</div><div class="v" id="kBot">—</div><div class="note" id="kBotNote">&nbsp;</div></div>
-      <div class="card kpi" hidden><div class="label">Above daily EMA200</div><div class="v" id="kBreadth">—</div><div class="note" id="kBreadthNote">Market breadth</div></div>
+    <div class="card today" id="todayCard">
+      <div class="card-head"><h2>What matters today</h2><span class="note" id="todayAsOf"></span></div>
+      <ul class="today-list" id="todayList"></ul>
+    </div>
+    <div class="card" id="ovBestCard">
+      <div class="card-head"><h2>Best trade ideas right now</h2><a class="note ov-link" href="#highlights">All trade ideas ›</a></div>
+      <p class="note" style="margin:0 0 14px">The strongest live setups across the dashboard: grade A channel calls, recent grade A long-term breakouts and head-and-shoulders necklines in play. Information only, not advice.</p>
+      <div class="hx-grid" id="ovBest"></div>
     </div>
     <div class="grid-2">
       <div class="card">
-        <div class="card-head"><h2>Latest signals</h2><a class="note" href="#highlights">See all</a></div>
-        <div class="hl-list" id="ovHl"></div>
-      </div>
-      <div class="card">
-        <div class="card-head"><h2>Top performers</h2>
+        <div class="card-head"><h2>Top gainers</h2>
           <div class="seg" id="topRange"><button type="button" data-k="ret_7d" aria-pressed="true">7D</button><button type="button" data-k="ret_30d" aria-pressed="false">30D</button><button type="button" data-k="ret_90d" aria-pressed="false">90D</button><button type="button" data-k="ret_365d" aria-pressed="false">1Y</button></div>
         </div>
         <div class="tbl-wrap"><table><thead><tr><th>Pair</th><th>Return</th><th>vs BTC 30D</th><th>RVOL</th><th>RSI</th></tr></thead><tbody id="topBody"></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Top losers</h2><span class="note" id="loseNote"></span></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Pair</th><th>Return</th><th>vs BTC 30D</th><th>RVOL</th><th>RSI</th></tr></thead><tbody id="loseBody"></tbody></table></div>
       </div>
     </div>
     <div class="card" id="t50Card">
       <div class="card-head"><h2>Top 50 focus list</h2><span class="note" id="t50Note"></span></div>
       <p class="note" style="margin:0 0 12px" id="t50Explain"></p>
-      <div class="tbl-wrap" style="max-height: 72vh"><table><thead><tr><th>#</th><th>Pair</th><th>Score</th><th>Conditions met</th><th>Liquidity</th><th>Mkt cap (est.)</th><th>Price</th><th>7D</th><th>30D</th><th>90D</th><th>Bot</th></tr></thead><tbody id="t50Body"></tbody></table></div>
+      <div class="tbl-wrap"><table class="t50"><thead><tr><th>#</th><th>Pair</th><th>Score</th><th>Conditions met</th><th>Liquidity</th><th>Mkt cap (est.)</th><th>Price</th><th>7D</th><th>30D</th><th>90D</th><th>Bot</th></tr></thead><tbody id="t50Body"></tbody></table></div>
+      <div class="row-end" style="margin-top:10px"><span class="note" id="t50Shown"></span><button class="btn small" id="t50More" type="button">Show all 50</button></div>
     </div>
     <details class="card hl-how">
       <summary>The 10 conditions behind the score</summary>
@@ -344,6 +352,13 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <div class="card-head"><h2>Data health</h2><span class="note" id="healthNote"></span></div>
       <div class="health" id="health"></div>
     </div>
+    <div class="grid-kpi" hidden>
+      <div class="card kpi"><div class="label">Pairs in universe</div><div class="v" id="kUniverse">—</div><div class="note" id="kUniverseNote">&nbsp;</div></div>
+      <div class="card kpi clickable" id="kIdeaCard"><div class="label">Trade ideas, latest day</div><div class="v" id="kNew">—</div><div class="note" id="kNewNote">&nbsp;</div></div>
+      <div class="card kpi clickable" id="kBotCard"><div class="label">Bots portfolio (paper)</div><div class="v" id="kBot">—</div><div class="note" id="kBotNote">&nbsp;</div></div>
+      <div class="card kpi" hidden><div class="label">Above daily EMA200</div><div class="v" id="kBreadth">—</div><div class="note" id="kBreadthNote">Market breadth</div></div>
+    </div>
+    <div hidden><div id="ovHl"></div></div>
   </section>
 
 
@@ -452,30 +467,30 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
 
   <section class="view" id="v-highlights" hidden>
     <div class="card hl-head">
-      <div class="card-head"><h2>Highlights</h2><span class="note" id="hlHeadNote"></span></div>
+      <div class="card-head"><h2>Trade Ideas</h2><span class="note" id="hlHeadNote"></span></div>
       <p class="note hl-lead">Everything the dashboard flagged, newest first. Tap a card to open its chart. Information only, not financial advice.</p>
-      <div class="hl-nav" id="hlNav" role="tablist" aria-label="Highlights sections">
+      <div class="hl-nav" id="hlNav" role="tablist" aria-label="Trade Ideas sections">
         <button type="button" role="tab" data-p="latest">Latest<i></i></button>
         <button type="button" role="tab" data-p="shortlist" id="hlNavSL" hidden>Bee's Shortlist<i></i></button>
         <button type="button" role="tab" data-p="calls">Channel calls<i></i></button>
         <button type="button" role="tab" data-p="breakouts">Long-term breakouts<i></i></button>
         <button type="button" role="tab" data-p="patterns">Patterns<i></i></button>
         <button type="button" role="tab" data-p="moves">Big 4h moves<i></i></button>
-        <button type="button" role="tab" data-p="ideas">Trade ideas<i></i></button>
+        <button type="button" role="tab" data-p="ideas">Signal confluence<i></i></button>
         <button type="button" role="tab" data-p="channels">Channels<i></i></button>
         <button type="button" role="tab" data-p="bots">Bots<i></i></button>
       </div>
     </div>
     <div class="hl-panel" data-panel="latest" hidden>
       <div class="hx-sec">
-        <div><h2>Latest</h2><p>Everything new, newest first. Same-day Shortlist picks are grouped into one line.</p></div>
+        <div><h2>Latest</h2><p>Everything new, newest first. Same-day Shortlist picks are grouped into one card.</p></div>
           <div class="hl-filters">
             <div class="seg" id="hlFeedDir"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="bullish" aria-pressed="false">Bullish</button><button type="button" data-v="bearish" aria-pressed="false">Bearish</button></div>
             <select id="hlFeedKind" class="search" aria-label="Kind of highlight"><option value="">Every kind</option><option value="sl">Bee's Shortlist</option><option value="chan_call">Channel calls</option><option value="ltbo">Long-term breakouts</option><option value="hs_event">Head and shoulders</option><option value="moves">Big 4h moves</option><option value="bot">Bots</option><option value="sig">Signals</option></select>
             <input id="hlFeedQ" class="search" type="search" placeholder="Coin…" aria-label="Filter by coin" autocomplete="off">
           </div>
       </div>
-      <div class="hx-feed" id="hlFeed"></div>
+      <div class="hx-grid hx-feedgrid" id="hlFeed"></div>
       <div class="row-end"><span class="note" id="hlFeedNote"></span><button class="btn small" id="hlMore" type="button" hidden>Show more</button></div>
       <details class="hx-more"><summary>How these are chosen</summary>
         <div class="hx-more-in"><p class="note" id="hlRules" style="margin:0 4px"></p></div>
@@ -593,14 +608,14 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
     </div>
     <div class="hl-panel" data-panel="ideas" hidden>
       <div class="hx-sec">
-        <div><h2>Trade ideas</h2><p>Proven signals agreeing on the same coin at the latest daily close, with their track record.</p></div>
+        <div><h2>Signal confluence</h2><p>Proven signals agreeing on the same coin at the latest daily close, with their track record.</p></div>
         <div class="hx-sec-r"><div class="seg" id="hxIdeaSide"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="long" aria-pressed="false">Long</button><button type="button" data-v="short" aria-pressed="false">Short</button></div><span class="note" id="hxNote-ideas"></span></div>
       </div>
       <div class="hx-grid" id="hxGrid-ideas"></div>
       <details class="hx-more"><summary>Every idea of the last 30 days, scorecard and rules</summary>
         <div class="hx-more-in">
           <div class="card">
-            <div class="card-head"><h2>Trade ideas</h2>
+            <div class="card-head"><h2>Signal confluence: every idea, last 30 days</h2>
               <div class="seg" id="ideaSide"><button type="button" data-v="" aria-pressed="true">Long and short</button><button type="button" data-v="long" aria-pressed="false">Long</button><button type="button" data-v="short" aria-pressed="false">Short</button></div>
             </div>
             <p class="note" style="margin:0 0 12px" id="ideaIntro"></p>
@@ -812,7 +827,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <div class="card" id="meSettings">
         <div class="card-head"><h2>Settings</h2></div>
         <div class="acct-field"><label for="meName">Display name</label><input id="meName" maxlength="60" autocomplete="nickname"></div>
-        <div class="acct-field"><label for="meStart">Open the site on</label><select id="meStart" class="search" style="width:100%"><option value="">Overview (default)</option><option value="me">My dashboard</option><option value="highlights">Highlights</option><option value="watchlist">Watchlist</option><option value="shortlist">Bee's Shortlist</option><option value="screener">Screener</option><option value="signals">Signals</option><option value="bot">Trading bots</option></select></div>
+        <div class="acct-field"><label for="meStart">Open the site on</label><select id="meStart" class="search" style="width:100%"><option value="">Overview (default)</option><option value="me">My dashboard</option><option value="highlights">Trade Ideas</option><option value="watchlist">Watchlist</option><option value="shortlist">Bee's Shortlist</option><option value="screener">Screener</option><option value="signals">Signals</option><option value="bot">Trading bots</option></select></div>
         <div class="row-end" style="margin-top:14px"><span class="note" id="meSaved"></span><button class="btn primary" id="meSave" type="button">Save settings</button></div>
       </div>
       <div class="card">
@@ -1219,7 +1234,7 @@ const chLines = (x, k) => { const s = isNum(x.slope) ? x.slope : (x.lo1 - x.lo0)
 const chanTime = (x, t) => x.tf === "4h" ? new Date(t * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC" : t;
 function chanShape(x) { const s = x.slope_pct_day; return (Math.abs(s) < 0.05 ? "Flat" : s > 0 ? "Rising" : "Falling") + (Math.abs(s) < 0.05 ? "" : " " + fPct(s, 2) + "/day") + " · " + (x.tf === "4h" ? fN(x.days, 0) + " days" : x.days + " days"); }
 const callData = () => (S.hlMeta && S.hlMeta.channel_calls) || { rows: [], rules: {} };
-const CALL_INTRO = "Coins with an entry inside a clean daily channel that other indicators confirm. Only the channel statuses with a measured edge are used: long at the bottom of the channel (near the bottom, bounce off the bottom) or on a midline retest that held; short / caution when the midline is lost or price is rejected at the top. Each call also needs at least one PROVEN signal in the same direction (daily in the last 3 days or the latest weekly candle) and the bull score on the right side (5+ for longs, 5 or less for shorts). The stop sits 10% of the channel width beyond the line the entry depends on; a call is kept only when that stop is within 20% of the price and the first target pays at least 1.5× the risk. Record (every call replayed on the full history, 2022 on, with signals chosen on data up to 2021): midline retests +0.22R and bottom entries +0.18R per call on average, shorts +0.10R; most calls lose and the winners are larger, so expect losing streaks. Midline reclaims and breakouts showed no edge and are not used. Checked after every daily close; each new call is posted to Highlights. Not advice.";
+const CALL_INTRO = "Coins with an entry inside a clean daily channel that other indicators confirm. Only the channel statuses with a measured edge are used: long at the bottom of the channel (near the bottom, bounce off the bottom) or on a midline retest that held; short / caution when the midline is lost or price is rejected at the top. Each call also needs at least one PROVEN signal in the same direction (daily in the last 3 days or the latest weekly candle) and the bull score on the right side (5+ for longs, 5 or less for shorts). The stop sits 10% of the channel width beyond the line the entry depends on; a call is kept only when that stop is within 20% of the price and the first target pays at least 1.5× the risk. Record (every call replayed on the full history, 2022 on, with signals chosen on data up to 2021): midline retests +0.22R and bottom entries +0.18R per call on average, shorts +0.10R; most calls lose and the winners are larger, so expect losing streaks. Midline reclaims and breakouts showed no edge and are not used. Checked after every daily close; each new call is posted to Trade Ideas. Not advice.";
 
 function renderCalls(bodyId, side) {
   const C = callData(), D = chanData(), body = $("#" + bodyId); if (!body) return; body.replaceChildren();
@@ -1422,12 +1437,12 @@ function renderFeed() {
     Object.values(grp).forEach(g => { if (g.group.length === 1) Object.assign(g, g.group[0], { group: null }); else { const ups = g.group.filter(z => z.dir === "bullish").length;
       g.dir = ups === g.group.length ? "bullish" : ups === 0 ? "bearish" : ""; } });
     items = out; }
-  const L = $("#hlFeed"), lim = S.feedLim || 80; L.replaceChildren();
+  const L = $("#hlFeed"), lim = S.feedLim || 36; L.replaceChildren();
   const frag = document.createDocumentFragment(); let day = null;
   items.slice(0, lim).forEach(x => { if (x.d !== day) { day = x.d; const h = document.createElement("div"); h.className = "hx-day"; h.textContent = hlDay(day); frag.append(h); }
-    frag.append(hxFeedItem(x)); });
+    frag.append(hxFeedCard(x)); });
   L.append(frag);
-  if (!items.length) L.innerHTML = '<div class="empty">Nothing matches these filters.</div>';
+  if (!items.length) L.innerHTML = '<div class="hx-empty">Nothing matches these filters.</div>';
   const oldest = items.length ? items[items.length - 1].d : null;
   $("#hlFeedNote").textContent = items.length ? `Showing ${Math.min(lim, items.length)} of ${items.length}` + (oldest ? ` · since ${oldest}` : "") : "";
   $("#hlMore").hidden = items.length <= lim;
@@ -1454,33 +1469,35 @@ function setHlPanel(p) {
   if (p === "shortlist") renderShortlist();
 }
 $$("#hlNav button").forEach(b => b.onclick = () => { location.hash = "highlights/" + b.dataset.p; });
-segment("hlFeedDir", "v", v => { S.feedDir = v; S.feedLim = 80; renderFeed(); });
-$("#hlFeedKind").onchange = e => { S.feedKind = e.target.value; S.feedLim = 80; renderFeed(); };
-$("#hlFeedQ").oninput = e => { S.feedQ = e.target.value; S.feedLim = 80; renderFeed(); };
-$("#hlMore").onclick = () => { S.feedLim = (S.feedLim || 80) + 120; renderFeed(); };
+segment("hlFeedDir", "v", v => { S.feedDir = v; S.feedLim = 36; renderFeed(); });
+$("#hlFeedKind").onchange = e => { S.feedKind = e.target.value; S.feedLim = 36; renderFeed(); };
+$("#hlFeedQ").oninput = e => { S.feedQ = e.target.value; S.feedLim = 36; renderFeed(); };
+$("#hlMore").onclick = () => { S.feedLim = (S.feedLim || 36) + 36; renderFeed(); };
 // ---------- Highlights cards (one card per item; the full tables stay one click away in "details")
 const hxEl = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const hxDir = d => d === "bullish" || d === "long" || d === "up" ? "up" : d === "bearish" || d === "short" || d === "down" ? "down" : d === "warn" ? "warn" : "neutral";
-function hxAv(sym, dir) { return hxEl("span", "hx-av " + hxDir(dir), sym === "Bee's Shortlist" ? "SL" : sym.replace(/USDT$/, "").slice(0, 4)); }
+function hxAv(sym, dir, txt) { return hxEl("span", "hx-av " + hxDir(dir), txt || (sym === "Bee's Shortlist" ? "SL" : sym.replace(/USDT$/, "").slice(0, 4))); }
 function hxCard(o) {
   const c = hxEl("div", "hx-card " + hxDir(o.dir)); c.tabIndex = 0; c.setAttribute("role", "link");
   const go = o.go || (() => openPair(o.sym, o.tf || "1d")); c.onclick = go; c.onkeydown = e => { if (e.key === "Enter") go(); };
-  const top = hxEl("div", "hx-top"), id = hxEl("div", "hx-id"), nm = hxEl("b", "", o.sym.replace(/USDT$/, "")); id.append(nm, hxEl("small", "", "/USDT"));
+  const top = hxEl("div", "hx-top"), id = hxEl("div", "hx-id"), nm = hxEl("b", "", o.name || o.sym.replace(/USDT$/, "")); id.append(nm); if (!o.name) id.append(hxEl("small", "", "/USDT"));
   if (venueOf(o.sym)) id.append(hxEl("small", "", " · " + venueOf(o.sym)));
   if (o.sub) id.append(hxEl("div", "hx-sub", o.sub));
   const bd = hxEl("div", "hx-badges"); (o.badges || []).forEach(b => b && bd.append(b));
-  top.append(hxAv(o.sym, o.dir), id, bd); c.append(top);
+  top.append(hxAv(o.sym, o.dir, o.av), id, bd); c.append(top);
   if (o.head) c.append(hxEl("div", "hx-head", o.head));
   if (o.metrics && o.metrics.length) { const m = hxEl("div", "hx-metrics");
     o.metrics.forEach(x => { if (!x) return; const d = hxEl("div"); d.append(hxEl("span", "", x[0])); const v = hxEl("b", x[2] || "", x[1]); d.append(v); if (x[3]) d.append(hxEl("small", "", x[3])); if (x[4]) d.title = x[4]; m.append(d); });
     if (m.children.length % 2) m.lastElementChild.style.gridColumn = "1 / -1";     // an odd last cell spans the row
     c.append(m); }
   if (o.bar) c.append(o.bar);
+  if (o.note) c.append(hxEl("div", "hx-note", o.note));
   if (o.tags && o.tags.length) { const t = hxEl("div", "hx-tags"); o.tags.slice(0, o.maxTags || 4).forEach(x => { const sp = Array.isArray(x) ? hxEl("span", x[1], x[0]) : hxEl("span", "", x); t.append(sp); });
     if (o.tags.length > (o.maxTags || 4)) t.append(hxEl("span", "", "+" + (o.tags.length - (o.maxTags || 4)) + " more")); c.append(t); }
-  const f = hxEl("div", "hx-foot"); f.append(hxEl("span", "", o.foot || ""), hxEl("span", "hx-go", "Chart ›")); c.append(f);
+  const f = hxEl("div", "hx-foot"); f.append(hxEl("span", "", o.foot || ""), hxEl("span", "hx-go", o.goText || "Chart ›")); c.append(f);
   return c;
 }
+const fmtShort = iso => { const d = new Date(iso); return isNaN(d) ? "—" : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); };
 const pctTo = (p, ref) => isNum(p) && isNum(ref) && ref ? fPct(100 * (p / ref - 1), 1) : "";
 function hxFill(name, cards, empty, note) {
   const g = $("#hxGrid-" + name); if (!g) return; g.replaceChildren();
@@ -1496,27 +1513,13 @@ function hxCalls() {
   hxSeg("hxCallSide", "hxCallSide", hxCalls);
   const C = callData(), D = chanData(), f = S.hxCallSide || "";
   const rows = (C.rows || []).filter(x => !f || x.side === f).sort((a, b) => (a.grade > b.grade ? 1 : a.grade < b.grade ? -1 : b.score - a.score));
-  hxFill("calls", rows.map(x => { const ch = x.channel || {}, long = x.side === "long";
-    return hxCard({ sym: x.symbol, dir: x.side, sub: `${Math.round(ch.days || 0)}-day ${chWord(ch)} channel · ${(ch.touches || []).join("/")} touches`,
-      badges: [chip(long ? "Long" : "Short", long ? "up" : "down"), chip("Grade " + x.grade, x.grade === "A" ? "warn" : "neutral")],
-      head: (D.labels || {})[x.status] || x.status,
-      metrics: [["Price", fPx(x.close)], ["Stop", fPx(x.stop), "", isNum(x.risk_pct) ? (long ? "−" : "+") + fN(x.risk_pct, 1) + "%" : ""], ["Target", fPx(x.t1), long ? "pos" : "neg", pctTo(x.t1, x.close)], ["Reward : risk", isNum(x.rr) ? fN(x.rr, 1) + "×" : "—"]],
-      tags: x.signals.map(k => { const [tf, sg] = k.split(":"); return sigLabel(sg, long ? "bullish" : "bearish") + (tf === "1w" ? " (weekly)" : ""); }),
-      foot: `${x.date} · bull score ${x.bull_score}/10` + (x.hist && isNum(x.hist.rel30) ? ` · record ${fPct(x.hist.rel30, 1)} vs market` : "") });
-  }), "No channel entry is confirmed by other indicators right now. That is a valid answer: nothing forced.",
+  hxFill("calls", rows.map(callCard), "No channel entry is confirmed by other indicators right now. That is a valid answer: nothing forced.",
   (C.rows || []).length ? `${(C.rows || []).length} now · ${(C.rows || []).filter(x => x.grade === "A").length} grade A` : "");
 }
 function hxBreakouts() {
   hxSeg("hxLtGrade", "hxLtGrade", hxBreakouts);
   const f = S.hxLtGrade || "", rows = (ltData().rows || []).filter(x => !f || (f === "A" ? x.grade === "A" : x.days_since <= 30));
-  hxFill("breakouts", rows.map(x => { const ck = x.checks || {}, wk = x.weekly;
-    return hxCard({ sym: x.symbol, dir: x.grade === "A" ? "up" : x.grade === "C" ? "down" : "neutral", sub: `${Math.round(ck.days || 0)}-day channel · broke out ${x.event_date} (${x.days_since}d ago)`,
-      badges: [chip("Grade " + x.grade, x.grade === "A" ? "up" : x.grade === "C" ? "down" : "neutral"), chip(wk === "held" ? "Weekly close held" : wk === "failed" ? "Weekly close failed" : "Weekly close pending", wk === "held" ? "up" : wk === "failed" ? "down" : "neutral")],
-      metrics: [["Since", fPct(x.since_pct, 1), cls(x.since_pct)], ["Best", fPct(x.max_pct, 1), "pos"], ["Line now", fPx(x.line_now)], ["Width target", isNum(x.target_width) ? fPx(x.target_width) : "—", "", isNum(x.target_width) ? pctTo(x.target_width, x.price) : ""]],
-      tags: [["RSI " + (ck.rsi ?? "—") + (ck.rsi_ok ? " in 55-75" : ck.rsi > 75 ? " overheated" : " weak"), ck.rsi_ok ? "ok" : "no"], [ck.flat_or_falling ? "From a range or downtrend" : "From an uptrend channel", ck.flat_or_falling ? "ok" : "no"],
-        [(ck.not_extended ? "Close to the line" : "Extended") + " (+" + fN(ck.ext_pct, 1) + "%)", ck.not_extended ? "ok" : "no"]],
-      foot: x.hist && isNum(x.hist.med90) ? `Grade ${x.grade} record: ${fPct(x.hist.med90, 1)} median after 90 days · doubled ${x.hist.x2}%` : "Long-term breakout" });
-  }), "No long-term channel breakout in this selection.", (ltData().rows || []).length ? `${(ltData().rows || []).length} in 180 days · ${(ltData().rows || []).filter(x => x.grade === "A" && x.days_since <= 30).length} grade A in 30 days` : "");
+  hxFill("breakouts", rows.map(ltCard), "No long-term channel breakout in this selection.", (ltData().rows || []).length ? `${(ltData().rows || []).length} in 180 days · ${(ltData().rows || []).filter(x => x.grade === "A" && x.days_since <= 30).length} grade A in 30 days` : "");
 }
 function hxPatterns() {
   hxSeg("hxPatKind", "hxPatKind", hxPatterns);
@@ -1524,11 +1527,7 @@ function hxPatterns() {
   const hs = (hsData().rows || []).filter(x => x.status !== "after_break" && ok(x.kind === "top"));
   const D = setupData(), last = (D.rows || []).reduce((m, x) => x.date > m ? x.date : m, "");
   const st = (D.rows || []).filter(x => last && Date.parse(last) - Date.parse(x.date) <= 14 * 864e5 && ok(x.side !== "long"));
-  const cards = hs.map(x => { const top = x.kind === "top", P = x.points || {};
-    return hxCard({ sym: x.symbol, dir: top ? "down" : "up", sub: (P.ls ? `${P.ls[0].slice(5)} → ${P.head[0].slice(5)} → ${P.rs[0].slice(5)}` : "") + ` · ${x.days}-day pattern`,
-      badges: [chip(top ? "H&S top" : "Inverse H&S", top ? "down" : "up")], head: HS_ST[x.status] || x.status,
-      metrics: [["Neckline", fPx(x.neck), "", fPct(x.to_neck_pct, 1)], ["Target", fPx(x.target), top ? "neg" : "pos", fPct(x.to_target_pct, 1)], ["Invalid at", fPx(x.stop)]],
-      foot: (x.break_date ? "Broke " + x.break_date + (x.retest_date ? " · retest " + x.retest_date : "") : "Not broken yet") + (x.hist && isNum(x.hist.med30) ? ` · record ${fPct(x.hist.med30, 1)} after 30d` : "") }); });
+  const cards = hs.map(hsCardX);
   st.forEach(x => { const long = x.side === "long";
     cards.push(hxCard({ sym: x.symbol, dir: x.side, tf: x.tf === "1w" ? "1w" : "1d", sub: (x.tf === "1w" ? "Weekly" : "Daily") + " chart · " + x.date,
       badges: [chip(long ? "Possible bottom" : "Possible top", long ? "up" : "down")], head: setupLabel(x.kind),
@@ -1542,8 +1541,8 @@ function hxMoves() {
   const f = S.hxMvDir || "", L = (S.mv && S.mv.labels) || {};
   const rows = ((S.mv && S.mv.rows) || []).filter(x => /^(pump|dump)/.test(x.kind) && (!f || (f === "up") === /pump/.test(x.kind)));
   hxFill("moves", rows.map(x => { const up = /pump/.test(x.kind);
-    return hxCard({ sym: x.symbol, dir: up ? "up" : "down", tf: "4h", sub: "Candle closed " + fmtLocal(new Date((x.t + 14400) * 1000).toISOString()),
-      badges: [chip(L[x.kind] || (up ? "Pump" : "Dump"), up ? "up" : "down")], head: (up ? "Up " : "Down ") + fPct(x.ret_pct, 1).replace(/^[+−-]/, "") + " in one 4-hour candle",
+    return hxCard({ sym: x.symbol, dir: up ? "up" : "down", tf: "4h", sub: "4h candle closed " + fmtShort(new Date((x.t + 14400) * 1000).toISOString()),
+      badges: [chip(up ? "4h pump" : "4h dump", up ? "up" : "down")], head: (up ? "Up " : "Down ") + fPct(x.ret_pct, 1).replace(/^[+−-]/, "") + " in one 4-hour candle",
       metrics: [["Volume", isNum(x.rvol) ? fN(x.rvol, 1) + "×" : "—"], ["Close", fPx(x.close)], ["Since", fPct(x.since_pct, 1), cls(x.since_pct)]],
       foot: "#" + x.liq_rank + " by liquidity" + (up ? " · pumps like this have mostly faded" : "") }); }),
   "No big 4-hour move in the last 7 days.", rows.length ? rows.length + " in 7 days" : "");
@@ -1606,6 +1605,68 @@ function hxFeedItem(x) {
   r.append(chip(dir === "bullish" ? "Bullish" : dir === "bearish" ? "Bearish" : x.group ? "Long and short" : "Info", hxDir(dir))); if (time) r.append(hxEl("small", "", time));
   it.append(hxAv(sym, dir), mid, r); return it;
 }
+
+// one feed entry as a card, with the same layout as the sections (numbers from the event's own record)
+function hxFeedCard(x) {
+  if (x.group) { const G = x.group, L = G.filter(z => z.sl.side !== "short").length, sh = G.length - L;
+    return hxCard({ sym: "SL", name: "Bee's Shortlist", av: "SL", dir: x.dir || "warn", go: () => { location.hash = "highlights/shortlist"; }, goText: "Open the list ›",
+      sub: x.ev === "pick" ? "New picks at the " + x.d + " close" : "Closed on " + x.d,
+      badges: [chip(x.ev === "pick" ? G.length + " picks" : G.length + " closed", "warn")],
+      head: x.ev === "pick" ? (L && sh ? `${L} long, ${sh} short` : L ? "All long" : "All short") : "Results",
+      tags: x.ev === "pick" ? G.map(z => z.sl.symbol.replace(/USDT$/, "") + (L && sh ? (z.sl.side === "short" ? " ↓" : " ↑") : ""))
+        : G.map(z => { const d = z.sl, r = (d.side === "short" ? -1 : 1) * (d.exit / d.entry - 1) * 100; return d.symbol.replace(/USDT$/, "") + " " + fPct(r, 1); }), maxTags: 40,
+      foot: "Automatic picks · not advice" }); }
+  if (x.sl) { const d = x.sl, short = d.side === "short";
+    if (x.ev === "pick") return hxCard({ sym: d.symbol, dir: d.side === "short" ? "short" : "long", sub: "Bee's Shortlist · picked " + d.entry_date, badges: [chip(short ? "Short" : "Long", short ? "down" : "up")], head: "New pick",
+      metrics: [["Entry", fPx(d.entry)], ["Stop", fPx(d.stop), "", isNum(d.risk_pct) ? (short ? "+" : "−") + fN(d.risk_pct, 1) + "%" : ""]],
+      tags: (Array.isArray(d.why) ? d.why : []).map(k => sigLabel(k.split(":")[1], short ? "bearish" : "bullish")), foot: "Automatic pick · not advice" });
+    const res = (short ? -1 : 1) * (d.exit / d.entry - 1) * 100;
+    return hxCard({ sym: d.symbol, dir: res >= 0 ? "up" : "down", sub: "Bee's Shortlist · closed " + d.exit_date, badges: [chip(short ? "Short" : "Long", short ? "down" : "up")], head: "Closed " + fPct(res, 1),
+      metrics: [["Entry", fPx(d.entry)], ["Exit", fPx(d.exit)]], foot: d.close_reason || "" }); }
+  if (x.mv) { const m = x.mv, up = /pump/.test(m.kind), L = (S.mv && S.mv.labels) || {};
+    return hxCard({ sym: m.symbol, dir: up ? "up" : "down", tf: "4h", sub: "4h candle closed " + fmtShort(new Date((m.t + 14400) * 1000).toISOString()),
+      badges: [chip(up ? "4h pump" : "4h dump", up ? "up" : "down")], head: (up ? "Up " : "Down ") + fPct(m.ret_pct, 1).replace(/^[+−-]/, "") + " in one 4-hour candle",
+      metrics: [["Volume", isNum(m.rvol) ? fN(m.rvol, 1) + "×" : "—"], ["Close", fPx(m.close)], ["Since", fPct(m.since_pct, 1), cls(m.since_pct)]],
+      foot: "#" + m.liq_rank + " by liquidity" + (up ? " · pumps like this have mostly faded" : "") }); }
+  const h = x.h, d = hlDet(h), dir = h.direction, long = dir === "bullish";
+  if (h.kind === "chan_call") return hxCard({ sym: h.symbol, dir, sub: `Channel call · ${Math.round(d.days || 0)}-day channel` + (d.touches ? ` · ${d.touches.join("/")} touches` : ""),
+    badges: [chip(long ? "Long" : "Short", long ? "up" : "down"), chip("Grade " + d.grade, d.grade === "A" ? "warn" : "neutral")], head: (chanData().labels || {})[d.status] || d.status,
+    metrics: [["Price", fPx(d.close)], ["Stop", fPx(d.stop)], ["Target", fPx(d.t1), long ? "pos" : "neg", pctTo(d.t1, d.close)], ["Reward : risk", isNum(d.rr) ? fN(d.rr, 1) + "×" : "—"]],
+    tags: (d.signals || []).map(k => sigLabel(k.split(":")[1], dir) + (k.startsWith("1w") ? " (weekly)" : "")), foot: h.period_start + (isNum(d.bull_score) ? " · bull score " + d.bull_score + "/10" : "") });
+  if (h.kind === "hs_event") { const top = dir === "bearish";
+    return hxCard({ sym: h.symbol, dir, sub: (top ? "Head-and-shoulders top" : "Inverse head and shoulders") + " · daily chart", badges: [chip(top ? "H&S top" : "Inverse H&S", top ? "down" : "up")], head: HS_ST[d.status] || d.status,
+      metrics: [["Neckline", fPx(d.neck)], ["Target", fPx(d.target), top ? "neg" : "pos", fPct(d.to_target_pct, 1)], ["Invalid at", fPx(d.stop)], ["Close", fPx(d.close)]], foot: h.period_start + " · not advice" }); }
+  if (h.kind === "ltbo") { const c = d.checks || {};
+    return hxCard({ sym: h.symbol, dir: d.grade === "A" ? "up" : d.grade === "C" ? "down" : "neutral", sub: `Long-term breakout · ${Math.round(d.days || 0)}-day channel`, badges: [chip("Grade " + d.grade, d.grade === "A" ? "up" : d.grade === "C" ? "down" : "neutral")],
+      head: "Closed above the channel's top line", metrics: [["Close", fPx(d.close)], ["Top line", fPx(d.level)]],
+      tags: [["RSI " + (c.rsi ?? "—"), c.rsi_ok ? "ok" : "no"], [c.flat_or_falling ? "From a range or downtrend" : "From an uptrend channel", c.flat_or_falling ? "ok" : "no"], [fPct(c.ext_pct, 1) + " above the line", c.not_extended ? "ok" : "no"]],
+      foot: h.period_start + " · watch the weekly close" }); }
+  const bot = isBotHl(h);
+  return hxCard({ sym: h.symbol, dir, tf: "1d", go: bot ? () => { const b = d.bot; if (b) { S.botId = b; store.set("botId", b); } location.hash = "bot/each"; } : null, goText: bot ? "Bot ›" : null,
+    sub: bot ? (d.bot_name ? d.bot_name + " bot · paper trade" : "Bot · paper trade") : (TFN[h.tf] || "Daily") + " signal", badges: [chip(bot ? "Bot" : long ? "Bullish" : dir === "bearish" ? "Bearish" : "Info", bot ? "warn" : hxDir(dir))],
+    head: kindText(h), note: hlEvidence(h), foot: h.period_start });
+}
+function callCard(x) { const D = chanData(), ch = x.channel || {}, long = x.side === "long";
+    return hxCard({ sym: x.symbol, dir: x.side, sub: `${Math.round(ch.days || 0)}-day ${chWord(ch)} channel · ${(ch.touches || []).join("/")} touches`,
+      badges: [chip(long ? "Long" : "Short", long ? "up" : "down"), chip("Grade " + x.grade, x.grade === "A" ? "warn" : "neutral")],
+      head: (D.labels || {})[x.status] || x.status,
+      metrics: [["Price", fPx(x.close)], ["Stop", fPx(x.stop), "", isNum(x.risk_pct) ? (long ? "−" : "+") + fN(x.risk_pct, 1) + "%" : ""], ["Target", fPx(x.t1), long ? "pos" : "neg", pctTo(x.t1, x.close)], ["Reward : risk", isNum(x.rr) ? fN(x.rr, 1) + "×" : "—"]],
+      tags: x.signals.map(k => { const [tf, sg] = k.split(":"); return sigLabel(sg, long ? "bullish" : "bearish") + (tf === "1w" ? " (weekly)" : ""); }),
+      foot: `${x.date} · bull score ${x.bull_score}/10` + (x.hist && isNum(x.hist.rel30) ? ` · record ${fPct(x.hist.rel30, 1)} vs market` : "") });
+  }
+function ltCard(x) { const ck = x.checks || {}, wk = x.weekly;
+    return hxCard({ sym: x.symbol, dir: x.grade === "A" ? "up" : x.grade === "C" ? "down" : "neutral", sub: `${Math.round(ck.days || 0)}-day channel · broke out ${x.event_date} (${x.days_since}d ago)`,
+      badges: [chip("Grade " + x.grade, x.grade === "A" ? "up" : x.grade === "C" ? "down" : "neutral"), chip(wk === "held" ? "Weekly close held" : wk === "failed" ? "Weekly close failed" : "Weekly close pending", wk === "held" ? "up" : wk === "failed" ? "down" : "neutral")],
+      metrics: [["Since", fPct(x.since_pct, 1), cls(x.since_pct)], ["Best", fPct(x.max_pct, 1), "pos"], ["Line now", fPx(x.line_now)], ["Width target", isNum(x.target_width) ? fPx(x.target_width) : "—", "", isNum(x.target_width) ? pctTo(x.target_width, x.price) : ""]],
+      tags: [["RSI " + (ck.rsi ?? "—") + (ck.rsi_ok ? " in 55-75" : ck.rsi > 75 ? " overheated" : " weak"), ck.rsi_ok ? "ok" : "no"], [ck.flat_or_falling ? "From a range or downtrend" : "From an uptrend channel", ck.flat_or_falling ? "ok" : "no"],
+        [(ck.not_extended ? "Close to the line" : "Extended") + " (+" + fN(ck.ext_pct, 1) + "%)", ck.not_extended ? "ok" : "no"]],
+      foot: x.hist && isNum(x.hist.med90) ? `Grade ${x.grade} record: ${fPct(x.hist.med90, 1)} median after 90 days · doubled ${x.hist.x2}%` : "Long-term breakout" });
+  }
+function hsCardX(x) { const top = x.kind === "top", P = x.points || {};
+    return hxCard({ sym: x.symbol, dir: top ? "down" : "up", sub: (P.ls ? `${P.ls[0].slice(5)} → ${P.head[0].slice(5)} → ${P.rs[0].slice(5)}` : "") + ` · ${x.days}-day pattern`,
+      badges: [chip(top ? "H&S top" : "Inverse H&S", top ? "down" : "up")], head: HS_ST[x.status] || x.status,
+      metrics: [["Neckline", fPx(x.neck), "", fPct(x.to_neck_pct, 1)], ["Target", fPx(x.target), top ? "neg" : "pos", fPct(x.to_target_pct, 1)], ["Invalid at", fPx(x.stop)]],
+      foot: (x.break_date ? "Broke " + x.break_date + (x.retest_date ? " · retest " + x.retest_date : "") : "Not broken yet") + (x.hist && isNum(x.hist.med30) ? ` · record ${fPct(x.hist.med30, 1)} after 30d` : "") }); }
 function renderHx() { hxShortlist(); hxCalls(); hxBreakouts(); hxPatterns(); hxMoves(); hxIdeas(); hxChannels(); }
 function renderHighlights() {
   renderFeed(); hlCounts(); renderHx();
@@ -1730,7 +1791,7 @@ function renderToday() {
   const wt = fresh.filter(x => x.kind === "top_w_div");
   if (wt.length) add("!", "down", `Major top warning (weekly) on ${wt.map(x => x.symbol.replace(/USDT$/, "")).join(", ")}`, "The strongest leading signal in our tests. See its invalidation level before acting.", () => { location.hash = "highlights/patterns"; });
   const BCt = setupData().bottom_cluster;
-  if (BCt && BCt.now >= BCt.threshold) add(String(BCt.now), "up", `Bottom breakouts are clustering: ${BCt.now} in ${BCt.window_days} days`, "Many deeply-fallen coins breaking out of tight bases at once has marked market turns (2023, 2026). See Highlights.", () => { location.hash = "highlights/patterns"; });
+  if (BCt && BCt.now >= BCt.threshold) add(String(BCt.now), "up", `Bottom breakouts are clustering: ${BCt.now} in ${BCt.window_days} days`, "Many deeply-fallen coins breaking out of tight bases at once has marked market turns (2023, 2026). See Trade Ideas.", () => { location.hash = "highlights/patterns"; });
   const other = fresh.filter(x => x.kind !== "top_w_div");
   if (other.length) add(String(other.length), "neutral", `${other.length} new possible top / bottom / breakout setup${other.length > 1 ? "s" : ""}`, other.slice(0, 4).map(x => x.symbol.replace(/USDT$/, "") + " " + ((x.kind.startsWith("top") || x.kind === "hs_top") ? "top?" : x.kind.startsWith("bottom") ? "bottom?" : "breakout")).join(" · "), () => { location.hash = "highlights/patterns"; });
   const cr = (chanData().rows || []).filter(x => x.tf === "1d"), cb = cr.filter(x => /^break|^mid_/.test(x.status)), ce = cr.filter(x => x.days >= 365 && /near_|bottom_bounce|top_reject/.test(x.status));
@@ -1743,18 +1804,29 @@ function renderToday() {
   const bots = S.hl.filter(isBotHl).filter(h => S.ov && h.period_start >= S.ov.last_date);
   if (bots.length) add("B", "warn", `${bots.length} bot action${bots.length > 1 ? "s" : ""} today`, bots.slice(0, 3).map(h => h.symbol.replace(/USDT$/, "") + " " + (KIND[h.kind] ? KIND[h.kind][0] : h.kind)).join(" · "), () => { location.hash = "bot/record"; });
   const ld = latestIdeaDay(), td_ = ideas().filter(x => x.date === ld);
-  if (td_.length) add(String(td_.length), "neutral", `${td_.length} trade idea${td_.length > 1 ? "s" : ""}: ${td_.filter(x => x.side === "long").length} long, ${td_.filter(x => x.side === "short").length} short`, "From proven lagging signals on the 50 most liquid coins. Past ideas are scored honestly on the Highlights tab.", () => { location.hash = "highlights/ideas"; });
+  if (td_.length) add(String(td_.length), "neutral", `${td_.length} signal-confluence idea${td_.length > 1 ? "s" : ""}: ${td_.filter(x => x.side === "long").length} long, ${td_.filter(x => x.side === "short").length} short`, "From proven lagging signals on the 50 most liquid coins. Past ideas are scored honestly on the Trade Ideas tab.", () => { location.hash = "highlights/ideas"; });
   const bp = S.bot && S.bot.portfolio;
   if (bp) { const ret = 100 * (bp.equity / bp.start_equity - 1); add("$", ret >= 0 ? "up" : "down", `Bots portfolio ${fPct(ret)} since ${S.bot.inception} (paper)`, `${bp.open} open position${bp.open === 1 ? "" : "s"} · ${bp.orders} order${bp.orders === 1 ? "" : "s"} for the next open`, () => { location.hash = "bot/record"; }); }
-  items.slice(0, 5).forEach(x => { const li = document.createElement("li"); li.tabIndex = 0; li.onclick = x.go; li.onkeydown = e => { if (e.key === "Enter") x.go(); };
+  items.slice(0, 6).forEach(x => { const li = document.createElement("li"); li.tabIndex = 0; li.onclick = x.go; li.onkeydown = e => { if (e.key === "Enter") x.go(); };
     const ic = document.createElement("span"); ic.className = "ic " + x.icCls; ic.textContent = x.ic; const w = document.createElement("div"); const b = document.createElement("b"); b.textContent = x.title; const sm = document.createElement("small"); sm.textContent = x.sub; w.append(b, sm);
     const go = document.createElement("span"); go.className = "note"; go.textContent = "›"; li.append(ic, w, go); L.append(li); });
   $("#todayAsOf").textContent = S.ov ? "Daily close " + S.ov.last_date + " (UTC)" : "";
   $("#todayCard").hidden = !items.length;
 }
+function renderBestIdeas() {
+  const g = $("#ovBest"); if (!g) return; g.replaceChildren(); const out = [];
+  (callData().rows || []).filter(x => x.grade === "A").slice(0, 3).forEach(x => out.push(callCard(x)));
+  (ltData().rows || []).filter(x => x.grade === "A" && x.days_since <= 14 && x.weekly !== "failed").slice(0, 2).forEach(x => out.push(ltCard(x)));
+  (hsData().rows || []).filter(x => x.status === "retest" || x.status === "broken").sort((a, b) => (a.status === "retest" ? 0 : 1) - (b.status === "retest" ? 0 : 1) || a.liq_rank - b.liq_rank).slice(0, Math.max(1, 6 - out.length)).forEach(x => out.push(hsCardX(x)));
+  if (out.length < 6) (callData().rows || []).filter(x => x.grade !== "A").slice(0, 6 - out.length).forEach(x => out.push(callCard(x)));
+  out.slice(0, 6).forEach(c => g.append(c));
+  if (!out.length) g.append(hxEl("div", "hx-empty", "No high-grade setup right now. Nothing forced."));
+  $("#ovBestCard").hidden = false;
+}
 function renderOverview() {
-  renderToday();
   renderMarket();
+  renderToday();
+  renderBestIdeas();
   const ov = S.ov, c = ov.counts, last = ov.last_date;
   $("#kUniverse").textContent = c.pairs_filtered.toLocaleString();
   $("#kUniverseNote").textContent = c.pairs_trading + " trading USDT pairs, ≥ $100k 24h volume";
@@ -1799,8 +1871,11 @@ function renderOverview() {
   $("#healthNote").textContent = "Analytics built " + fmtLocal(ov.analytics_built_utc) + " · published " + fmtLocal(ov.generated_utc) + " (" + tzName() + ")";
 }
 function renderTop() {
-  const k = S.topKey, rows = S.scr.filter(r => isNum(r[k])).sort((a, b) => b[k] - a[k]).slice(0, 12);
-  const el = $("#topBody"); el.replaceChildren();
+  const k = S.topKey, all = S.scr.filter(r => isNum(r[k])).sort((a, b) => b[k] - a[k]);
+  const lose = $("#loseBody"); if (lose) { lose.replaceChildren(); all.slice(-10).reverse().forEach(r => { const tr = document.createElement("tr"); tr.className = "clickable"; tr.onclick = () => openPair(r.symbol);
+    tr.append(tdNode(symNode(r.symbol)), td(fPct(r[k]), "num " + cls(r[k])), td(fPct(r.d_rs30), "num " + cls(r.d_rs30)), td(fX(r.d_rvol20), "num"), td(fN(r.d_rsi14), "num" + (r.d_rsi14 == null ? " cold" : ""))); lose.append(tr); });
+    $("#loseNote").textContent = { ret_7d: "7 days", ret_30d: "30 days", ret_90d: "90 days", ret_365d: "1 year" }[k] || ""; }
+  const rows = all.slice(0, 10), el = $("#topBody"); el.replaceChildren();
   rows.forEach(r => { const tr = document.createElement("tr"); tr.className = "clickable"; tr.onclick = () => openPair(r.symbol);
     tr.append(tdNode(symNode(r.symbol)), td(fPct(r[k]), "num " + cls(r[k])), td(fPct(r.d_rs30), "num " + cls(r.d_rs30)), td(fX(r.d_rvol20), "num"), td(fN(r.d_rsi14), "num" + (r.d_rsi14 == null ? " cold" : ""))); el.append(tr); });
 }
@@ -2419,8 +2494,12 @@ function renderTop50() {
     t.append(td(String(k + 1), "num"), tdNode(symNode(x.symbol)), tdNode(chip(x.score + "/10", x.score >= 8 ? "up" : x.score <= 3 ? "down" : "neutral")), tdNode(dots),
       td("#" + x.liq_rank + " · " + fUsd(x.adv_usd), "num"), td(fUsd((S.scr.find(r => r.symbol === x.symbol) || {}).mcap_est), "num", "Estimate: price × today's circulating supply"), td(fPx((livePx(x.symbol) || [x.close])[0]), "num"), td(fPct(x.ret_7d), "num " + cls(x.ret_7d)), td(fPct(x.ret_30d), "num " + cls(x.ret_30d)),
       td(fPct(x.ret_90d), "num " + cls(x.ret_90d)), tdNode(bot));
-    frag.append(t); });
+    if (k >= 10) t.classList.add("more"); frag.append(t); });
   b.append(frag);
+  const all = !!S.t50All, tb = b.closest("table"); tb.classList.toggle("all", all);
+  $("#t50More").textContent = all ? "Show the top 10" : "Show all " + T.rows.length; $("#t50More").hidden = T.rows.length <= 10;
+  $("#t50Shown").textContent = all ? T.rows.length + " pairs" : "Top 10 of " + T.rows.length;
+  $("#t50More").onclick = () => { S.t50All = !S.t50All; renderTop50(); if (!S.t50All) $("#t50Card").scrollIntoView({ block: "start", behavior: "smooth" }); };
   const rl = $("#t50Rules"); rl.replaceChildren(); T.conditions.forEach(c => { const li = document.createElement("li"); li.textContent = c; rl.append(li); });
 }
 
@@ -2593,7 +2672,7 @@ function subCounts() {
   $("#sigHeadNote").textContent = last ? "Daily close " + last + " (UTC)" : "";
 }
 // ---------- Back: return to the exact spot you clicked from (same page, same row), with the button or the browser
-const VIEW_NAME = { overview: "Overview", shortlist: "Bee's Shortlist", top50: "Top 50", bot: "Trading bots", record: "Trading bots", lab: "Setup Lab", highlights: "Highlights", screener: "Screener", watchlist: "Watchlist", signals: "Signals", library: "Signals", listings: "Listings", pair: "Pair chart" };
+const VIEW_NAME = { overview: "Overview", shortlist: "Bee's Shortlist", top50: "Top 50", bot: "Trading bots", record: "Trading bots", lab: "Setup Lab", highlights: "Trade Ideas", screener: "Screener", watchlist: "Watchlist", signals: "Signals", library: "Signals", listings: "Listings", pair: "Pair chart" };
 const backStack = []; let lastClick = null, restoring = false;
 function spotOf(el) {
   const item = el && el.closest && el.closest("tr, .hl, .tile, li, [data-k], button, a");
@@ -2687,7 +2766,7 @@ const TOOLS = [
       const ci = Object.fromEntries(pr.columns.map((c, k) => [c, k])), tf = ["1d", "1w", "1M"].includes(i.tf) ? i.tf : "1d", n = Math.min(+i.last_n || 30, 120);
       const bits = { e21: 2, e50: 4, e200: 8, rsi: 16, macd: 32, sig: 32, st: 64, sa: 128, sb: 128 };
       return { symbol: s, tf, futures: (S.dv && S.dv.pairs && S.dv.pairs[s]) || null, rows: pr.data[tf].slice(-n).map(x => { const o = { t: x[0], open: !(x[ci.x] & 1) }; pr.columns.filter(c => c !== "t" && c !== "x").forEach(c => { o[c] = bits[c] && !(x[ci.x] & bits[c]) ? null : x[ci[c]]; }); return o; }) }; } },
-  { name: "highlights", description: "The Highlights tab: (1) bot trades (every action of the paper-trading bots, plus the BTC 200-day filter switching breakout bots on or off) and (2) trade ideas: per day and liquid pair, the proven signals (100+ cases, consistent before and after 2022, average 30-day edge >= 2% vs the average pair) that fired, combined into a LONG or SHORT idea (both shown equally), with how many proven signals agree, the strongest signal's 30-day edge, win rate and case count, a reference price (signal close), a suggested stop (close -/+ 1.5 x ATR14 for long/short), confluence score, RSI, estimated market cap and liquidity rank. part: ideas | bot_trades | setups | channels. (3) setups = possible tops and bottoms (leading exhaustion signals: daily/weekly RSI divergences at 90-day/26-week extremes), completed daily head-and-shoulders tops (kind hs_top: first close below the neckline, with neckline, measured target and target_pct), bottom accumulation breakouts (kind bottom_breakout: 80%+ below the 2-year high, tight 60-day base, volume breakout; bottom_cluster = how many fired in the last 14 days and the track record when 5+ cluster vs alone) and accumulation breakouts on the 100 most liquid pairs, last 30 days, each with its invalidation level and result so far, plus each setup's full-history track record (30-day median result and win rate before and after 2022). (4) channels = every clean parallel channel on the daily (300 most liquid, up to 7 years back) and 4h (200 most liquid) charts, up to 3 per coin: status breakout | breakdown | mid_reclaim | mid_loss | mid_retest | bottom_bounce | near_bottom | top_reject | near_top | above_top | below_bottom | inside, position (0 = bottom line, 0.5 = midline, 1 = top line), bottom / mid / top line prices now, slope (price per candle), start date (t0, first touch), days, width, touches per line and midline reactions, quality, plus the measured track record of each status (stats: late = since 2022, early = up to 2021, late_long = channels of 365+ days; edge30 = median 30-day result vs the average liquid coin). Filter ideas by days (last N days, max 30), side (long | short), symbol.",
+  { name: "highlights", description: "The Trade Ideas tab: (1) bot trades (every action of the paper-trading bots, plus the BTC 200-day filter switching breakout bots on or off) and (2) trade ideas: per day and liquid pair, the proven signals (100+ cases, consistent before and after 2022, average 30-day edge >= 2% vs the average pair) that fired, combined into a LONG or SHORT idea (both shown equally), with how many proven signals agree, the strongest signal's 30-day edge, win rate and case count, a reference price (signal close), a suggested stop (close -/+ 1.5 x ATR14 for long/short), confluence score, RSI, estimated market cap and liquidity rank. part: ideas | bot_trades | setups | channels. (3) setups = possible tops and bottoms (leading exhaustion signals: daily/weekly RSI divergences at 90-day/26-week extremes), completed daily head-and-shoulders tops (kind hs_top: first close below the neckline, with neckline, measured target and target_pct), bottom accumulation breakouts (kind bottom_breakout: 80%+ below the 2-year high, tight 60-day base, volume breakout; bottom_cluster = how many fired in the last 14 days and the track record when 5+ cluster vs alone) and accumulation breakouts on the 100 most liquid pairs, last 30 days, each with its invalidation level and result so far, plus each setup's full-history track record (30-day median result and win rate before and after 2022). (4) channels = every clean parallel channel on the daily (300 most liquid, up to 7 years back) and 4h (200 most liquid) charts, up to 3 per coin: status breakout | breakdown | mid_reclaim | mid_loss | mid_retest | bottom_bounce | near_bottom | top_reject | near_top | above_top | below_bottom | inside, position (0 = bottom line, 0.5 = midline, 1 = top line), bottom / mid / top line prices now, slope (price per candle), start date (t0, first touch), days, width, touches per line and midline reactions, quality, plus the measured track record of each status (stats: late = since 2022, early = up to 2021, late_long = channels of 365+ days; edge30 = median 30-day result vs the average liquid coin). Filter ideas by days (last N days, max 30), side (long | short), symbol.",
     inputSchema: { type: "object", properties: { part: { type: "string", enum: ["ideas", "bot_trades", "setups", "channels"] }, days: { type: "number" }, side: { type: "string", enum: ["long", "short"] }, symbol: { type: "string" } } },
     execute(i) {
       if (i.part === "setups") { const D = setupData(), sym = (i.symbol || "").toUpperCase().replace(/USDT$/, "");
