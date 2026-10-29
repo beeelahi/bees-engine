@@ -76,6 +76,9 @@ How Pro was chosen (research/mm_bee_study2-5.py, ZIG 1h candles Nov 2025 - Oct 2
   falling price (real path: activity dies after a few months).
 * Recycling sells a bought-back unit wherever the ladder puts it, which can be under that unit's buy price; the
   wallet still came out ahead on every path.
+* Robustness: the 81 settings around Pro (first 3.5-5%, gap 0.75-1.25%, buy-back 4-5.5%, resell 4-5.5%;
+  `mm_bee_study4.py --near-pro`) were ALL ahead of holding on all three paths (medians +29,404 / +63,575 / +15,707),
+  so Pro sits on a broad plateau, not on a lucky spike. It is kept as is rather than tuned further.
 * Regime switching (recycling off in flat markets, on in trends; 4h EMA 30-90 candles, bands 3-8%) was tested and
   was not consistently better, so it is off (`regimes` option in mm_bee.py).
 * The BTC guard fired twice in the 30 days with hourly BTC data; it changed nothing in those backtests; it is kept
