@@ -1,5 +1,5 @@
 """
-MM-Bee for new long positions (Bilal, 29 Oct 2026): ~$25K in each of about 10 coins, 25% of each traded. The year
+MM-Bee for new long positions (Bilal, 29 Oct 2026): ~$25K in each of about 10 coins, 40% of each traded (25% until 30 Oct). The year
 study (mm_bee_multi.py) showed the market maker earns on every coin but, in a strong rally, selling a quarter of the
 coin on the way up costs more than the rounds earn. This study tests two fixes on top of the three bots:
   * chase (upside stop): a unit that sold and is waiting to buy back lower buys back at the market once the price runs

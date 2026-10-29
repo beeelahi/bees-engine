@@ -1,6 +1,6 @@
 """
 MM-Bee on other coins (Bilal, 29 Oct 2026): he plans ~$25K positions in about 10 coins from his portfolio list and
-wants 25% of each traded by the market maker. Same code as ZIG (mm_bee), sized in dollars: 20 units, together 25% of
+wants 40% of each traded by the market maker (25% until 30 Oct). Same code as ZIG (mm_bee), sized in dollars: 20 units, together 40% of
 the position at the start price, sell first, no wallet USDT. Binance 1-hour candles from the engine database, last
 365 days (or less if the coin is younger), real path and mirror image. Run on the server (ops: bee-study).
 
@@ -18,7 +18,7 @@ from mm_bee_study2 import mirror
 
 COINS = ["MORPHOUSDT", "ONDOUSDT", "CAKEUSDT", "UNIUSDT", "JUPUSDT", "PENGUUSDT", "FLOKIUSDT", "PEPEUSDT", "DOGEUSDT",
          "TAOUSDT", "SUIUSDT", "APTUSDT", "SOLUSDT", "ETHUSDT", "BTCUSDT"]
-POSITION, SHARE, UNITS = 25000.0, 0.25, 20
+POSITION, SHARE, UNITS = 25000.0, 0.40, 20                  # 40% of the position traded (Bilal, 30 Oct 2026)
 STRATS = [("v2", {"vol_fast": 0}), ("plus", {"recycle": "ladder", "vol_fast": 0}),
           ("pro", {"recycle": "ladder", "vol_fast": 0, "first": 0.04, "gap": 0.01, "rebuy": 0.045, "resell": 0.045})]
 

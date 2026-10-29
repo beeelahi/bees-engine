@@ -24,6 +24,14 @@ CFG = os.path.join(ROOT, "mm.json")
 DB = os.path.join(ROOT, "data", "mm.db")
 STOP = os.path.join(ROOT, "MM_STOP")
 LOOP_S = 15
+HEARTBEAT = os.path.join(ROOT, "data", "mm_heartbeat.json")   # private status file for ops (never published)
+# Code-level ceilings for MM-Bee (raise only by a code change): the coins one coin's ladder may sell, valued at the
+# start, and all coins together. A coin over the limit is refused at start, with a message; nothing is placed.
+# Checked when a coin STARTS (a running coin is never dropped because its price rose).
+MAX_COIN_USD = 15_000.0
+MAX_TOTAL_USD = 120_000.0
+ERR_PAUSE = 5                # consecutive errors on one coin: that coin waits ERR_BACKOFF_S, Telegram is told
+ERR_BACKOFF_S = 600
 REQUOTE_BPS = 15             # replace a quote when the target price moved more than this
 FEE_FLOOR_BPS = 20           # never quote tighter than 2 x 0.10% (covers taker-priced fee tiers too)
 
@@ -97,15 +105,7 @@ class MM:
         for c in self.cfg["coins"]:
             sym = c["symbol"]
             if c.get("mode") == "bee":                 # MM-Bee: sell-first ladder from the daily close (mm_bee.py)
-                import mm_bee
-                if not hasattr(self, "bees"):
-                    self.bees = {}
-                b = self.bees.setdefault(sym, mm_bee.BeeLadder(self.ex, c, self.con, self.log))
-                bids, asks = self.ex.book(sym, 5)
-                if bids and asks:
-                    b.step((bids[0][0] + asks[0][0]) / 2)
-                    self.digest += b.events
-                    b.events = []
+                self.bee_step(c)
                 continue
             if c.get("mode") == "grid":                # sell-high / rebuy-lower ladder (mm_grid_live.py)
                 import mm_grid_live
@@ -153,12 +153,95 @@ class MM:
         self.con.commit()
         return "ok"
 
+    # ---------------------------------------------------------------- MM-Bee, hardened
+    def bee_plan_usd(self, c, mid):
+        import mm_bee
+        b = dict(mm_bee.DEFAULTS, **c)
+        return b["units"] * b["size"] * (1 + b["extra_ladders"]) * mid
+
+    def bee_step(self, c):
+        """One MM-Bee coin, isolated: an error on one coin never stops the others. Five errors in a row pause that
+        coin for ten minutes and send an alert. Refused at start when its ladder is over the code-level ceilings."""
+        import mm_bee
+        sym = c["symbol"]
+        if not hasattr(self, "bees"):
+            self.bees, self.errs, self.wait, self.state = {}, {}, {}, {}
+        if time.time() < self.wait.get(sym, 0):
+            self.state[sym] = "backing off after errors"
+            return
+        try:
+            bids, asks = self.ex.book(sym, 5)
+            if not bids or not asks:
+                self.state[sym] = "no order book"
+                return
+            mid = (bids[0][0] + asks[0][0]) / 2
+            if sym not in self.bees:
+                inf = self.ex.info(sym)
+                if not inf.get("trading", True):
+                    self.state[sym] = "not trading on MEXC"
+                    return
+                started = self.con.execute("SELECT 1 FROM sqlite_master WHERE name='bee_meta'").fetchone() and \
+                    self.con.execute("SELECT 1 FROM bee_meta WHERE symbol=?", (sym,)).fetchone()
+                usd = 0.0 if started else self.bee_plan_usd(c, mid)
+                others = sum(self.bee_plan_usd(x, mid if x["symbol"] == sym else x.get("_mid", mid)) for x in self.cfg["coins"]
+                             if x.get("mode") == "bee" and x["symbol"] in self.bees)
+                if usd > MAX_COIN_USD or others + usd > MAX_TOTAL_USD:
+                    msg = f"{sym}: ladder worth ${usd:,.0f} (all coins ${others + usd:,.0f}) is over the ceiling (${MAX_COIN_USD:,.0f} a coin, ${MAX_TOTAL_USD:,.0f} total); not started"
+                    if self.state.get(sym) != "refused":
+                        self.log("mm: " + msg)
+                        self.notify("Market maker: " + msg)
+                    self.state[sym] = "refused"
+                    return
+                c["_mid"] = mid
+                b = mm_bee.BeeLadder(self.ex, c, self.con, self.log)
+                n = b.reconcile()
+                if n:
+                    self.digest.append(f"{sym}: {n} unknown order(s) cancelled at start")
+                self.bees[sym] = b
+            b = self.bees[sym]
+            self.state[sym] = b.step(mid) or "ok"
+            self.digest += b.events
+            alerts = [e for e in b.events if "ALERT" in e or "CIRCUIT" in e or "price check" in e]
+            if alerts:
+                self.notify("Market maker ALERT\n" + "\n".join(alerts[:10]))
+            b.events = []
+            self.errs[sym] = 0
+        except Exception as e:
+            self.errs[sym] = self.errs.get(sym, 0) + 1
+            self.state[sym] = f"error: {str(e)[:120]}"
+            self.con.execute("INSERT INTO events VALUES(?,?,?,?)", (now(), sym, "error", str(e)[:200]))
+            if self.errs[sym] >= ERR_PAUSE:
+                self.wait[sym] = time.time() + ERR_BACKOFF_S
+                self.notify(f"Market maker: {sym} failed {self.errs[sym]} times in a row ({str(e)[:120]}); paused {ERR_BACKOFF_S // 60} min")
+                self.errs[sym] = 0
+
+    def heartbeat(self):
+        """Private status for ops (mm-status): when the loop last ran and what each coin is doing."""
+        d = {"utc": now(), "coins": {}}
+        for sym, b in getattr(self, "bees", {}).items():
+            try:
+                m = b.meta() or {}
+                st = {}
+                for (s_,) in self.con.execute("SELECT state FROM bee_units WHERE symbol=?", (sym,)):
+                    st[s_] = st.get(s_, 0) + 1
+                d["coins"][sym] = {"state": self.state.get(sym), "units": st, "rounds": m.get("rounds"), "profit_usdt": m.get("profit_usdt"),
+                                   "base": m.get("base"), "paused_until": m.get("pause_until") or None, "last_fill_utc": m.get("last_fill_utc")}
+            except Exception as e:
+                d["coins"][sym] = {"state": f"heartbeat error: {str(e)[:80]}"}
+        for sym, st in getattr(self, "state", {}).items():
+            d["coins"].setdefault(sym, {"state": st})
+        tmp = HEARTBEAT + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(d, f, indent=1)
+        os.replace(tmp, HEARTBEAT)
+
     def run_forever(self):
         last_note = time.time()
         while True:
             try:
                 self.ex.sync_time()
                 self.step()
+                self.heartbeat()
             except Exception as e:
                 self.log(f"mm: {e}")
                 self.con.execute("INSERT INTO events VALUES(?,?,?,?)", (now(), "*", "error", str(e)[:200]))
@@ -189,7 +272,17 @@ def main():
                 alerts.send(*cred, text)
         except Exception:
             pass
-    MM(X.Mexc(), cfg, con, print, tg).run_forever()
+    ex = X.Mexc()
+    try:                                 # refuse to start on a key that can withdraw, or that cannot trade
+        ex.sync_time()
+        ex.account()
+    except Exception as e:
+        print(f"mm: not starting: {e}")
+        tg(f"Market maker NOT started: {str(e)[:200]}")
+        return 1
+    tg("Market maker started: " + ", ".join(c["symbol"] for c in cfg.get("coins", [])) +
+       (" (kill switch MM_STOP is set: orders stay cancelled)" if os.path.exists(STOP) else ""))
+    MM(ex, cfg, con, print, tg).run_forever()
 
 
 if __name__ == "__main__":

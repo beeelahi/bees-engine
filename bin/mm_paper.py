@@ -297,18 +297,18 @@ BEE_VARIANTS = [("bee", {}), ("bee_plus", {"recycle": "ladder", "vol_fast": 0}),
                 ("bee_pro", {"recycle": "ladder", "vol_fast": 0, "first": 0.04, "gap": 0.01, "rebuy": 0.045, "resell": 0.045})]          # the most robust setting of research/mm_bee_study4-5
 
 
-# New positions (Bilal, 29 Oct 2026): ~$25K in each coin, 25% of it market-made with MM-Bee Pro plus the upside stop
+# New positions (Bilal, 29 Oct 2026): ~$25K in each coin, 40% of it market-made (25% until 30 Oct) with MM-Bee Pro plus the upside stop
 # (buy back at the market once the price is 8% over a sell; research/mm_bee_tune.py: the most robust setting on 15
 # coins, falling and rising years). Paper only, public MEXC prices, no key. The coins are the strongest fits of that
 # study until Bilal confirms his ten; a coin MEXC does not list is skipped.
 NEW_POSITIONS = ["MORPHOUSDT", "ONDOUSDT", "CAKEUSDT", "UNIUSDT", "PEPEUSDT", "JUPUSDT", "PENGUUSDT", "TAOUSDT"]
-NP_POSITION, NP_SHARE, NP_UNITS = 25000.0, 0.25, 20
+NP_POSITION, NP_SHARE, NP_UNITS = 25000.0, 0.40, 20          # 40% of $25K = $10,000 market-made (Bilal, 30 Oct 2026)
 NP_SETTINGS = {"recycle": "ladder", "vol_fast": 0, "first": 0.04, "gap": 0.01, "rebuy": 0.045, "resell": 0.045, "chase": 0.08,
-               "units": NP_UNITS, "extra_ladders": 0, "max_usdt": 0}
+               "max_chases_day": 6, "units": NP_UNITS, "extra_ladders": 0, "max_usdt": 0, "drip_min": 0.5, "drip_max": 1.5}   # = mm_plan.NEW
 
 
 def np_coin(sym, feed, data=DATA):
-    """MM-Bee settings for a new-position paper run: 20 units that together are 25% of a $25K position at the price
+    """MM-Bee settings for a new-position paper run: 20 units that together are 40% of a $25K position at the price
     when the run first started (kept from its database on restarts)."""
     path, coins = os.path.join(data, f"mm_paper_np_{sym.lower()}.db"), None
     if os.path.exists(path):
@@ -316,9 +316,15 @@ def np_coin(sym, feed, data=DATA):
         try:
             r = con.execute("SELECT v FROM p_meta WHERE k='start'").fetchone() if con.execute(
                 "SELECT 1 FROM sqlite_master WHERE name='p_meta'").fetchone() else None
-            coins = json.loads(r[0])["coins"] if r else None
+            st = json.loads(r[0]) if r else None
+            coins = st["coins"] if st else None
         finally:
             con.close()
+        if coins is not None and coins * st["mid"] < 0.9 * NP_POSITION * NP_SHARE:
+            arch = os.path.join(data, "archive")              # sized for an older share (25%): kept, and started afresh
+            os.makedirs(arch, exist_ok=True)
+            os.replace(path, os.path.join(arch, f"mm_paper_np_{sym.lower()}_{int(round(100 * coins * st['mid'] / NP_POSITION))}pct.db"))
+            coins = None
     if coins is None:
         feed.refresh(sym)
         b, a = feed.books[sym]

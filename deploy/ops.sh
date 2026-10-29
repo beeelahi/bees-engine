@@ -28,12 +28,24 @@ case "$CMD" in
   logs|sync-log)   tail -n "$N" "$ROOT/logs/sync.log" | scrub ;;
   deploy-log)      tail -n "$N" "$ROOT/logs/deploy.log" 2>/dev/null | scrub ;;
   mm-log)          sudo -n journalctl -u bees-mm --no-pager -n "$N" 2>/dev/null | scrub ;;
+  mm-preflight)    python3 "$ROOT/bin/mm_preflight.py" 2>&1 | scrub ;;
+  mm-plan)         python3 "$ROOT/bin/mm_plan.py" 2>&1 | scrub ;;
+  mm-status)
+    echo "bees-mm: $(systemctl is-active bees-mm.service 2>/dev/null) | kill switch MM_STOP: $([ -f "$ROOT/MM_STOP" ] && echo SET || echo off)"
+    hb="$ROOT/data/mm_heartbeat.json"
+    if [ -f "$hb" ]; then echo "heartbeat $(( $(date +%s) - $(stat -c %Y "$hb") )) s ago"; cat "$hb"; else echo "no heartbeat yet (the market maker has not run a loop)"; fi
+    sudo -n journalctl -u bees-mm --no-pager -n 15 2>/dev/null | scrub ;;
   health)
     last=$(grep -E "Run OK|Up to date" "$ROOT/logs/sync.log" | tail -1 | cut -c1-19)
     age=$(( $(date -u +%s) - $(date -u -d "$last" +%s 2>/dev/null || echo 0) ))
     echo "last good run: $last UTC ($((age / 60)) min ago)"
     [ "$age" -lt 3600 ] || { echo "UNHEALTHY: no good run for over an hour"; exit 1; }
     systemctl is-active --quiet bees-sync.timer || { echo "UNHEALTHY: sync timer not active"; exit 1; }
+    if systemctl is-active --quiet bees-mm.service && [ ! -f "$ROOT/MM_STOP" ] && grep -q '"enabled": *true' "$ROOT/mm.json" 2>/dev/null; then
+      hb="$ROOT/data/mm_heartbeat.json"; hage=$(( $(date +%s) - $(stat -c %Y "$hb" 2>/dev/null || echo 0) ))
+      echo "market maker heartbeat: $hage s ago"
+      [ "$hage" -lt 300 ] || { echo "UNHEALTHY: market maker running but no heartbeat for over 5 minutes"; exit 1; }
+    fi
     echo healthy ;;
   run-sync)        sudo systemctl start --no-block bees-sync.service && echo "engine run started" ;;
   deploy)          sudo systemctl start bees-deploy.service && tail -n 5 "$ROOT/logs/deploy.log" ;;
@@ -60,5 +72,5 @@ case "$CMD" in
   bee-tune-stop)   pkill -f "research/mm_bee_tune.py" && echo "MM-Bee tuning study stopped" || echo "no MM-Bee tuning study running" ;;
   bee-tune-log)    tail -n "$N" "$ROOT/logs/bee_tune.txt" 2>/dev/null || echo "no MM-Bee tuning output yet" ;;
   bee-study-log)   tail -n "$N" "$ROOT/logs/bee_study.txt" 2>/dev/null || echo "no MM-Bee study output yet" ;;
-  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log"; exit 2 ;;
+  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status"; exit 2 ;;
 esac

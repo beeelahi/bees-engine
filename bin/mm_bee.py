@@ -56,7 +56,17 @@ DEFAULTS = {"mode": "bee", "units": 20, "size": 15000, "first": 0.03, "gap": 0.0
             "acc_units": 0, "acc_after": 3, "acc_first": 0.03, "acc_gap": 0.02, "recycle": "off",
             "btc_guard": 0.02, "btc_symbol": "BTCUSDT", "btc_zig_max": 0.01, "btc_pause_h": 8,
             "vol_fast": 0.10, "vol_calm": 0.05, "drip_min": 2.0, "drip_max": 4.0,
-            "regimes": None, "regime_ema": 30, "regime_band": 0.03, "chase": 0.0}
+            "regimes": None, "regime_ema": 30, "regime_band": 0.03, "chase": 0.0,
+            "max_chases_day": 6, "sanity": 0.15, "circuit": 0.25, "circuit_pause_h": 2, "taker_reserve": 0.002}
+# Safety (live hardening, 30 Oct 2026):
+#   max_chases_day  at most this many upside-stop buy-backs per coin per UTC day; then no more that day (a choppy
+#                   market cannot bleed the position through repeated buy-backs)
+#   sanity          the bot does nothing while the book's mid is more than this away from the last 1h close (a broken
+#                   or empty book, a bad print): no order is moved or placed on a price it cannot trust
+#   circuit         a move of more than this in the running or last 1h candle pulls every sell and stops buy-backs
+#                   for circuit_pause_h hours (flash pump / crash); resting buy-backs below stay
+#   taker_reserve   an order that may take liquidity (bmT...) can pay its fee in the coin: the unit keeps this much
+#                   less than it bought, so its resell never asks for coins the wallet does not have
 # "chase" (0 = off): upside stop. A unit that sold and waits to buy back lower, while the price has run `chase` above
 # its sell price, buys back at once at the market (taker), taking a small, capped loss instead of staying out of a rally.
 # "regimes": {"up": {...}, "down": {...}, "flat": {...}} switches settings by market state at each rebase: "up" while
@@ -76,6 +86,11 @@ CREATE TABLE IF NOT EXISTS bee_log(utc TEXT, symbol TEXT, event TEXT, ladder INT
 # unit states: armed (holds coins, ladder sell not resting yet) -> selling -> sold (coins out, buy to place) -> buying
 #              -> bought (coins back, resell to place) -> selling -> ...   kind: "ladder" (first sell) or "cycle"
 DONE = ("CANCELED", "EXPIRED", "REJECTED")
+# placing_s / placing_b: an order was sent but not confirmed (written BEFORE the exchange call, so a crash or a lost
+# reply can never leave an order on the exchange that the database does not know). The next step asks the exchange:
+# found -> selling / buying; MISSING -> never placed, back to where it was. A confirmed order the exchange no longer
+# knows ("unknown") is left alone and reported: the bot never guesses whether coins or USDT moved.
+PLACING = {"placing_s": "selling", "placing_b": "buying"}
 
 
 def utc(t):
@@ -168,12 +183,53 @@ class BeeLadder:
         self.seq += 1
         return f"bm{side}{int(self.clock()) % 10**8}{self.seq % 10**4:04d}"
 
+    def snapshot(self):
+        """One open-orders call per step: orders still resting are known from it, so the exchange is asked about a
+        single order only when it left the book (filled or cancelled). Keeps the bot far under MEXC's rate limits."""
+        self._open = None
+        if hasattr(self.ex, "open_orders"):
+            try:
+                self._open = {str(o.get("clientOrderId")): o for o in self.ex.open_orders(self.sym)}
+            except Exception as e:
+                self.log(f"mm bee: {self.sym} open orders unavailable: {str(e)[:80]}")
+
+    def cancel(self, cid):
+        if getattr(self, "_open", None) is not None:
+            self._open.pop(cid, None)
+        return self.ex.cancel(self.sym, cid)
+
     def status(self, cid):
+        """(status, executed qty). "MISSING" when the exchange says the order does not exist; None when it could
+        not be asked (network): then nothing is changed this step."""
+        o = (getattr(self, "_open", None) or {}).get(cid)
+        if o is not None:
+            return o.get("status") or "NEW", float(o.get("executedQty") or 0)
         try:
             o = self.ex.order(self.sym, cid)
             return o.get("status"), float(o.get("executedQty") or 0)
-        except Exception:
-            return None, 0.0
+        except KeyError:
+            return "MISSING", 0.0
+        except Exception as e:
+            m = str(e).lower()
+            return ("MISSING", 0.0) if ("-2013" in m or "does not exist" in m or "not exist" in m or "unknown order" in m) else (None, 0.0)
+
+    def send(self, ladder, k, side, kind_state, fields, call, revert):
+        """Place an order the safe way: record the intent first, then call the exchange. A clear rejection reverts
+        the unit; a lost reply (network) keeps the intent, and the next step asks the exchange what happened."""
+        self.upd(ladder, k, state="placing_" + side.lower()[0], **fields)
+        self.con.commit()
+        try:
+            call()
+        except Exception as e:
+            if "network" in str(e).lower() or "timed out" in str(e).lower():
+                self.log(f"mm bee: {self.sym} {side.lower()} {ladder}/{k}: no reply ({str(e)[:80]}); will check the exchange")
+                return False
+            self.upd(ladder, k, state=revert, **{x: None for x in fields if x.endswith("_cid")})
+            self.con.commit()
+            raise
+        self.upd(ladder, k, state=kind_state)
+        self.con.commit()
+        return True
 
     def coins_free(self):
         """Free coins in the wallet not already owned by a unit waiting to sell (armed or bought)."""
@@ -218,7 +274,7 @@ class BeeLadder:
                 continue
             if st == "selling":
                 try:
-                    self.ex.cancel(self.sym, scid)
+                    self.cancel(scid)
                 except Exception:
                     pass
                 s, filled = self.status(scid)
@@ -242,7 +298,7 @@ class BeeLadder:
                 for x in (u[6], u[7]):
                     if x:
                         try:
-                            self.ex.cancel(self.sym, x)
+                            self.cancel(x)
                         except Exception:
                             pass
             return "stopped"
@@ -252,11 +308,35 @@ class BeeLadder:
                 return "not enough coins"
             self.open_ladder(last_close(self.ex, self.sym, "1d", self.clock), "previous daily close")
         m = self.meta()
+        if not self.trusted(mid):
+            return "price not trusted"
         filled_any = False
-        # 1) progress
+        self.snapshot()
+        # 0) sent-but-unconfirmed orders: ask the exchange
         for ladder, k, st, kind, sp, bp, scid, bcid, q, cyc in self.units():
+            if st in PLACING:
+                cid = scid if st == "placing_s" else bcid
+                s, _ = self.status(cid)
+                if s == "MISSING":
+                    back = ("armed" if kind == "ladder" else "bought") if st == "placing_s" else "sold"
+                    self.upd(ladder, k, state=back, **({"sell_cid": None} if st == "placing_s" else {"buy_cid": None}))
+                    self.note("not placed", ladder, k, sp if st == "placing_s" else bp, q, 0, "the exchange never got it; retried")
+                elif s is not None:
+                    self.upd(ladder, k, state=PLACING[st])
+        self.con.commit()
+        # 1) progress
+        got = {}
+        for ladder, k, st, kind, sp, bp, scid, bcid, q, cyc in self.units():
+            if st in ("selling", "buying") and (scid if st == "selling" else bcid):
+                got[scid if st == "selling" else bcid] = self.status(scid if st == "selling" else bcid)
+            if st in ("selling", "buying") and got.get(scid if st == "selling" else bcid, (None,))[0] == "MISSING":
+                self.upd(ladder, k, state="unknown")
+                self.note("unknown", ladder, k, sp if st == "selling" else bp, q, 0,
+                          f"the exchange no longer knows order {scid if st == 'selling' else bcid}: unit set aside, check by hand")
+                self.events.append(f"{self.sym.replace('USDT', '')} bee: ALERT order {scid if st == 'selling' else bcid} unknown to the exchange; unit {ladder}/{k} set aside")
+                continue
             if st == "selling" and scid:
-                s, filled = self.status(scid)
+                s, filled = got[scid]
                 if s == "FILLED" or (s in DONE and filled > 0):
                     qq = q if s == "FILLED" else filled
                     gain = qq * (sp - bp) if kind == "acc" and bp else 0.0     # an accumulation unit books on its sell
@@ -273,9 +353,11 @@ class BeeLadder:
                 elif s in DONE:
                     self.upd(ladder, k, state="armed" if kind == "ladder" else "bought", sell_cid=None)
             elif st == "buying" and bcid:
-                s, filled = self.status(bcid)
+                s, filled = got[bcid]
                 if s == "FILLED" or (s in DONE and filled > 0):
                     qq = q if s == "FILLED" else filled
+                    if str(bcid).startswith("bmT") and c.get("taker_reserve"):     # it may have paid its fee in the coin
+                        qq = float(self.ex.qty(self.sym, qq * (1 - c["taker_reserve"])))
                     acc = kind == "acc"
                     gain = 0.0 if acc else qq * (sp - bp)
                     if not acc:
@@ -304,14 +386,25 @@ class BeeLadder:
         self.place_armed(mid)
         return self.after(mid, m)
 
+    def chases_today(self):
+        return self.con.execute("SELECT COUNT(*) FROM bee_log WHERE symbol=? AND event='chase' AND utc>=?",
+                                (self.sym, self.now()[:10])).fetchone()[0]
+
     def chase(self, mid):
         c = self.c
+        if self.paused():
+            return
+        n_today = self.chases_today()
         for ladder, k, st, kind, sp, bp, scid, bcid, q, cyc in self.units():
+            if c.get("max_chases_day") and n_today >= c["max_chases_day"]:
+                if not self.con.execute("SELECT 1 FROM bee_log WHERE symbol=? AND event='chase cap' AND utc>=?", (self.sym, self.now()[:10])).fetchone():
+                    self.note("chase cap", ladder, k, mid, 0, 0, f"{n_today} buy-backs today: no more until 00:00 UTC")
+                break
             if st not in ("sold", "buying") or kind == "acc" or not sp or mid < sp * (1 + c["chase"]):
                 continue
             if st == "buying" and bcid:
                 try:
-                    self.ex.cancel(self.sym, bcid)
+                    self.cancel(bcid)
                 except Exception:
                     pass
                 s, filled = self.status(bcid)
@@ -323,16 +416,69 @@ class BeeLadder:
             if float(qq) <= 0:
                 self.upd(ladder, k, state="sold", buy_cid=None)
                 continue
-            cid = self.cid("B")
+            cid = self.cid("T")
+            self.upd(ladder, k, qty=float(qq))
             try:
-                self.ex.limit(self.sym, "BUY", qq, px, cid)
+                self.send(ladder, k, "BUY", "buying", {"buy_cid": cid, "buy_px": float(px)},
+                          lambda: self.ex.limit(self.sym, "BUY", qq, px, cid), "sold")
             except Exception as e:
                 self.log(f"mm bee: chase {ladder}/{k} not placed: {e}")
-                self.upd(ladder, k, state="sold", buy_cid=None)
                 continue
-            self.upd(ladder, k, state="buying", buy_cid=cid, buy_px=float(px), qty=float(qq))
+            n_today += 1
             self.note("chase", ladder, k, float(px), float(qq), 0, f"price {mid:.6g} ran {100 * c['chase']:.0f}% over the sell {sp:.6g}")
         self.con.commit()
+
+    def trusted(self, mid):
+        """Sanity and circuit breaker, from the 1h candles (asked at most once a minute)."""
+        c, t = self.c, self.clock()
+        if not getattr(self, "_k1", None) or t - self._k1[0] >= 60:
+            try:
+                self._k1 = (t, self.ex.klines(self.sym, "60m", 2))
+            except Exception as e:
+                self.log(f"mm bee: {self.sym} 1h candles unavailable: {str(e)[:80]}")
+                self._k1 = (t, getattr(self, "_k1", (0, []))[1])
+        rows = [r for r in self._k1[1] if len(r) > 3]
+        if not mid or mid <= 0:
+            return False
+        done = [r for r in rows if r[2] <= t * 1000]
+        if c.get("sanity") and done and abs(mid / done[-1][1] - 1) > c["sanity"]:
+            if t - getattr(self, "_untrusted_note", 0) > 3600:
+                self._untrusted_note = t
+                self.note("price check", 0, 0, mid, 0, 0, f"mid {mid:.6g} is {100 * (mid / done[-1][1] - 1):+.1f}% from the last 1h close {done[-1][1]:.6g}: no action")
+                self.events.append(f"{self.sym.replace('USDT', '')} bee: price check failed (mid {mid:.6g} vs 1h close {done[-1][1]:.6g}); waiting")
+            return False
+        if c.get("circuit") and rows and not self.paused():
+            mv = max(abs(r[1] / r[3] - 1) if r[3] else 0.0 for r in rows[-2:])
+            if mv > c["circuit"]:
+                m = self.meta()
+                self.set_meta(pause_until=t + c["circuit_pause_h"] * 3600)
+                n = self.pull_sells()
+                self.note("circuit", m["ladders"] - 1 if m else 0, 0, mid, 0, 0,
+                          f"{100 * mv:.0f}% in an hour: {n} sells pulled, no buy-backs for {c['circuit_pause_h']} h")
+                self.events.append(f"{self.sym.replace('USDT', '')} bee: CIRCUIT {100 * mv:.0f}% move in 1h, sells pulled for {c['circuit_pause_h']} h")
+        return True
+
+    def reconcile(self):
+        """At start: cancel this bot's orders ("bm" prefix) the exchange holds for this coin but the database does not
+        know (left by a crash or an old database). Returns how many were cancelled."""
+        if not hasattr(self.ex, "open_orders"):
+            return 0
+        known = set()
+        for u in self.units():
+            known.update(x for x in (u[6], u[7]) if x)
+        n = 0
+        for o in self.ex.open_orders(self.sym):
+            cid = str(o.get("clientOrderId", ""))
+            if cid.startswith("bm") and cid not in known:
+                try:
+                    self.cancel(cid)
+                    n += 1
+                except Exception as e:
+                    self.log(f"mm bee: orphan {cid} not cancelled: {e}")
+        if n:
+            self.note("reconcile", 0, 0, 0, 0, 0, f"{n} order(s) on the exchange unknown to the database: cancelled")
+            self.con.commit()
+        return n
 
     def place_buys(self, mid):
         c, m = self.c, self.meta()
@@ -343,14 +489,16 @@ class BeeLadder:
             px, qq = self.ex.px(self.sym, bp), self.ex.qty(self.sym, q)
             cid = self.cid("B")
             try:
-                self.ex.limit_maker(self.sym, "BUY", qq, px, cid)
+                self.send(ladder, k, "BUY", "buying", {"buy_cid": cid, "buy_px": float(px)},
+                          lambda: self.ex.limit_maker(self.sym, "BUY", qq, px, cid), "sold")
             except Exception:
-                try:                                    # market already under the planned buy: buy at that price
-                    self.ex.limit(self.sym, "BUY", qq, px, cid)
+                cid = self.cid("T")                     # market already under the planned buy: buy at that price
+                try:
+                    self.send(ladder, k, "BUY", "buying", {"buy_cid": cid, "buy_px": float(px)},
+                              lambda: self.ex.limit(self.sym, "BUY", qq, px, cid), "sold")
                 except Exception as e:
                     self.log(f"mm bee: buy {ladder}/{k} not placed: {e}")
                     continue
-            self.upd(ladder, k, state="buying", buy_cid=cid, buy_px=float(px))     # the price as placed (tick-rounded)
         self.con.commit()
 
     def place_resells(self):
@@ -360,14 +508,16 @@ class BeeLadder:
             px, qq = self.ex.px(self.sym, sp, up=True), self.ex.qty(self.sym, q)
             cid = self.cid("S")
             try:
-                self.ex.limit_maker(self.sym, "SELL", qq, px, cid)
+                self.send(ladder, k, "SELL", "selling", {"sell_cid": cid, "sell_px": float(px)},
+                          lambda: self.ex.limit_maker(self.sym, "SELL", qq, px, cid), "bought")
             except Exception:
-                try:                                    # market already over the planned sell: sell at that price
-                    self.ex.limit(self.sym, "SELL", qq, px, cid)
+                cid = self.cid("S")                     # market already over the planned sell: sell at that price
+                try:
+                    self.send(ladder, k, "SELL", "selling", {"sell_cid": cid, "sell_px": float(px)},
+                              lambda: self.ex.limit(self.sym, "SELL", qq, px, cid), "bought")
                 except Exception as e:
                     self.log(f"mm bee: resell {ladder}/{k} not placed: {e}")
                     continue
-            self.upd(ladder, k, state="selling", sell_cid=cid, sell_px=float(px))
         self.con.commit()
 
     def after(self, mid, m):
@@ -468,7 +618,7 @@ class BeeLadder:
                 cid = scid if side == "S" else bcid
                 if cid:
                     try:
-                        self.ex.cancel(self.sym, cid)
+                        self.cancel(cid)
                     except Exception:
                         pass
                     s, filled = self.status(cid)
@@ -565,7 +715,7 @@ class BeeLadder:
         n = 0
         for ladder, k, st, kind, sp, bp, scid, bcid, q, cyc in self.units("selling"):
             try:
-                self.ex.cancel(self.sym, scid)
+                self.cancel(scid)
             except Exception:
                 pass
             s, filled = self.status(scid)
@@ -582,10 +732,10 @@ class BeeLadder:
         for ladder, k, st, kind, sp, bp, scid, bcid, q, cyc in self.units("armed"):
             if sp <= mid:
                 continue
-            cid, px = self.cid("S"), self.ex.px(self.sym, sp, up=True)
+            cid, px, qq = self.cid("S"), self.ex.px(self.sym, sp, up=True), self.ex.qty(self.sym, q)
             try:
-                self.ex.limit_maker(self.sym, "SELL", self.ex.qty(self.sym, q), px, cid)
-                self.upd(ladder, k, state="selling", sell_cid=cid, sell_px=float(px))
+                self.send(ladder, k, "SELL", "selling", {"sell_cid": cid, "sell_px": float(px)},
+                          lambda: self.ex.limit_maker(self.sym, "SELL", qq, px, cid), "armed")
             except Exception as e:
                 self.log(f"mm bee: sell {ladder}/{k} not placed: {e}")
         self.con.commit()
