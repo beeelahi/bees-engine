@@ -511,6 +511,18 @@ def run(con=None):
         print(f"export_web: {len(hsd['rows'])} head-and-shoulders patterns, {hs.log(con, hsd, datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))} new posts")
     except Exception as e:
         print("export_web: head-and-shoulders skipped:", repr(e))
+    try:                                         # the date each listed entry was first listed ("added")
+        import first_seen as FS
+        FS.stamp(con, "channel_calls", calls["rows"], lambda r: f"{r['symbol']}|{r['side']}", last,
+                 lambda r: FS.feed_date(con, "chan_call", r["symbol"], "bullish" if r["side"] == "long" else "bearish", today=last, latest=True))
+        FS.stamp(con, "hs", hsd["rows"], lambda r: f"{r['symbol']}|{r['kind']}|{r['points']['head'][0]}", last,
+                 lambda r: FS.feed_date(con, "hs_event", r["symbol"], "bearish" if r["kind"] == "top" else "bullish", since_days=180, today=last))
+        FS.stamp(con, "channels", channels["rows"], lambda r: f"{r['symbol']}|{r['tf']}|{r['t0']}", last,
+                 lambda r: str(r["event_t"])[:10] if r.get("event_t") else None)
+        for row_ in lt["rows"]:
+            row_["added"] = row_.get("event_date")
+    except Exception as e:
+        print("export_web: added dates skipped:", repr(e))
     hl = key_highlights(con)
     hl["ideas"] = trade_ideas(con)
     try:

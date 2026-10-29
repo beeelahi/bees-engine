@@ -575,7 +575,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
           <div class="card" id="callsCardH">
             <div class="card-head"><h2>Channel calls</h2><span class="note" id="callsNoteH"></span></div>
             <p class="note" style="margin:0 0 12px" id="callsIntroH"></p>
-            <div class="tbl-wrap" style="max-height: 50vh; margin-bottom:12px"><table><thead><tr><th>Grade</th><th>Pair</th><th>Side</th><th>Channel status</th><th>Channel</th><th title="Proven signals in the same direction: daily in the last 3 days or the latest weekly candle">Agreeing signals</th><th title="0-10 confluence of trend and momentum (daily)">Bull score</th><th>Close</th><th title="Longs: 10% of the channel width under the bottom line. Shorts: back above the line that was lost, +10% of the width">Stop / invalid</th><th>Target 1</th><th>Target 2</th><th title="Reward to target 1 ÷ risk to the stop">R:R</th><th title="Since 2022: this channel status's median 30-day result vs the average coin, and how often it beat the market">History vs market</th><th>Liquidity</th></tr></thead><tbody id="callsBodyH"></tbody></table></div>
+            <div class="tbl-wrap" style="max-height: 50vh; margin-bottom:12px"><table><thead><tr><th>Grade</th><th>Pair</th><th title="The day this entry was first listed here (signal issued)">Added</th><th>Side</th><th>Channel status</th><th>Channel</th><th title="Proven signals in the same direction: daily in the last 3 days or the latest weekly candle">Agreeing signals</th><th title="0-10 confluence of trend and momentum (daily)">Bull score</th><th>Close</th><th title="Longs: 10% of the channel width under the bottom line. Shorts: back above the line that was lost, +10% of the width">Stop / invalid</th><th>Target 1</th><th>Target 2</th><th title="Reward to target 1 ÷ risk to the stop">R:R</th><th title="Since 2022: this channel status's median 30-day result vs the average coin, and how often it beat the market">History vs market</th><th>Liquidity</th></tr></thead><tbody id="callsBodyH"></tbody></table></div>
             <div class="card-head" style="margin-top:4px"><h2 style="font-size:1rem">Posted to highlights</h2><span class="note">each new call, when it happened (last 90 days)</span></div>
             <div class="hl-list" id="hlCalls"></div>
           </div>
@@ -607,7 +607,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
         <div class="hx-more-in">
           <div class="card" id="hsCardH">
             <div class="card-head"><h2>Head and shoulders: neckline action</h2><span class="note" id="hsNoteH"></span></div>
-            <div class="tbl-wrap" style="max-height: 45vh; margin-bottom:12px"><table><thead><tr><th>Pair</th><th>Pattern</th><th>Status</th><th title="Neckline today (extended), and the distance from the close">Neckline</th><th title="Measured move: neckline −/+ the pattern height">Target</th><th title="Where the pattern fails: beyond the right shoulder before the break; after it, back through the neckline by 35% of the height">Invalid at</th><th title="Left shoulder → head → right shoulder → today">Pattern</th><th>Broke / retested</th><th title="Since 2022: median 30-day move in the pattern's direction, how often it went that way, and vs the average coin">History (2022+)</th><th>Liquidity</th></tr></thead><tbody id="hsBodyH"></tbody></table></div>
+            <div class="tbl-wrap" style="max-height: 45vh; margin-bottom:12px"><table><thead><tr><th>Pair</th><th title="The day this entry was first listed here (signal issued)">Added</th><th>Pattern</th><th>Status</th><th title="Neckline today (extended), and the distance from the close">Neckline</th><th title="Measured move: neckline −/+ the pattern height">Target</th><th title="Where the pattern fails: beyond the right shoulder before the break; after it, back through the neckline by 35% of the height">Invalid at</th><th title="Left shoulder → head → right shoulder → today">Pattern</th><th>Broke / retested</th><th title="Since 2022: median 30-day move in the pattern's direction, how often it went that way, and vs the average coin">History (2022+)</th><th>Liquidity</th></tr></thead><tbody id="hsBodyH"></tbody></table></div>
             <div class="card-head" style="margin-top:4px"><h2 style="font-size:1rem">Posted to highlights</h2><span class="note">each new near-neckline, break and retest, when it happened</span></div>
             <div class="hl-list" id="hlHs"></div>
           </div>
@@ -679,7 +679,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
             <p class="note" style="margin:0 0 12px" id="chanIntro"></p>
             <p class="note" style="margin:0 0 8px" id="chanStatsNote"></p>
             <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Status</th><th title="Daily-chart cases since 2022 (and up to 2021)">Cases 2022+</th><th title="Median price change over 30 days from the next day's open">Price 30d later</th><th title="Share of cases where the price was higher 30 days later">Higher after 30d</th><th title="Median of (the coin's 30-day change − the average liquid coin's change over the same days). Positive = the coin did better than the market">Coin vs the average coin</th><th title="Share of cases where the coin did better than the average liquid coin over 30 days">Beat the average coin</th><th title="Long trades: stop 10% of the width under the bottom line, target 10% under the top line, first one hit within 120 days. Average result in R (R = the amount risked).">Long trade: target hit / avg R</th><th title="Same comparison, only channels 365+ days long">Long-term channels: coin vs average</th></tr></thead><tbody id="chanStats"></tbody></table></div>
-            <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Chart</th><th>Status</th><th title="0% = on the bottom line, 50% = midline, 100% = on the top line">Where in channel</th><th>Channel</th><th>Width</th><th title="Touches on the bottom / top line, and reactions at the midline">Touches (mid)</th><th title="Touches on the lines, midline reactions, and length">Quality</th><th>Bottom line</th><th>Midline</th><th>Top line</th><th title="Since 2022, daily charts: median 30-day result of coins in this status (in this kind of channel: long-term, narrow or all) vs the average liquid coin, and how often they beat it">History vs market</th><th title="Events only: from the next candle's open to the latest close, in the event's direction. No fees.">Since event</th><th>Liquidity</th></tr></thead><tbody id="chanBody"></tbody></table></div>
+            <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th title="The day this entry was first listed here (signal issued)">Added</th><th>Chart</th><th>Status</th><th title="0% = on the bottom line, 50% = midline, 100% = on the top line">Where in channel</th><th>Channel</th><th>Width</th><th title="Touches on the bottom / top line, and reactions at the midline">Touches (mid)</th><th title="Touches on the lines, midline reactions, and length">Quality</th><th>Bottom line</th><th>Midline</th><th>Top line</th><th title="Since 2022, daily charts: median 30-day result of coins in this status (in this kind of channel: long-term, narrow or all) vs the average liquid coin, and how often they beat it">History vs market</th><th title="Events only: from the next candle's open to the latest close, in the event's direction. No fees.">Since event</th><th>Liquidity</th></tr></thead><tbody id="chanBody"></tbody></table></div>
           </div>
         </div>
       </details>
@@ -912,14 +912,14 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       </div>
       <p class="note" style="margin:0 0 12px" id="hsIntro"></p>
       <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Pattern · entry</th><th>Cases 2022+ (≤2021)</th><th title="Median move over 30 days from the next open, in the pattern's direction">Move its way, 30d</th><th>Went its way</th><th title="The same move minus the average liquid coin's">vs the average coin</th><th title="Stop = the failure level, target = the measured move, first one hit within 60 days">Target hit / avg R</th><th>Up to 2021: move / avg R</th></tr></thead><tbody id="hsStats"></tbody></table></div>
-      <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Pattern</th><th>Status</th><th title="Neckline today (extended), and the distance from the close">Neckline</th><th title="Measured move: neckline −/+ the pattern height">Target</th><th title="Where the pattern fails: beyond the right shoulder before the break; after it, back through the neckline by 35% of the height">Invalid at</th><th title="Left shoulder → head → right shoulder → today">Pattern</th><th>Broke / retested</th><th title="Since 2022: median 30-day move in the pattern's direction, how often it went that way, and vs the average coin">History (2022+)</th><th>Liquidity</th></tr></thead><tbody id="hsBodyW"></tbody></table></div>
+      <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th title="The day this entry was first listed here (signal issued)">Added</th><th>Pattern</th><th>Status</th><th title="Neckline today (extended), and the distance from the close">Neckline</th><th title="Measured move: neckline −/+ the pattern height">Target</th><th title="Where the pattern fails: beyond the right shoulder before the break; after it, back through the neckline by 35% of the height">Invalid at</th><th title="Left shoulder → head → right shoulder → today">Pattern</th><th>Broke / retested</th><th title="Since 2022: median 30-day move in the pattern's direction, how often it went that way, and vs the average coin">History (2022+)</th><th>Liquidity</th></tr></thead><tbody id="hsBodyW"></tbody></table></div>
     </div>
     <div class="card" id="callsCardW">
       <div class="card-head"><h2>Channel setups</h2>
         <div class="seg" id="callSide"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="long" aria-pressed="false">Long</button><button type="button" data-v="short" aria-pressed="false">Short / caution</button></div>
       </div>
       <p class="note" style="margin:0 0 12px" id="callsIntroW"></p>
-      <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Grade</th><th>Pair</th><th>Side</th><th>Channel status</th><th>Channel</th><th title="Proven signals in the same direction: daily in the last 3 days or the latest weekly candle">Agreeing signals</th><th title="0-10 confluence of trend and momentum (daily)">Bull score</th><th>Close</th><th title="Longs: 10% of the channel width under the bottom line. Shorts: back above the line that was lost, +10% of the width">Stop / invalid</th><th>Target 1</th><th>Target 2</th><th title="Reward to target 1 ÷ risk to the stop">R:R</th><th title="Since 2022: this channel status's median 30-day result vs the average coin, and how often it beat the market">History vs market</th><th>Liquidity</th></tr></thead><tbody id="callsBodyW"></tbody></table></div>
+      <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Grade</th><th>Pair</th><th title="The day this entry was first listed here (signal issued)">Added</th><th>Side</th><th>Channel status</th><th>Channel</th><th title="Proven signals in the same direction: daily in the last 3 days or the latest weekly candle">Agreeing signals</th><th title="0-10 confluence of trend and momentum (daily)">Bull score</th><th>Close</th><th title="Longs: 10% of the channel width under the bottom line. Shorts: back above the line that was lost, +10% of the width">Stop / invalid</th><th>Target 1</th><th>Target 2</th><th title="Reward to target 1 ÷ risk to the stop">R:R</th><th title="Since 2022: this channel status's median 30-day result vs the average coin, and how often it beat the market">History vs market</th><th>Liquidity</th></tr></thead><tbody id="callsBodyW"></tbody></table></div>
     </div>
     <div class="card">
       <div class="card-head"><h2>Watchlist hits, last 365 days</h2><span class="note" id="watchCount"></span></div>
@@ -1186,6 +1186,9 @@ const venueOf = sym => (S.ov && S.ov.venues && S.ov.venues[sym]) || null;      /
 function symNode(sym) { const s = document.createElement("span"); s.className = "sym"; s.textContent = sym.replace(/USDT$/, ""); const m = document.createElement("small"); m.textContent = "/USDT"; s.append(m);
   const v = venueOf(sym); if (v) { const t = document.createElement("small"); t.className = "venue"; t.textContent = " " + v; t.title = "Data from " + v + " (not listed on Binance)"; s.append(t); } return s; }
 const toObjs = t => t && t.columns ? t.rows.map(r => Object.fromEntries(t.columns.map((c, i) => [c, r[i]]))) : [];
+function addedTd(x) { const a = x && x.added; if (!a) return td("—", "cold");
+  const ref = (S.ov && S.ov.last_date) || a, n = Math.max(0, Math.round((Date.parse(ref) - Date.parse(a)) / 864e5));
+  const c = td(a.slice(5) + " · " + (n ? n + "d" : "new"), "num"); c.title = "Listed here since " + a + " (UTC daily close)"; return c; }
 const daysAgo = (d, n) => new Date(Date.parse(d) - n * 864e5).toISOString().slice(0, 10);
 
 // ---------- metric catalogue (screener)
@@ -1455,13 +1458,13 @@ function renderCalls(bodyId, side) {
     const sigs = document.createElement("span"); sigs.className = "controls"; sigs.style.gap = "4px";
     x.signals.slice(0, 4).forEach(k => { const [tf, sg] = k.split(":"); sigs.append(chip(sigLabel(sg, x.side === "long" ? "bullish" : "bearish") + (tf === "1w" ? " (weekly)" : ""), x.side === "long" ? "up" : "down")); });
     const ch = x.channel || {};
-    t.append(tdNode(chip(x.grade, x.grade === "A" ? (x.side === "long" ? "up" : "down") : "neutral")), tdNode(symNode(x.symbol)), tdNode(chip(x.side === "long" ? "Long" : "Short / caution", x.side === "long" ? "up" : "down")),
+    t.append(tdNode(chip(x.grade, x.grade === "A" ? (x.side === "long" ? "up" : "down") : "neutral")), tdNode(symNode(x.symbol)), addedTd(x), tdNode(chip(x.side === "long" ? "Long" : "Short / caution", x.side === "long" ? "up" : "down")),
       tdNode(chip((D.labels || {})[x.status] || x.status, CH_UP[x.status] || "neutral")), td(Math.round(ch.days || 0) + " days · " + (ch.touches || []).join("/") + " touches · Q " + fN(ch.quality, 1), ""),
       tdNode(sigs), td(String(x.bull_score), "num"), td(fPx(x.close), "num"), td(fPx(x.stop) + (isNum(x.risk_pct) ? " (" + fN(x.risk_pct, 1) + "%)" : ""), "num"),
       td(fPx(x.t1) + " (" + fPct(100 * (x.t1 / x.close - 1), 1) + ")", "num"), td(isNum(x.t2) ? fPx(x.t2) + " (" + fPct(100 * (x.t2 / x.close - 1), 1) + ")" : "—", "num"),
       td(isNum(x.rr) ? fN(x.rr, 1) : "—", "num"), x.hist ? td(fPct(x.hist.rel30, 1) + " · " + x.hist.beat30 + "%", "num " + cls(x.hist.rel30)) : td("—", "cold"), td("#" + x.liq_rank, "num")); frag.append(t); });
   body.append(frag);
-  if (!rows.length) body.innerHTML = '<tr><td colspan="14" class="empty">No channel entry is confirmed by other indicators right now. That is a valid answer: nothing forced.</td></tr>';
+  if (!rows.length) body.innerHTML = '<tr><td colspan="15" class="empty">No channel entry is confirmed by other indicators right now. That is a valid answer: nothing forced.</td></tr>';
 }
 function renderCallsAll() {
   const C = callData(), n = (C.rows || []).length, a = (C.rows || []).filter(x => x.grade === "A").length;
@@ -1480,13 +1483,13 @@ function hsRows(body, f) {
   const rows = (D.rows || []).filter(x => f === "all" ? true : f === "top" || f === "inverse" ? x.kind === f : f ? x.status === f : x.status !== "after_break");
   rows.forEach(x => { const t = document.createElement("tr"); t.className = "clickable"; t.onclick = () => openPair(x.symbol, "1d");
     const top = x.kind === "top", P = x.points || {}, h = x.hist;
-    t.append(tdNode(symNode(x.symbol)), tdNode(chip(top ? "Top (bearish)" : "Inverse (bullish)", top ? "down" : "up")), tdNode(chip(HS_ST[x.status] || x.status, x.status === "after_break" ? "neutral" : top ? "down" : "up")),
+    t.append(tdNode(symNode(x.symbol)), addedTd(x), tdNode(chip(top ? "Top (bearish)" : "Inverse (bullish)", top ? "down" : "up")), tdNode(chip(HS_ST[x.status] || x.status, x.status === "after_break" ? "neutral" : top ? "down" : "up")),
       td(fPx(x.neck) + " (" + fPct(x.to_neck_pct, 1) + ")", "num"), td(fPx(x.target) + " (" + fPct(x.to_target_pct, 1) + ")", "num " + cls(x.to_target_pct)), td(fPx(x.stop), "num"),
       td((P.ls ? P.ls[0].slice(5) + " → " + P.head[0].slice(5) + " → " + P.rs[0].slice(5) : "") + " · " + x.days + "d", ""),
       td((x.break_date ? x.break_date.slice(5) : "—") + (x.retest_date ? " / " + x.retest_date.slice(5) : ""), "num"),
       h ? td(fPct(h.med30, 1) + " · " + h.win30 + "% · " + fPct(h.rel30, 1) + " vs mkt", "num " + cls(h.med30)) : td("—", "cold"), td("#" + x.liq_rank, "num")); frag.append(t); });
   el.append(frag);
-  if (!rows.length) el.innerHTML = '<tr><td colspan="10" class="empty">No pattern matches this filter right now.</td></tr>';
+  if (!rows.length) el.innerHTML = '<tr><td colspan="11" class="empty">No pattern matches this filter right now.</td></tr>';
 }
 function renderHs() {
   const D = hsData(), ST = D.stats || {}, card = $("#hsCardW"); if (!card) return;
@@ -1582,13 +1585,13 @@ function renderChannels() {
     const bar = document.createElement("span"); bar.className = "posbar"; const dot = document.createElement("i"); const p = Math.max(-0.1, Math.min(1.1, x.pos)); dot.style.left = (100 * (p + 0.1) / 1.2) + "%"; bar.append(dot);
     const pw = document.createElement("span"); pw.style.display = "inline-flex"; pw.style.alignItems = "center"; pw.style.gap = "6px"; const pv = document.createElement("span"); pv.textContent = fN(100 * x.pos, 0) + "%"; pw.append(bar, pv);
     const mid = (x.lo1 + x.hi1) / 2;
-    t.append(tdNode(symNode(x.symbol)), td(x.tf === "4h" ? "4h" : "Daily", ""), tdNode(lab), tdNode(pw), td(chanShape(x) + " · since " + chanTime(x, x.t0).slice(0, 10), ""), td(fN(x.width_pct, 1) + "%", "num"),
+    t.append(tdNode(symNode(x.symbol)), addedTd(x), td(x.tf === "4h" ? "4h" : "Daily", ""), tdNode(lab), tdNode(pw), td(chanShape(x) + " · since " + chanTime(x, x.t0).slice(0, 10), ""), td(fN(x.width_pct, 1) + "%", "num"),
       td(x.touches.join(" / ") + " (" + (x.mid_touches || 0) + ")", "num"), td(fN(x.quality, 1), "num"),
       td(fPx(x.lo1) + " (" + fPct(x.to_bottom_pct, 1) + ")", "num"), td(fPx(mid) + " (" + fPct(x.to_mid_pct, 1) + ")", "num"), td(fPx(x.hi1) + " (" + fPct(x.to_top_pct, 1) + ")", "num"),
       x.hist ? td(fPct(x.hist.rel30, 1) + " · " + x.hist.beat30 + "%", "num " + cls(x.hist.rel30)) : td("—", "cold"),
       isNum(x.so_far_pct) ? td(fPct(x.so_far_pct, 1), "num " + cls(x.so_far_pct)) : td("—", "cold"), td("#" + x.liq_rank, "num")); frag.append(t); });
   body.append(frag);
-  if (!rows.length) body.innerHTML = '<tr><td colspan="14" class="empty">No coin matches this filter right now.</td></tr>';
+  if (!rows.length) body.innerHTML = '<tr><td colspan="15" class="empty">No coin matches this filter right now.</td></tr>';
   renderCallsAll(); renderMoves(); renderHs(); renderLtbo();
 }
 // ---------- Highlights: one feed + sections (#highlights/<section>)
