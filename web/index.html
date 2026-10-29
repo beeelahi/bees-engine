@@ -2338,7 +2338,8 @@ function renderMMBots() {
   const TU = D.tune, npCard = $("#mbxNpCard"), f0 = v => isNum(v) ? (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(Math.round(v)).toLocaleString("en-US") : "—";
   if (TU && TU.totals && npCard) { npCard.hidden = false;
     const NAMES = { "pro+chase8": "MM-Bee Pro + buy back at +8%", "pro+chase15": "MM-Bee Pro + buy back at +15%", "v2+chase8": "MM-Bee v2 + buy back at +8%", pro: "MM-Bee Pro", plus: "MM-Bee+", v2: "MM-Bee v2" };
-    const nm = k => NAMES[k] || k.replace("pro", "Pro").replace("plus", "MM-Bee+").replace("+chase", " + buy back at +").replace(/(\d+)/, "$1%").replace("+trend", " + trend");
+    const nm = k => { if (NAMES[k]) return NAMES[k]; const fam = { pro: "MM-Bee Pro", plus: "MM-Bee+", v2: "MM-Bee v2" }[k.split("+")[0]] || k.split("+")[0], ch = /chase(\d+)/.exec(k);
+      return fam + (ch ? " + buy back at +" + ch[1] + "%" : "") + (/\+trend/.test(k) ? " + sells less in uptrends" : ""); };
     const nc = Object.keys(TU.coins || {}).length;
     $("#mbxNpLead").textContent = `For new long positions ($${fQ(TU.position_usd)} a coin, ${Math.round(100 * TU.share)}% market-made): the bots were run over the past year on ${nc} coins, and on the same year reversed (a strong rally). Plain market making falls far behind holding in a rally, because it sells into it. The fix is the buy-back: when the price runs 8% above a coin we sold, the bot buys it back at once (a small, capped loss, 0.1% fee) instead of missing the move.`;
     const tb = $("#mbxNpTot"); tb.replaceChildren();
