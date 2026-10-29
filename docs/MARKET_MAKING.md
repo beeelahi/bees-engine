@@ -51,3 +51,34 @@ Rules and settings: see the header of `bin/mm_bee.py` (defaults in `mm_bee.DEFAU
 * a first-ladder sell the market is already above is not chased: it rests once the price is back under it.
 
 Paper: variant `bee` in bees-mm-paper (wallet 600,000 ZIG + 10,000 USDT). Backtest: `bin/mm_bee_backtest.py`. Website: the MM-Bee tab.
+
+
+## MM-Bee v2, MM-Bee+ and MM-Bee Pro (29 Oct 2026)
+
+Three versions run side by side on paper (bees-mm-paper variants `bee`, `bee_plus`, `bee_pro`) and in the hourly
+backtest (5 days, 15 days, 1 year), all on the MM-Bee tab:
+
+| | rules |
+|---|---|
+| v2 (`bee`) | Bilal's rules: +3% first, every 2% of the base, buy back -3.1%, resell +3%; base follows each 4h close (5 nearest orders first, the rest 150 s later, one order at a time 2-4 s apart, moves under 0.3% skipped); BTC guard; 1h fast mode on 10%+ moves |
+| MM-Bee+ (`bee_plus`) | v2 + recycling (bought-back units rejoin the sell ladder), no fast mode |
+| MM-Bee Pro (`bee_pro`) | MM-Bee+ with +4% first, every 1%, buy back -4.5%, resell +4.5% |
+
+How Pro was chosen (research/mm_bee_study2-5.py, ZIG 1h candles Nov 2025 - Oct 2026, ahead of holding in USDT):
+
+| | real year (ZIG -51%) | mirror (same moves, up) | flat (trend removed) | Nov-Jun | Jul-Oct |
+|---|---|---|---|---|---|
+| v2 | +12,758 | -21,836 | +28,615 | +11,360 | +8,831 |
+| MM-Bee+ | +20,175 | +42,942 | +17,412 | +12,831 | +5,884 |
+| Pro | +31,249 | +65,292 | +17,516 | +21,028 | +9,145 |
+
+* v2 without recycling sells everything into a rally (mirror path) and its bought-back units get stuck far above a
+  falling price (real path: activity dies after a few months).
+* Recycling sells a bought-back unit wherever the ladder puts it, which can be under that unit's buy price; the
+  wallet still came out ahead on every path.
+* Regime switching (recycling off in flat markets, on in trends; 4h EMA 30-90 candles, bands 3-8%) was tested and
+  was not consistently better, so it is off (`regimes` option in mm_bee.py).
+* The BTC guard fired twice in the 30 days with hourly BTC data; it changed nothing in those backtests; it is kept
+  as insurance. The fast mode slightly hurt; it is on only in v2 (Bilal's rule).
+* Backtest fills are conservative (only on a later candle that trades through the price). Live market making on
+  the real book will differ: queue position, partial fills, and other traders reacting to the orders.
