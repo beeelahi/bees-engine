@@ -119,3 +119,30 @@ Reading:
   on the real (mostly falling) year. Each coin needs its own choice, ideally from a longer history including a bull
   run. Best candidates on both paths here: MORPHO, CAKE (any setting), ONDO and JUP (MM-Bee+), PEPE and ETH
   (Pro or MM-Bee+), BTC (v2).
+
+## New positions: upside stop ("chase") and trend widening (research/mm_bee_tune.py, ops: bee-tune, 29 Oct 2026)
+
+Same 15 coins and sizing as above ($25K, 25% traded, 20 units, sell first, no wallet USDT), real year and mirror
+year, 18 settings: the three bots, each with chase off / 8% / 15% (a sold unit buys back at the market once the price
+is that far above its sell; taker fee 0.1%) and trend widening off / on (sell ladder twice as far and wide while the
+4h close is 3%+ above its 30-candle EMA). USDT ahead of holding, summed over the 15 coins:
+
+| setting | real (falling) year | mirror (rising) year | coins ahead on both |
+|---|---|---|---|
+| Pro + chase 8% | +3,778 | +15,739 | 9 / 15 |
+| Pro + chase 15% | +6,280 | +5,888 | 11 / 15 |
+| v2 + chase 8% | +4,369 | +6,864 | 9 / 15 |
+| Pro | +8,705 | -41,578 | 3 / 15 |
+| MM-Bee+ | +10,805 | -42,636 | 6 / 15 |
+| v2 | +13,946 | -73,243 | 4 / 15 |
+
+Reading:
+* The upside stop is the fix that matters: it gives up a few thousand USDT in a falling year and saves tens of
+  thousands in a rally (Pro: -41.6K -> +15.7K on the rising path). Trend widening alone barely helps.
+* One setting for all new positions: Pro + chase 8% (best worst case; strongest in a rally, which is the bet when
+  buying after a crash) or Pro + chase 15% (more coins ahead on both paths, better in a falling year).
+* Per coin, the best setting was ahead on both paths for all 15 coins (+12.7K falling, +24.0K rising in total), but
+  that is picked in-sample from 18 options: expect less live. Weak fits (little to earn): APT, ETH, SOL, BTC.
+  Stronger fits: MORPHO, ONDO, CAKE, UNI, PEPE, JUP, PENGU, TAO.
+* ZIG is different: on ZIG the upside stop lowered Pro on both paths (real +40.2K -> +17.2K, mirror +66.6K -> +41.8K
+  with chase 8%), so ZIG stays on Pro without it.
