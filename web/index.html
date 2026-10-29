@@ -1164,7 +1164,6 @@ async function loadAll() {
     try { S.px = await j("data/prices.json"); } catch (e) { S.px = null; }
     try { S.mv = await j("data/moves.json"); } catch (e) { S.mv = null; }
     try { S.p4 = await j("data/paper4h.json"); } catch (e) { S.p4 = null; }
-    try { S.mm = await j("data/mmbee.json"); } catch (e) { S.mm = null; }
     try { S.botLive = await j("data/bot_live.json"); } catch (e) { S.botLive = null; }
     toObjs(ov.dictionary).forEach(d => { S.dict[d.col] = d; });
   } catch (e) {
@@ -1874,7 +1873,14 @@ const MB_STATE = { armed: ["Waiting to sell", "The price is above this level; th
 function mbSet(id, text, c) { const e = $("#" + id); if (!e) return; e.textContent = text; e.classList.remove("pos", "neg", "cold"); if (c) e.classList.add(c); }
 function mbLine(id, parts) { const el = $("#" + id); el.replaceChildren(); parts.forEach(p => { if (Array.isArray(p)) { const b = document.createElement("b"); b.textContent = p[0]; if (p[1]) b.className = p[1]; el.append(b); } else el.append(document.createTextNode(p)); }); }
 function mbHrs(a, b) { return (Date.parse(b) - Date.parse(a)) / 36e5; }
+let mmLoading = null;
+function loadMM() {                   // the MM-Bee data (about half a megabyte) loads only when the tab is opened
+  if (S.mm !== undefined || mmLoading) return mmLoading;
+  mmLoading = j("data/mmbee.json").then(d => { S.mm = d; }, () => { S.mm = null; }).then(() => { mmLoading = null; if (!$("#v-mmbee").hidden) setSub("mmbee", S.sub.mmbee); });
+  return mmLoading;
+}
 function renderMMHead() {
+  if (S.mm === undefined) { loadMM(); $("#mbPillText").textContent = "Loading…"; return; }
   const D = S.mm, B = D && D.variants && D.variants.bee, pill = $("#mbPill"), pt = $("#mbPillText");
   if (!D) { pill.className = "pill warn"; pt.textContent = "No data yet"; $("#mbLead").textContent = "MM-Bee data is published with the next engine run."; return; }
   const age = (Date.now() - Date.parse(D.generated_utc)) / 6e4;
@@ -1893,7 +1899,8 @@ function mbRules(c, base, baseFrom, ladders) {
     [`When a sell fills, the same ${fQ(c.size)} ZIG is bought back ${(100 * c.rebuy).toFixed(1)}% under it. For the first sell: `, [fZ(p0) + " → " + fZ(p0 * (1 - c.rebuy))], "."],
     [`When the buy fills, the round is booked (about ${(100 * c.rebuy).toFixed(1)}% of the sale, `, [fUs(c.size * p0 * c.rebuy) + " USDT"], ` on the first unit) and the ZIG goes up for sale again ${(100 * c.resell).toFixed(1)}% above the buy price. Each unit loops: sell, buy, sell.`],
     ["Everything sold and nothing bought back: the buys simply wait."],
-    [`No fill for ${c.idle_hours} hours: the base moves to the latest hourly close and the unsold ladder orders move with it. If every unit is sold by then, a fresh ladder of ${fQ(c.units * c.size)} ZIG opens from the new base (at most ${c.extra_ladders} extra; ladders used: `, [`${ladders} of ${1 + c.extra_ladders}`], ")."],
+    c.rebase_hours ? [`Everything sold and no fill for ${c.idle_hours} hours: a fresh ladder of ${fQ(c.units * c.size)} ZIG opens from the current base (at most ${c.extra_ladders} extra; ladders used: `, [`${ladders} of ${1 + c.extra_ladders}`], ")."]
+      : [`No fill for ${c.idle_hours} hours: the base moves to the latest hourly close and the unsold ladder orders move with it. If every unit is sold by then, a fresh ladder of ${fQ(c.units * c.size)} ZIG opens from the new base (at most ${c.extra_ladders} extra; ladders used: `, [`${ladders} of ${1 + c.extra_ladders}`], ")."],
     [`Budget: ${fQ(c.units * c.size)} ZIG per ladder; buys are paid from what the sells raised, with at most `, [fQ(c.max_usdt) + " USDT"], " of the wallet's own USDT on top. Every order is post-only (maker; MEXC maker fee 0%)."],
   ].concat(c.rebase_hours ? [
     [`The base follows every `, [`${c.rebase_hours === 24 ? "daily" : c.rebase_hours + "-hour"} close`], `: the ${c.stagger_first} sells nearest the price move right after it, the rest ${Math.round((c.stagger_delay_s || 0) / 60 * 10) / 10} minutes later, one order at a time (${c.drip_min}–${c.drip_max} s apart), and an order whose price would change by less than ${(100 * c.min_move).toFixed(1)}% stays put. Units already sold keep their buy-back.`],
@@ -1947,6 +1954,7 @@ function mbLegend(id, items) { const lg = $("#" + id); lg.replaceChildren(); ite
 const usdFmt = { type: "custom", formatter: v => (v >= 0 ? "+" : "") + v.toFixed(2), minMove: 0.01 }, zigFmt = { type: "custom", formatter: v => v.toFixed(5), minMove: 0.000001 };
 function renderMMBee() {
   renderMMHead();
+  if (S.mm === undefined) return;
   const D = S.mm, V = D && D.variants, B = V && (V[S.mbVar || "bee"] || V.bee);
   $$("#mbVarSeg button").forEach(b => { b.hidden = !(V && V[b.dataset.v]); b.setAttribute("aria-pressed", String(b.dataset.v === (S.mbVar || "bee"))); });
   if (!B || !B.bee) { ["mbRules", "mbLadder", "mbFeed", "mbCompare", "mbFills"].forEach(id => $("#" + id).replaceChildren()); return; }
@@ -1995,6 +2003,7 @@ function renderMMBee() {
 }
 function renderMBBacktest() {
   renderMMHead();
+  if (S.mm === undefined) return;
   const BTD = S.mm && S.mm.backtest, runs = BTD && BTD.runs ? BTD.runs : BTD ? [BTD] : [];
   const sg = r => r.strategy || "v2", want = S.btStrat || "v2", win = S.btRun || "5d";
   const T = runs.find(r => sg(r) === want && r.id === win) || runs.find(r => sg(r) === want) || runs[0];
