@@ -85,3 +85,37 @@ How Pro was chosen (research/mm_bee_study2-5.py, ZIG 1h candles Nov 2025 - Oct 2
   as insurance. The fast mode slightly hurt; it is on only in v2 (Bilal's rule).
 * Backtest fills are conservative (only on a later candle that trades through the price). Live market making on
   the real book will differ: queue position, partial fills, and other traders reacting to the orders.
+
+
+## MM-Bee on other coins (research/mm_bee_multi.py, ops: bee-study, 29 Oct 2026)
+
+$25,000 position per coin, 25% of it traded ($6,250 in 20 units), sell first, no wallet USDT; Binance 1h candles,
+last 365 days; real path and its mirror image (the same moves in the other direction). USDT ahead of holding, and
+the rounds' locked-in profit per year as a share of the traded $6,250:
+
+| coin | real v2 | real MM-Bee+ | real Pro | mirror v2 | mirror MM-Bee+ | mirror Pro |
+|---|---|---|---|---|---|---|
+| MORPHO | +1,590 (50%) | +865 (47%) | -2,499 (12%) | +5,002 (80%) | +4,294 (73%) | +4,794 (80%) |
+| ONDO | +915 (15%) | +427 (21%) | +189 (16%) | -3,198 (12%) | +1,366 (64%) | +146 (56%) |
+| CAKE | +1,389 (22%) | +516 (15%) | +687 (14%) | +1,348 (37%) | +2,606 (44%) | +2,824 (46%) |
+| UNI | +1,162 (35%) | -1,532 (34%) | -1,515 (36%) | +2,653 (42%) | +1,350 (31%) | +995 (25%) |
+| JUP | +1,192 (21%) | +982 (31%) | +1,900 (39%) | -1,224 (20%) | +1,305 (36%) | +74 (22%) |
+| PENGU | +446 (7%) | +2,240 (38%) | +2,685 (44%) | -9,989 (7%) | -7,804 (24%) | -9,814 (6%) |
+| FLOKI | +701 (11%) | +1,440 (24%) | +1,417 (24%) | -12,264 (12%) | -10,406 (23%) | -8,237 (32%) |
+| PEPE | +1,475 (27%) | +237 (30%) | +17 (29%) | -62 (24%) | +2,713 (57%) | +4,218 (77%) |
+| DOGE | +743 (12%) | +950 (16%) | +887 (15%) | -8,506 (9%) | -3,617 (44%) | -3,133 (49%) |
+| TAO | +624 (10%) | +946 (28%) | +1,266 (33%) | -3,752 (4%) | -1,839 (22%) | -375 (38%) |
+| SUI | +689 (11%) | +1,250 (23%) | +1,329 (24%) | -10,019 (10%) | -7,242 (26%) | -8,580 (16%) |
+| APT | +786 (13%) | +1,156 (20%) | +1,154 (19%) | -25,556 (12%) | -24,092 (17%) | -24,161 (15%) |
+| SOL | +956 (15%) | +317 (11%) | +309 (10%) | -4,485 (5%) | -1,781 (19%) | -1,510 (20%) |
+| ETH | +659 (11%) | +300 (9%) | +187 (9%) | -2,674 (12%) | +1,001 (37%) | +1,778 (40%) |
+| BTC | +257 (12%) | -27 (3%) | -68 (2%) | +512 (16%) | +450 (10%) | +588 (10%) |
+
+Reading:
+* The locked-in profit is real on every coin (2-80% a year of the traded slice), but "ahead of holding" depends on
+  direction: selling 25% of a coin into a big rally (mirror paths of APT, SUI, FLOKI, PENGU, DOGE: +144% to +383%)
+  costs far more than the rounds earn. The market maker is income on a position, not a hedge.
+* No single setting wins everywhere: Pro was tuned on ZIG and is weak on MORPHO and UNI; plain v2 is the steadiest
+  on the real (mostly falling) year. Each coin needs its own choice, ideally from a longer history including a bull
+  run. Best candidates on both paths here: MORPHO, CAKE (any setting), ONDO and JUP (MM-Bee+), PEPE and ETH
+  (Pro or MM-Bee+), BTC (v2).
