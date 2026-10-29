@@ -95,8 +95,10 @@ class CandleEx:
         return {"base": "ZIG", "quote": "USDT"}
 
     def qty(self, s, q):
+        """ZIG: 0.01 coin steps (MEXC). Other coins (multi-coin study): 0.00000001, so a small BTC unit is not rounded away."""
         from decimal import Decimal, ROUND_DOWN
-        return (Decimal(str(q)) / Decimal("0.01")).to_integral_value(rounding=ROUND_DOWN) * Decimal("0.01")
+        step = Decimal("0.01") if s == SYMBOL else Decimal("0.00000001")
+        return (Decimal(str(q)) / step).to_integral_value(rounding=ROUND_DOWN) * step
 
     def px(self, s, p, up=False):
         """ZIG: MEXC's 0.000001 tick. Other coins (multi-coin study): 6 significant digits."""

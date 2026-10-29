@@ -17,7 +17,8 @@ from mm_bee_study2 import mirror
 COINS = ["MORPHOUSDT", "ONDOUSDT", "CAKEUSDT", "UNIUSDT", "JUPUSDT", "PENGUUSDT", "FLOKIUSDT", "PEPEUSDT", "DOGEUSDT",
          "TAOUSDT", "SUIUSDT", "APTUSDT", "SOLUSDT", "ETHUSDT", "BTCUSDT"]
 POSITION, SHARE, UNITS = 25000.0, 0.25, 20
-STRATS = [("v2", {"vol_fast": 0}), ("plus", {"recycle": "ladder", "vol_fast": 0})]
+STRATS = [("v2", {"vol_fast": 0}), ("plus", {"recycle": "ladder", "vol_fast": 0}),
+          ("pro", {"recycle": "ladder", "vol_fast": 0, "first": 0.04, "gap": 0.01, "rebuy": 0.045, "resell": 0.045})]
 
 
 def main():
@@ -38,6 +39,8 @@ def main():
         size = coins * SHARE / UNITS
         for path, z, b in (("real", rows, btc), ("mirror", mirror(rows), mirror(btc))):
             for name, st in STRATS:
+                if sym == "BTCUSDT":
+                    st = dict(st, btc_guard=0)                     # the guard compares a coin with BTC: not for BTC itself
                 r = BT.run(z, start=start, settings=dict(st, size=size, units=UNITS, extra_ladders=0, max_usdt=0),
                            coins=coins, usdt=0.0, btc=b, symbol=sym)
                 days = (BT.t_of(r["end_utc"]) - BT.t_of(start)) / 86400
