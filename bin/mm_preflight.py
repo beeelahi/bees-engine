@@ -2,6 +2,7 @@
 Go / no-go check for real-money market making (Python 3.9 stdlib only). Read-only: it places and cancels nothing.
 
     python3 ~/BinanceData/bin/mm_preflight.py        (ops: mm-preflight)
+    python3 ~/BinanceData/bin/mm_preflight.py --probe   two tiny orders that cannot trade (only with Bilal's go)
 
 Checks, and prints GO only when every one passes:
   * the MEXC key: present, private, can trade, can NOT withdraw; the server clock agrees with MEXC's;
@@ -141,7 +142,52 @@ def run(cfg_path=mm_bot.CFG, db_path=mm_bot.DB, pub=None, priv=None, out=print):
     return not problems
 
 
+def probe(sym=None, out=print, ex=None):
+    """--probe (only with Bilal's go, at go-live): proves the real order path with two tiny orders that cannot trade:
+    a post-only SELL at twice the price (placed, read back, cancelled), and a post-only SELL at the best bid, which
+    must NOT trade: it shows how MEXC treats a post-only order that would cross (refused, or accepted then cancelled).
+    Each is about 1.5x MEXC's minimum order. Returns True when both behave."""
+    from decimal import Decimal, ROUND_UP
+    with open(mm_bot.CFG) as f:
+        cfg = json.load(f)
+    sym = sym or next((c["symbol"] for c in cfg.get("coins", []) if c.get("mode") == "bee"), None)
+    if not sym:
+        out("probe: no MM-Bee coin in mm.json")
+        return False
+    ex = ex or X.Mexc()
+    ex.sync_time()
+    inf = ex.info(sym)
+    bids, asks = ex.book(sym, 5)
+    q_for = lambda px: (Decimal(str(1.5 * float(inf["min_quote"]) / px)) / inf["step"]).to_integral_value(rounding=ROUND_UP) * inf["step"]  # noqa: E731
+    ok_all = True
+    hi = ex.px(sym, asks[0][0] * 2, up=True)
+    cid = f"bmP{int(time.time()) % 10**8}1"
+    ex.limit_maker(sym, "SELL", q_for(float(hi)), hi, cid)
+    o = ex.order(sym, cid)
+    out(f"probe 1: post-only SELL {sym} at {hi} placed, exchange says {o.get('status')}")
+    ex.cancel(sym, cid)
+    o = ex.order(sym, cid)
+    ok_all &= o.get("status") == "CANCELED"
+    out(f"probe 1: cancelled, exchange says {o.get('status')}")
+    lo = ex.px(sym, bids[0][0])
+    cid = f"bmP{int(time.time()) % 10**8}2"
+    try:
+        ex.limit_maker(sym, "SELL", q_for(float(lo)), lo, cid)
+        time.sleep(1)
+        o = ex.order(sym, cid)
+        out(f"probe 2: a crossing post-only SELL at the bid {lo} was ACCEPTED, then {o.get('status')} with {o.get('executedQty')} traded")
+        ok_all &= float(o.get("executedQty") or 0) == 0
+        if o.get("status") in ("NEW", "PARTIALLY_FILLED"):
+            ex.cancel(sym, cid)
+    except Exception as e:
+        out(f"probe 2: a crossing post-only SELL at the bid was REFUSED: {str(e)[:120]}")
+    out("probe: " + ("passed" if ok_all else "FAILED"))
+    return ok_all
+
+
 def main():
+    if "--probe" in sys.argv:
+        return 0 if probe() else 1
     return 0 if run() else 1
 
 

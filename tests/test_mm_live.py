@@ -422,3 +422,34 @@ class ReviewFixesTest(unittest.TestCase):
         rest = [x for x in bee.units() if x[0] == u[0] and x[1] >= 100]
         self.assertTrue(rest)
         self.assertLess(rest[0][5], 0.0535)
+
+
+class ProbeTest(unittest.TestCase):
+    def test_probe_with_a_paper_exchange(self):
+        from decimal import Decimal
+        d = tempfile.mkdtemp()
+        cfgp = os.path.join(d, "mm.json")
+        with open(cfgp, "w") as f:
+            json.dump({"coins": [{"symbol": "CAKEUSDT", "mode": "bee"}]}, f)
+        old, mm_bot.CFG = mm_bot.CFG, cfgp
+        self.addCleanup(setattr, mm_bot, "CFG", old)
+
+        class Ex:
+            def __init__(s):
+                s.o = {}
+
+            def sync_time(s): pass
+            def info(s, sym): return {"min_quote": Decimal("1"), "step": Decimal("0.01")}
+            def book(s, sym, n): return [(2.0, 5)], [(2.01, 5)]
+            def px(s, sym, p, up=False): return Decimal(str(round(p, 4)))
+
+            def limit_maker(s, sym, side, q, p, cid):
+                if side == "SELL" and float(p) <= 2.0:
+                    raise Exception("MEXC error 30087 (HTTP 400): post-only would cross")
+                s.o[cid] = {"status": "NEW", "executedQty": "0"}
+
+            def order(s, sym, cid): return s.o[cid]
+            def cancel(s, sym, cid): s.o[cid]["status"] = "CANCELED"
+        lines = []
+        self.assertTrue(mm_preflight.probe(out=lines.append, ex=Ex()))
+        self.assertIn("REFUSED", " ".join(lines))

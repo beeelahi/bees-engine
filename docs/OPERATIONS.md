@@ -30,7 +30,7 @@ committed as `picks: add SYMBOL` / `picks: close SYMBOL`. The server publishes t
 
 ## Market making with real money: go-live runbook
 
-Everything below is done by Bilal on the server unless it says ops. Nothing trades until step 4.
+Everything below is done by Bilal on the server unless it says ops. Nothing trades until step 5.
 
 1. **Key.** On MEXC create an API key with spot trading ON, withdrawals OFF, bound to the server's IP
    (89.167.60.181). On the server: `python3 ~/BinanceData/bin/mm_setup.py` (hidden input; it refuses a key that can
@@ -42,11 +42,14 @@ Everything below is done by Bilal on the server unless it says ops. Nothing trad
    (the old file is backed up; trading stays off). Then ops `mm-preflight` must say **GO**: key can trade and cannot
    withdraw, clock in sync, every coin listed and tradable, the book tight, the wallet holds each ladder's coins,
    every ladder under the ceilings ($15,000 a coin, $120,000 in all), no stray bot orders.
-4. **Switch on.** Set `"enabled": true` in `mm.json` and ops `mm-start`. Telegram (when set up) says "Market maker
+4. **Prove the order path (with Bilal's go).** On the server: `python3 ~/BinanceData/bin/mm_preflight.py --probe`
+   places two tiny post-only orders that cannot trade (one at twice the price, placed and cancelled; one at the
+   best bid, which MEXC must refuse or cancel untraded) and reports how MEXC answered.
+5. **Switch on.** Set `"enabled": true` in `mm.json` and ops `mm-start`. Telegram (when set up) says "Market maker
    started"; ops `mm-status` shows the heartbeat, each coin's state and its units.
-5. **Watch.** ops `mm-status` / `mm-log` at least daily for the first two weeks; ops `health` fails when the
+6. **Watch.** ops `mm-status` / `mm-log` at least daily for the first two weeks; ops `health` fails when the
    market maker runs but has had no heartbeat for 5 minutes.
-6. **Stop.** ops `mm-stop` sets MM_STOP: the bot cancels its own orders and waits (it never market-sells).
+7. **Stop.** ops `mm-stop` sets MM_STOP: the bot cancels its own orders and waits (it never market-sells).
    `mm-start` resumes from where it stopped (state is in `data/mm.db`).
 
 What protects the money (bin/mm_bee.py, bin/mm_bot.py): every order is written down before it is sent and checked
