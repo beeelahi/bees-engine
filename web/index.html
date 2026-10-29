@@ -3024,7 +3024,8 @@ async function renderPair() {
   const lc = rows.length ? Math.abs(rows[rows.length - 1][ci.c]) : 1, prec = lc >= 1000 ? 2 : lc >= 1 ? 4 : lc >= 0.01 ? 6 : 8;
   const pf = { type: "price", precision: prec, minMove: Math.pow(10, -prec) };
   const warm = (x, bit) => (x[ci.x] & bit) !== 0;
-  const line = (k, bit, color, opts = {}) => { const s = main.addLineSeries({ color, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: pf, ...opts });
+  const line = (k, bit, color, opts = {}) => { const s = main.addLineSeries({ color, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: pf,
+      autoscaleInfoProvider: () => null, ...opts });           // indicator lines never stretch the price scale away from the candles
     s.setData(rows.map(x => warm(x, bit) && isNum(x[ci[k]]) ? { time: x[0], value: x[ci[k]] } : { time: x[0] })); return s; };
   if (S.ov_on.has("cloud")) { line("sa", 128, css("--cold"), { lineWidth: 1 }); line("sb", 128, css("--cold"), { lineWidth: 1, lineStyle: 2 }); }
   if (S.ov_on.has("bb")) { line("bbu", 1, css("--violet"), { lineWidth: 1 }); line("bbl", 1, css("--violet"), { lineWidth: 1 }); }
@@ -3084,6 +3085,12 @@ async function renderPair() {
   ms.setData(rows.map(x => warm(x, 32) && isNum(x[ci.sig]) ? { time: x[0], value: x[ci.sig] } : { time: x[0] }));
   charts = [main, rsiC, mc]; let syncing = false;
   charts.forEach(c => c.timeScale().subscribeVisibleLogicalRangeChange(rg => { if (syncing || !rg) return; syncing = true; charts.forEach(o => o !== c && o.timeScale().setVisibleLogicalRange(rg)); syncing = false; }));
+  // a pattern in play on this chart: open zoomed on it (from a little before its first peak / rim to today), so it is readable
+  if (S.ov_on.has("mk") && (S.pairTf === "1d" || S.pairTf === "1w") && rows.length > 30) {
+    const starts = (ptData().rows || []).filter(x => x.symbol === S.pair && x.tf === S.pairTf && x.status !== "after_break").map(x => x.points.a[0])
+      .concat(S.pairTf === "1d" ? (hsData().rows || []).filter(x => x.symbol === S.pair && x.status !== "after_break").map(x => x.points.ls[0]) : []).filter(d => d >= rows[0][0]);
+    if (starts.length) { const t0 = starts.sort()[0], i0 = rows.findIndex(x => x[0] >= t0), n = rows.length, span = n - 1 - i0;
+      if (i0 > 0) { const from = Math.max(0, i0 - Math.round(0.15 * span) - 3); if (from > 0) try { main.timeScale().setVisibleLogicalRange({ from, to: n + Math.max(3, Math.round(0.08 * (n - from))) }); } catch (e) {} } } }
   const last = rows[rows.length - 1];
   const full = !!venueOf(S.pair), dur = rows.length && INTRA[S.pairTf] ? Math.round(rows.length / INTRA[S.pairTf].day) + " days" : "";
   const span = { "1h": "last " + dur + " of 1-hour candles (UTC times)", "4h": "last " + dur + " of 4-hour candles (UTC times)",
