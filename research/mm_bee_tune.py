@@ -18,7 +18,7 @@ import os
 import sqlite3
 import sys
 import time
-from multiprocessing import Pool
+import multiprocessing
 
 import _env  # noqa: F401
 import mm_bee_backtest as BT
@@ -80,7 +80,9 @@ def main():
             for fam, ch, tr in combos:
                 jobs.append((sym, path, fam, ch, tr, z, b, start, coins))
     res, t0 = {}, time.time()
-    with Pool(max(1, min(2, os.cpu_count() or 1))) as pool:
+    os.chdir(_env.HERE)                         # the ops user cannot read its own start directory's parent
+    ctx = multiprocessing.get_context("fork")   # Python 3.14 defaults to forkserver, which needs that directory
+    with ctx.Pool(max(1, min(2, os.cpu_count() or 1))) as pool:
         for k, (sym, path, nm, r) in enumerate(pool.imap_unordered(job, jobs, chunksize=2), 1):
             res.setdefault(sym, {}).setdefault(nm, {})[path] = r
             if k % 20 == 0:
