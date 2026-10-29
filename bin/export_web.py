@@ -511,6 +511,13 @@ def run(con=None):
         print(f"export_web: {len(hsd['rows'])} head-and-shoulders patterns, {hs.log(con, hsd, datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))} new posts")
     except Exception as e:
         print("export_web: head-and-shoulders skipped:", repr(e))
+    ptd = {"rows": [], "stats": {}, "labels": {}, "names": {}, "rules": {}}
+    try:                                         # double tops / bottoms and cup and handle, daily and weekly
+        import patterns
+        ptd = patterns.run(con)
+        print(f"export_web: {len(ptd['rows'])} double top / bottom and cup-and-handle patterns on {ptd['scanned']} pairs")
+    except Exception as e:
+        print("export_web: patterns skipped:", repr(e))
     try:                                         # the date each listed entry was first listed ("added")
         import first_seen as FS
         FS.stamp(con, "channel_calls", calls["rows"], lambda r: f"{r['symbol']}|{r['side']}", last,
@@ -519,6 +526,8 @@ def run(con=None):
                  lambda r: FS.feed_date(con, "hs_event", r["symbol"], "bearish" if r["kind"] == "top" else "bullish", since_days=180, today=last))
         FS.stamp(con, "channels", channels["rows"], lambda r: f"{r['symbol']}|{r['tf']}|{r['t0']}", last,
                  lambda r: str(r["event_t"])[:10] if r.get("event_t") else None)
+        FS.stamp(con, "patterns", ptd["rows"], lambda r: f"{r['symbol']}|{r['tf']}|{r['kind']}|{r['points']['a'][0]}", last,
+                 lambda r: r.get("first_date"))
         for row_ in lt["rows"]:
             row_["added"] = row_.get("event_date")
     except Exception as e:
@@ -535,6 +544,7 @@ def run(con=None):
     hl["channel_calls"] = calls
     hl["hs"] = hsd
     hl["ltbo"] = lt
+    hl["patterns"] = ptd
     write(os.path.join(OUT, "highlights.json"), hl)
     try:                                         # futures context: funding, open interest, long/short (public data)
         import derivatives

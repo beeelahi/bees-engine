@@ -134,6 +134,8 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .hx-av.up { background: var(--up-soft); color: var(--up); } .hx-av.down { background: var(--down-soft); color: var(--down); } .hx-av.warn { background: var(--warn-soft); color: var(--warn); }
 .hx-id { min-width: 0; flex: 1; } .hx-id b { font-size: 15.5px; font-weight: 650; } .hx-id small { color: var(--muted); margin-left: 2px; font-size: 11.5px; }
 .hx-id .hx-sub { color: var(--muted); font-size: 12px; line-height: 1.35; margin-top: 1px; }
+.hx-added { color: var(--muted); font-size: 11.5px; margin: -2px 0 6px; font-variant-numeric: tabular-nums; }
+.hx-added b { color: var(--text); font-weight: 600; }
 .hx-badges { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; max-width: 50%; }
 .hx-head { font-size: 14px; font-weight: 600; line-height: 1.35; }
 .hx-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
@@ -510,7 +512,9 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
         <button type="button" role="tab" data-p="shortlist" id="hlNavSL" hidden>Bee's Shortlist<i></i></button>
         <button type="button" role="tab" data-p="calls">Channel calls<i></i></button>
         <button type="button" role="tab" data-p="breakouts">Long-term breakouts<i></i></button>
-        <button type="button" role="tab" data-p="patterns">Patterns<i></i></button>
+        <button type="button" role="tab" data-p="patterns">H&amp;S and setups<i></i></button>
+        <button type="button" role="tab" data-p="cups">Cup &amp; handle<i></i></button>
+        <button type="button" role="tab" data-p="doubles">Double tops &amp; bottoms<i></i></button>
         <button type="button" role="tab" data-p="moves">Big 4h moves<i></i></button>
         <button type="button" role="tab" data-p="ideas">Signal confluence<i></i></button>
         <button type="button" role="tab" data-p="channels">Channels<i></i></button>
@@ -619,6 +623,42 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
             <div class="note" id="setupCluster" style="margin:0 0 12px; padding:10px 12px; border:1px solid var(--line); border-radius:10px" hidden></div>
             <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Setup</th><th>Side</th><th title="Median result 30 days after the setup (entry next open, no stop), before 2022">30d median ≤2021</th><th>Win ≤2021</th><th title="Same, from 2022 on">30d median 2022+</th><th>Win 2022+</th><th>Cases</th><th id="setupRegHead" title="Same setup, only on days with today's market regime (all years)">Today's regime</th></tr></thead><tbody id="setupStats"></tbody></table></div>
             <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th>Setup</th><th>Chart</th><th>Close</th><th title="Where the setup is wrong: beyond the swing high/low (+/- 0.5 ATR), or 1.5 ATR under a breakout">Invalidation</th><th title="Entry at the next open, out at the invalidation level if touched, else marked at the latest close (closed after 30 days). No fees.">So far</th><th>Liquidity</th></tr></thead><tbody id="setupBody"></tbody></table></div>
+          </div>
+        </div>
+      </details>
+    </div>
+    <div class="hl-panel" data-panel="cups" hidden>
+      <div class="hx-sec">
+        <div><h2>Cup &amp; handle</h2><p>Rounded bases with a shallow handle, on the daily and weekly chart of every pair we track. Bullish: the trigger is a close above the right rim.</p></div>
+        <div class="hx-sec-r"><div class="seg" id="hxCupTf"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="1w" aria-pressed="false">Weekly</button><button type="button" data-v="1d" aria-pressed="false">Daily</button></div><span class="note" id="hxNote-cups"></span></div>
+      </div>
+      <div class="hx-grid" id="hxGrid-cups"></div>
+      <details class="hx-more"><summary>Full table, rules and track record</summary>
+        <div class="hx-more-in">
+          <div class="card">
+            <div class="card-head"><h2>Cup &amp; handle: every pair</h2><span class="note" id="ptNote-cups"></span></div>
+            <p class="note" style="margin:0 0 12px" id="ptIntro-cups"></p>
+            <div class="tbl-wrap" style="max-height: 55vh; margin-bottom:12px"><table><thead><tr><th>Pair</th><th title="The day this entry was first listed here (signal issued)">Added</th><th>Chart</th><th>Pattern</th><th>Status</th><th title="The line that decides it: the neckline (doubles) or the right rim (cup), and the distance from the latest price">Line</th><th title="Measured move: line −/+ the pattern height (cup: rim + depth)">Target</th><th title="Before the break: beyond the higher peak (doubles) or the handle low (cup). After it: back through the line by 35% of the height">Invalid at</th><th title="First peak / left rim → second peak / right rim, and the pattern height">Shape</th><th>Broke / retested</th><th title="Since 2022, liquid pairs: median move in the pattern's direction (30 days daily, 90 days weekly) · share that beat the market · measured target hit">Record</th><th>Liquidity</th></tr></thead><tbody id="ptBody-cups"></tbody></table></div>
+            <div class="card-head" style="margin-top:4px"><h2 style="font-size:1rem">Track record</h2><span class="note">entry at the next open after the signal close · liquid pairs (≥ $2M a day) · 2022 on (before 2022 in brackets)</span></div>
+            <div class="tbl-wrap"><table><thead><tr><th>Chart</th><th>Pattern</th><th>Entry</th><th>Cases</th><th title="Median move in the pattern's direction over the horizon">Median move</th><th>Moved that way</th><th title="The move minus the average liquid coin's">vs market</th><th>Beat market</th><th title="As a trade: stop at the invalid level, measured target, first hit wins">Target hit · avg R</th></tr></thead><tbody id="ptStats-cups"></tbody></table></div>
+          </div>
+        </div>
+      </details>
+    </div>
+    <div class="hl-panel" data-panel="doubles" hidden>
+      <div class="hx-sec">
+        <div><h2>Double tops &amp; bottoms</h2><p>Two tests of the same high (top, bearish) or low (bottom, bullish), on the daily and weekly chart of every pair we track. The trigger is a close through the neckline.</p></div>
+        <div class="hx-sec-r"><div class="seg" id="hxDblKind"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="top" aria-pressed="false">Tops</button><button type="button" data-v="bottom" aria-pressed="false">Bottoms</button></div><div class="seg" id="hxDblTf"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="1w" aria-pressed="false">Weekly</button><button type="button" data-v="1d" aria-pressed="false">Daily</button></div><span class="note" id="hxNote-doubles"></span></div>
+      </div>
+      <div class="hx-grid" id="hxGrid-doubles"></div>
+      <details class="hx-more"><summary>Full table, rules and track record</summary>
+        <div class="hx-more-in">
+          <div class="card">
+            <div class="card-head"><h2>Double tops &amp; bottoms: every pair</h2><span class="note" id="ptNote-doubles"></span></div>
+            <p class="note" style="margin:0 0 12px" id="ptIntro-doubles"></p>
+            <div class="tbl-wrap" style="max-height: 55vh; margin-bottom:12px"><table><thead><tr><th>Pair</th><th title="The day this entry was first listed here (signal issued)">Added</th><th>Chart</th><th>Pattern</th><th>Status</th><th title="The line that decides it: the neckline (doubles) or the right rim (cup), and the distance from the latest price">Line</th><th title="Measured move: line −/+ the pattern height (cup: rim + depth)">Target</th><th title="Before the break: beyond the higher peak (doubles) or the handle low (cup). After it: back through the line by 35% of the height">Invalid at</th><th title="First peak / left rim → second peak / right rim, and the pattern height">Shape</th><th>Broke / retested</th><th title="Since 2022, liquid pairs: median move in the pattern's direction (30 days daily, 90 days weekly) · share that beat the market · measured target hit">Record</th><th>Liquidity</th></tr></thead><tbody id="ptBody-doubles"></tbody></table></div>
+            <div class="card-head" style="margin-top:4px"><h2 style="font-size:1rem">Track record</h2><span class="note">entry at the next open after the signal close · liquid pairs (≥ $2M a day) · 2022 on (before 2022 in brackets)</span></div>
+            <div class="tbl-wrap"><table><thead><tr><th>Chart</th><th>Pattern</th><th>Entry</th><th>Cases</th><th title="Median move in the pattern's direction over the horizon">Median move</th><th>Moved that way</th><th title="The move minus the average liquid coin's">vs market</th><th>Beat market</th><th title="As a trade: stop at the invalid level, measured target, first hit wins">Target hit · avg R</th></tr></thead><tbody id="ptStats-doubles"></tbody></table></div>
           </div>
         </div>
       </details>
@@ -1062,7 +1102,9 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <button class="toggle" type="button" data-o="bb" aria-pressed="false">Bollinger</button>
       <button class="toggle" type="button" data-o="st" aria-pressed="false">Supertrend</button>
       <button class="toggle" type="button" data-o="cloud" aria-pressed="false">Ichimoku cloud</button>
-      <button class="toggle" type="button" data-o="mk" aria-pressed="true">Signals on chart</button>
+      <button class="toggle" type="button" data-o="mk" aria-pressed="true" title="Head and shoulders, cup and handle, double tops / bottoms, tops and bottoms setups">Patterns</button>
+      <button class="toggle" type="button" data-o="sg" aria-pressed="false" title="Trade ideas (L / S) and divergences (D)">Ideas</button>
+      <button class="toggle" type="button" data-o="tr" aria-pressed="false" title="Paper bot buys (B) and sells (X)">Bot trades</button>
       <button class="toggle" type="button" data-o="ch" aria-pressed="true">Channel</button>
     </div>
     <div class="card">
@@ -1186,8 +1228,9 @@ const venueOf = sym => (S.ov && S.ov.venues && S.ov.venues[sym]) || null;      /
 function symNode(sym) { const s = document.createElement("span"); s.className = "sym"; s.textContent = sym.replace(/USDT$/, ""); const m = document.createElement("small"); m.textContent = "/USDT"; s.append(m);
   const v = venueOf(sym); if (v) { const t = document.createElement("small"); t.className = "venue"; t.textContent = " " + v; t.title = "Data from " + v + " (not listed on Binance)"; s.append(t); } return s; }
 const toObjs = t => t && t.columns ? t.rows.map(r => Object.fromEntries(t.columns.map((c, i) => [c, r[i]]))) : [];
+const agoDays = a => { const ref = (S.ov && S.ov.last_date) || a, n = Math.round((Date.parse(ref) - Date.parse(a)) / 864e5); return isNaN(n) ? null : Math.max(0, n); };
 function addedTd(x) { const a = x && x.added; if (!a) return td("—", "cold");
-  const ref = (S.ov && S.ov.last_date) || a, n = Math.max(0, Math.round((Date.parse(ref) - Date.parse(a)) / 864e5));
+  const n = agoDays(a);
   const c = td(a.slice(5) + " · " + (n ? n + "d" : "new"), "num"); c.title = "Listed here since " + a + " (UTC daily close)"; return c; }
 const daysAgo = (d, n) => new Date(Date.parse(d) - n * 864e5).toISOString().slice(0, 10);
 
@@ -1595,7 +1638,7 @@ function renderChannels() {
   renderCallsAll(); renderMoves(); renderHs(); renderLtbo();
 }
 // ---------- Highlights: one feed + sections (#highlights/<section>)
-const HL_PANELS = ["latest", "shortlist", "calls", "breakouts", "patterns", "moves", "ideas", "channels", "bots"];
+const HL_PANELS = ["latest", "shortlist", "calls", "breakouts", "patterns", "cups", "doubles", "moves", "ideas", "channels", "bots"];
 const slRows = () => (S.pubSL && S.pubSL.rows) || (SL.owner ? SL.docs : []) || [];
 function hlFeedItems() {
   const cat = h => isBotHl(h) ? "bot" : ["chan_call", "ltbo", "hs_event"].includes(h.kind) ? h.kind : "sig";
@@ -1669,11 +1712,13 @@ function hlCounts() {
   set("calls", (callData().rows || []).length);
   set("breakouts", (ltData().rows || []).filter(x => x.days_since <= 30).length);
   set("patterns", (hsData().rows || []).filter(x => x.status !== "after_break").length);
+  set("cups", (ptData().rows || []).filter(x => x.family === "cup" && x.status !== "after_break").length);
+  set("doubles", (ptData().rows || []).filter(x => x.family === "double" && x.status !== "after_break").length);
   set("moves", ((S.mv && S.mv.rows) || []).filter(x => !/_30d$/.test(x.kind) && x.t * 1000 > Date.now() - 864e5).length);
   const ld = latestIdeaDay(); set("ideas", ideas().filter(x => x.date === ld).length);
   set("bots", S.hl.filter(isBotHl).filter(h => S.ov && h.period_start >= S.ov.last_date).length);
   $$("#hlNav button").forEach(b => { const v = n[b.dataset.p]; b.querySelector("i").textContent = v ? String(v) : "";
-    b.title = { latest: "new since your last visit", shortlist: "active picks", calls: "current channel calls", breakouts: "in the last 30 days", patterns: "active head-and-shoulders patterns",
+    b.title = { latest: "new since your last visit", shortlist: "active picks", calls: "current channel calls", breakouts: "in the last 30 days", patterns: "active head-and-shoulders patterns", cups: "cups near or through the rim (daily and weekly)", doubles: "double tops and bottoms near or through the neckline (daily and weekly)",
       moves: "in the last 24 hours", ideas: "from the latest daily close", bots: "bot actions at the latest daily close" }[b.dataset.p] || ""; });
 }
 function setHlPanel(p) {
@@ -1700,6 +1745,7 @@ function hxCard(o) {
   if (o.sub) id.append(hxEl("div", "hx-sub", o.sub));
   const bd = hxEl("div", "hx-badges"); (o.badges || []).forEach(b => b && bd.append(b));
   top.append(hxAv(o.sym, o.dir, o.av), id, bd); c.append(top);
+  if (o.added) { const a = hxEl("div", "hx-added"), n = agoDays(o.added); a.append("Added ", hxEl("b", "", o.added), n == null ? "" : n ? ` · ${n} day${n > 1 ? "s" : ""} ago` : " · today"); a.title = "The day this entry was first listed here (signal issued)"; c.append(a); }
   if (o.head) c.append(hxEl("div", "hx-head", o.head));
   if (o.metrics && o.metrics.length) { const m = hxEl("div", "hx-metrics");
     o.metrics.forEach(x => { if (!x) return; const d = hxEl("div"); d.append(hxEl("span", "", x[0])); const v = hxEl("b", x[2] || "", x[1]); d.append(v); if (x[3]) d.append(hxEl("small", "", x[3])); if (x[4]) d.title = x[4]; m.append(d); });
@@ -1779,7 +1825,7 @@ function hxChannels() {
   const rows = (D.rows || []).filter(x => x.tf === tf && x.status !== "inside").sort((a, b) => (b.days >= 365) - (a.days >= 365) || b.quality - a.quality).slice(0, 48);
   hxFill("channels", rows.map(x => { const mid = (x.lo1 + x.hi1) / 2, bar = hxEl("div"), b = hxEl("div", "hx-bar"), dot = hxEl("i"), p = Math.max(-0.08, Math.min(1.08, x.pos));
     dot.style.left = (100 * (p + 0.08) / 1.16) + "%"; b.append(dot); const lb = hxEl("div", "hx-barl"); lb.append(hxEl("span", "", "Bottom"), hxEl("span", "", "Middle"), hxEl("span", "", "Top")); bar.append(b, lb);
-    return hxCard({ sym: x.symbol, dir: CH_UP[x.status] || "neutral", tf: x.tf, sub: `${Math.round(x.days)}-day ${chWord(x)} channel · ${x.touches.join("/")} touches`,
+    return hxCard({ sym: x.symbol, dir: CH_UP[x.status] || "neutral", tf: x.tf, added: x.added, sub: `${Math.round(x.days)}-day ${chWord(x)} channel · ${x.touches.join("/")} touches`,
       badges: [chip(x.tf === "4h" ? "4h" : "Daily", "neutral")], head: (D.labels || {})[x.status] || x.status, bar,
       metrics: [["Bottom", fPx(x.lo1), "", fPct(x.to_bottom_pct, 1)], ["Middle", fPx(mid), "", fPct(x.to_mid_pct, 1)], ["Top", fPx(x.hi1), "", fPct(x.to_top_pct, 1)]],
       foot: "Quality " + fN(x.quality, 1) + " · width " + fN(x.width_pct, 0) + "%" + (x.hist && isNum(x.hist.rel30) ? ` · record ${fPct(x.hist.rel30, 1)} vs market` : "") }); }),
@@ -1862,7 +1908,7 @@ function hxFeedCard(x) {
     head: kindText(h), note: hlEvidence(h), foot: h.period_start });
 }
 function callCard(x) { const D = chanData(), ch = x.channel || {}, long = x.side === "long";
-    return hxCard({ sym: x.symbol, dir: x.side, sub: `${Math.round(ch.days || 0)}-day ${chWord(ch)} channel · ${(ch.touches || []).join("/")} touches`,
+    return hxCard({ sym: x.symbol, dir: x.side, added: x.added, sub: `${Math.round(ch.days || 0)}-day ${chWord(ch)} channel · ${(ch.touches || []).join("/")} touches`,
       badges: [chip(long ? "Long" : "Short", long ? "up" : "down"), chip("Grade " + x.grade, x.grade === "A" ? "warn" : "neutral")],
       head: (D.labels || {})[x.status] || x.status,
       metrics: [["Price", fPx(x.close)], ["Stop", fPx(x.stop), "", isNum(x.risk_pct) ? (long ? "−" : "+") + fN(x.risk_pct, 1) + "%" : ""], ["Target", fPx(x.t1), long ? "pos" : "neg", pctTo(x.t1, x.close)], ["Reward : risk", isNum(x.rr) ? fN(x.rr, 1) + "×" : "—"]],
@@ -1870,7 +1916,7 @@ function callCard(x) { const D = chanData(), ch = x.channel || {}, long = x.side
       foot: `${x.date} · bull score ${x.bull_score}/10` + (x.hist && isNum(x.hist.rel30) ? ` · record ${fPct(x.hist.rel30, 1)} vs market` : "") });
   }
 function ltCard(x) { const ck = x.checks || {}, wk = x.weekly;
-    return hxCard({ sym: x.symbol, dir: x.grade === "A" ? "up" : x.grade === "C" ? "down" : "neutral", sub: `${Math.round(ck.days || 0)}-day channel · broke out ${x.event_date} (${x.days_since}d ago)`,
+    return hxCard({ sym: x.symbol, dir: x.grade === "A" ? "up" : x.grade === "C" ? "down" : "neutral", added: x.added, sub: `${Math.round(ck.days || 0)}-day channel · broke out ${x.event_date} (${x.days_since}d ago)`,
       badges: [chip("Grade " + x.grade, x.grade === "A" ? "up" : x.grade === "C" ? "down" : "neutral"), chip(wk === "held" ? "Weekly close held" : wk === "failed" ? "Weekly close failed" : "Weekly close pending", wk === "held" ? "up" : wk === "failed" ? "down" : "neutral")],
       metrics: [["Since", fPct(x.since_pct, 1), cls(x.since_pct)], ["Best", fPct(x.max_pct, 1), "pos"], ["Line now", fPx(x.line_now)], ["Width target", isNum(x.target_width) ? fPx(x.target_width) : "—", "", isNum(x.target_width) ? pctTo(x.target_width, x.price) : ""]],
       tags: [["RSI " + (ck.rsi ?? "—") + (ck.rsi_ok ? " in 55-75" : ck.rsi > 75 ? " overheated" : " weak"), ck.rsi_ok ? "ok" : "no"], [ck.flat_or_falling ? "From a range or downtrend" : "From an uptrend channel", ck.flat_or_falling ? "ok" : "no"],
@@ -1878,11 +1924,58 @@ function ltCard(x) { const ck = x.checks || {}, wk = x.weekly;
       foot: x.hist && isNum(x.hist.med90) ? `Grade ${x.grade} record: ${fPct(x.hist.med90, 1)} median after 90 days · doubled ${x.hist.x2}%` : "Long-term breakout" });
   }
 function hsCardX(x) { const top = x.kind === "top", P = x.points || {};
-    return hxCard({ sym: x.symbol, dir: top ? "down" : "up", sub: (P.ls ? `${P.ls[0].slice(5)} → ${P.head[0].slice(5)} → ${P.rs[0].slice(5)}` : "") + ` · ${x.days}-day pattern`,
+    return hxCard({ sym: x.symbol, dir: top ? "down" : "up", added: x.added, sub: (P.ls ? `${P.ls[0].slice(5)} → ${P.head[0].slice(5)} → ${P.rs[0].slice(5)}` : "") + ` · ${x.days}-day pattern`,
       badges: [chip(top ? "H&S top" : "Inverse H&S", top ? "down" : "up")], head: HS_ST[x.status] || x.status,
       metrics: [["Neckline", fPx(x.neck), "", fPct(x.to_neck_pct, 1)], ["Target", fPx(x.target), top ? "neg" : "pos", fPct(x.to_target_pct, 1)], ["Invalid at", fPx(x.stop)]],
       foot: (x.break_date ? "Broke " + x.break_date + (x.retest_date ? " · retest " + x.retest_date : "") : "Not broken yet") + (x.hist && isNum(x.hist.med30) ? ` · record ${fPct(x.hist.med30, 1)} after 30d` : "") }); }
-function renderHx() { hxShortlist(); hxCalls(); hxBreakouts(); hxPatterns(); hxMoves(); hxIdeas(); hxChannels(); }
+const ptData = () => (S.hlMeta && S.hlMeta.patterns) || { rows: [], stats: {}, labels: {}, names: {} };
+const PT_FAM = { cups: x => x.family === "cup", doubles: x => x.family === "double" };
+const ptBear = x => x.kind === "top";
+const ptRec = x => { const h = x.hist; return h && isNum(h.med) ? `since 2022 ${h.win}% went its way in ${x.tf === "1w" ? 90 : 30}d` + (isNum(h.target) ? `, ${h.target}% hit target` : "") : ""; };
+function ptRows(name) {
+  const f = name === "cups" ? { tf: S.hxCupTf || "" } : { tf: S.hxDblTf || "", kind: S.hxDblKind || "" };
+  return (ptData().rows || []).filter(x => PT_FAM[name](x) && (!f.tf || x.tf === f.tf) && (!f.kind || x.kind === f.kind));
+}
+function ptCard(x) { const bear = ptBear(x), P = x.points || {}, L = (ptData().labels || {});
+  return hxCard({ sym: x.symbol, dir: bear ? "down" : "up", tf: x.tf, added: x.added,
+    sub: `${P.a ? P.a[0] : ""} → ${P.z ? P.z[0] : ""} · ${fN(x.height_pct, 0)}% ${x.family === "cup" ? "deep" : "high"}`,
+    badges: [chip(x.name, bear ? "down" : "up"), chip(x.tf === "1w" ? "Weekly" : "Daily", "neutral")], head: L[x.status] || x.status,
+    metrics: [[x.family === "cup" ? "Rim" : "Neckline", fPx(x.line), "", fPct(x.to_line_pct, 1)], ["Target", fPx(x.target), bear ? "neg" : "pos", fPct(x.to_target_pct, 1)],
+      ["Invalid at", fPx(x.stop), "", isNum(x.to_stop_pct) ? fPct(x.to_stop_pct, 1) : ""], ["Price", fPx(x.close)]],
+    foot: (x.break_date ? "Broke " + x.break_date + (x.retest_date ? " · retest " + x.retest_date : "") : "Not broken yet") + (ptRec(x) ? " · " + ptRec(x) : "") }); }
+function hxPt(name) {
+  if (name === "cups") hxSeg("hxCupTf", "hxCupTf", () => hxPt("cups")); else { hxSeg("hxDblTf", "hxDblTf", () => hxPt("doubles")); hxSeg("hxDblKind", "hxDblKind", () => hxPt("doubles")); }
+  const all = ptRows(name), act = all.filter(x => x.status !== "after_break");
+  const w = act.filter(x => x.tf === "1w").length;
+  hxFill(name, act.map(ptCard), name === "cups" ? "No cup and handle near or through its rim in this selection." : "No double top or bottom near or through its neckline in this selection.",
+    act.length ? `${act.length} in play · ${w} weekly · ${act.filter(x => x.status === "retest").length} retesting` : "");
+  renderPtTable(name, all);
+}
+function renderPtTable(name, rows) {
+  const D = ptData(), L = D.labels || {}, body = $("#ptBody-" + name); if (!body) return; body.replaceChildren(); const frag = document.createDocumentFragment();
+  rows.forEach(x => { const t = document.createElement("tr"), bear = ptBear(x), P = x.points || {}, h = x.hist; t.className = "clickable"; t.onclick = () => openPair(x.symbol, x.tf);
+    t.append(tdNode(symNode(x.symbol)), addedTd(x), td(x.tf === "1w" ? "Weekly" : "Daily", ""), tdNode(chip(x.name, bear ? "down" : "up")),
+      tdNode(chip(L[x.status] || x.status, x.status === "after_break" ? "neutral" : bear ? "down" : "up")),
+      td(fPx(x.line) + " (" + fPct(x.to_line_pct, 1) + ")", "num"), td(fPx(x.target) + " (" + fPct(x.to_target_pct, 1) + ")", "num " + cls(x.to_target_pct)), td(fPx(x.stop), "num"),
+      td((P.a ? P.a[0].slice(2) + " → " + P.z[0].slice(2) : "") + " · " + fN(x.height_pct, 0) + "%", ""),
+      td((x.break_date ? x.break_date.slice(2) : "—") + (x.retest_date ? " / " + x.retest_date.slice(2) : ""), "num"),
+      h && isNum(h.med) ? td(fPct(h.med, 1) + " · beat " + h.beat + "% · target " + (isNum(h.target) ? h.target + "%" : "—"), "num " + cls(h.med)) : td("—", "cold"), td("#" + x.liq_rank, "num")); frag.append(t); });
+  body.append(frag);
+  if (!rows.length) body.innerHTML = '<tr><td colspan="12" class="empty">No pattern matches this filter right now.</td></tr>';
+  const n = $("#ptNote-" + name); if (n) n.textContent = `${rows.length} listed · ${D.scanned || 0} pairs scanned`;
+  const ru = (D.rules || {}).tf || {}, d1 = ru["1d"] || {}, w1 = ru["1w"] || {};
+  $("#ptIntro-" + name).textContent = name === "cups"
+    ? `Cup: a left and a right rim at about the same level (within a quarter of the depth), a rounded low in between (the price spends at least 40% of the cup in its lower third, so a sharp V does not count), ${Math.round(100 * (d1.depth || [0.12])[0])}-${Math.round(100 * (d1.depth || [0, 0.55])[1])}% deep on the daily chart (${(d1.cup || [35])[0]}-${(d1.cup || [0, 330])[1]} days) and ${Math.round(100 * (w1.depth || [0.15])[0])}-${Math.round(100 * (w1.depth || [0, 0.7])[1])}% on the weekly (${(w1.cup || [8])[0]}-${(w1.cup || [0, 120])[1]} weeks), after a run-up into the left rim. Handle: the pullback after the right rim, staying in the upper half of the cup and lasting at most a third of the cup. Breakout: the first close above the right rim; target: rim + depth; invalid below the handle low (after the break: back under the rim by 35% of the depth). Weekly patterns count only after the Sunday close.`
+    : `Two swing highs (top) or lows (bottom) within a quarter of the pattern height of each other (and within 6%), nothing in between beyond them, at least ${Math.round(100 * (d1.min_h || 0.08))}% high on the daily chart and ${Math.round(100 * (w1.min_h || 0.15))}% on the weekly, after a real move into the pattern. Neckline: the extreme between the two peaks. Break: the first close through it; target: neckline −/+ the height; invalid beyond the higher peak before the break, or back through the neckline by 35% of the height after it. Weekly patterns count only after the Sunday close.`;
+  const sb = $("#ptStats-" + name); sb.replaceChildren(); const ST = D.stats || {};
+  Object.keys(ST).filter(k => name === "cups" ? k.includes(":cup:") : !k.includes(":cup:")).sort().forEach(k => { const [tf, kind, e] = k.split(":"), z = ST[k], Lt = z.late, E = z.early;
+    if (!Lt || !isNum(Lt.med)) return; const bear = kind === "top", t = document.createElement("tr");
+    t.append(td(tf === "1w" ? "Weekly · 90d" : "Daily · 30d", ""), tdNode(chip((D.names || {})[kind] || kind, bear ? "down" : "up")), td(L[e] || e, ""), td(Lt.n + (E && E.n ? " (" + E.n + ")" : ""), "num"),
+      td(fPct(Lt.med, 1) + (E && isNum(E.med) ? " (" + fPct(E.med, 1) + ")" : ""), "num " + cls(Lt.med)), td(Lt.win + "%", "num"), td(fPct(Lt.rel, 1), "num " + cls(Lt.rel)), td(Lt.beat + "%", "num"),
+      td(isNum(Lt.target) ? Lt.target + "% · " + (Lt.avg_r >= 0 ? "+" : "") + Lt.avg_r.toFixed(2) + "R" : "—", "num " + (isNum(Lt.avg_r) ? cls(Lt.avg_r) : ""))); sb.append(t); });
+  if (!sb.children.length) sb.innerHTML = '<tr><td colspan="9" class="empty">Track record not available yet.</td></tr>';
+}
+function renderHx() { hxShortlist(); hxCalls(); hxBreakouts(); hxPatterns(); hxPt("cups"); hxPt("doubles"); hxMoves(); hxIdeas(); hxChannels(); }
 function renderHighlights() {
   renderFeed(); hlCounts(); renderHx();
   $("#hlHeadNote").textContent = S.ov ? "Daily close " + S.ov.last_date + " · 4h and live data every 15 minutes" : "";
@@ -2823,24 +2916,29 @@ function chartMarkers(times) {
     let best = null; for (const x of times) { if (x <= d) best = x; else break; } return best; };
   const first = times[0], out = [];
   const add = (d, m) => { const t = at(d); if (t == null || (isTs ? t < first : t < first)) return; out.push({ time: t, ...m }); };
-  ((setupData().rows) || []).filter(x => x.symbol === sym).forEach(x => add(x.date, x.side === "long" ? { position: "belowBar", shape: "arrowUp", color: up, text: x.kind === "accum_breakout" ? "Breakout" : x.kind === "bottom_breakout" ? "Base BO" : "Bottom?" } : { position: "aboveBar", shape: "arrowDown", color: dn, text: x.kind === "hs_top" ? "H&S" : x.tf === "1w" ? "Top? (W)" : "Top?" }));
-  if (tf === "1d") ((setupData().rows) || []).filter(x => x.symbol === sym && x.pattern).forEach(x => { const P = x.pattern;
+  const on = k => S.ov_on.has(k), hsSym = (hsData().rows || []).some(x => x.symbol === sym);
+  if (on("mk")) ((setupData().rows) || []).filter(x => x.symbol === sym && !(hsSym && x.kind === "hs_top")).forEach(x => add(x.date, x.side === "long" ? { position: "belowBar", shape: "arrowUp", color: up, text: x.kind === "accum_breakout" ? "Breakout" : x.kind === "bottom_breakout" ? "Base BO" : "Bottom?" } : { position: "aboveBar", shape: "arrowDown", color: dn, text: x.kind === "hs_top" ? "H&S" : x.tf === "1w" ? "Top? (W)" : "Top?" }));
+  if (on("mk") && tf === "1d" && !hsSym) ((setupData().rows) || []).filter(x => x.symbol === sym && x.pattern).forEach(x => { const P = x.pattern;
     [["ls", "LS"], ["head", "H"], ["rs", "RS"]].forEach(([k, t]) => add(P[k][0], { position: "aboveBar", shape: "circle", color: warn, text: t })); });
-  if (tf === "1d") (hsData().rows || []).filter(x => x.symbol === sym).forEach(x => { const P = x.points, top = x.kind === "top";
+  if (on("mk") && tf === "1d") (hsData().rows || []).filter(x => x.symbol === sym).forEach(x => { const P = x.points, top = x.kind === "top";
     [["ls", "LS"], ["head", "H"], ["rs", "RS"]].forEach(([k, t]) => add(P[k][0], { position: top ? "aboveBar" : "belowBar", shape: "circle", color: top ? dn : up, text: t }));
     if (x.break_date) add(x.break_date, { position: top ? "belowBar" : "aboveBar", shape: top ? "arrowDown" : "arrowUp", color: top ? dn : up, text: "Neck break" });
     if (x.retest_date) add(x.retest_date, { position: top ? "aboveBar" : "belowBar", shape: "square", color: warn, text: "Retest" }); });
-  ideas().filter(x => x.symbol === sym).forEach(x => add(x.date, x.side === "long" ? { position: "belowBar", shape: "circle", color: up, text: "L" } : { position: "aboveBar", shape: "circle", color: dn, text: "S" }));
-  (S.bot && S.bot.bots || []).forEach(b => {
+  if (on("mk") && (tf === "1d" || tf === "1w")) (ptData().rows || []).filter(x => x.symbol === sym && x.tf === tf && x.status !== "after_break").forEach(x => { const P = x.points, bear = x.kind === "top", cup = x.family === "cup", col = bear ? dn : up;
+    if (cup) { add(P.a[0], { position: "aboveBar", shape: "circle", color: col, text: "Rim" }); add(P.z[0], { position: "aboveBar", shape: "circle", color: col, text: "Rim" }); add(P.t[0], { position: "belowBar", shape: "circle", color: col, text: "Cup" }); }
+    else [P.a, P.z].forEach((q, k) => add(q[0], { position: bear ? "aboveBar" : "belowBar", shape: "circle", color: col, text: (bear ? "Top " : "Bottom ") + (k + 1) }));
+    if (x.break_date) add(x.break_date, { position: bear ? "aboveBar" : "belowBar", shape: bear ? "arrowDown" : "arrowUp", color: col, text: cup ? "Breakout" : "Break" });
+    if (x.retest_date) add(x.retest_date, { position: bear ? "aboveBar" : "belowBar", shape: "square", color: warn, text: "Retest" }); });
+  if (on("sg")) ideas().filter(x => x.symbol === sym).forEach(x => add(x.date, x.side === "long" ? { position: "belowBar", shape: "circle", color: up, text: "L" } : { position: "aboveBar", shape: "circle", color: dn, text: "S" }));
+  if (on("tr")) (S.bot && S.bot.bots || []).forEach(b => {
     const P = b.paper || {};
-    [...(P.open || []), ...(P.closed || [])].filter(x => x.symbol === sym).forEach(x => { add(x.entry_date, { position: "belowBar", shape: "arrowUp", color: acc, text: "B " + b.name });
-      if (x.exit_date) add(x.exit_date, { position: "aboveBar", shape: "arrowDown", color: warn, text: "X " + b.name }); });
-    if (tf !== "1M") ((b.backtest || {}).trades || []).filter(x => x.symbol === sym).forEach(x => { add(x.entry_date, { position: "belowBar", shape: "circle", color: cold, text: "b" });
-      if (x.exit_date) add(x.exit_date, { position: "aboveBar", shape: "circle", color: cold, text: "x" }); });
+    [...(P.open || []), ...(P.closed || [])].filter(x => x.symbol === sym).forEach(x => { add(x.entry_date, { position: "belowBar", shape: "arrowUp", color: acc, text: "B" });
+      if (x.exit_date) add(x.exit_date, { position: "aboveBar", shape: "arrowDown", color: warn, text: "X" }); });
   });
-  S.sig.filter(x => x.symbol === sym && /_div_regular$/.test(x.signal) && (x.tf === "1d" || x.tf === tf)).forEach(x => add(x.period_start, x.direction === "bullish" ? { position: "belowBar", shape: "square", color: up, text: "D" } : { position: "aboveBar", shape: "square", color: dn, text: "D" }));
-  const key = t => typeof t === "number" ? t : Date.parse(t);
-  return out.sort((a, b) => key(a.time) - key(b.time));
+  if (on("sg")) S.sig.filter(x => x.symbol === sym && /_div_regular$/.test(x.signal) && (x.tf === "1d" || x.tf === tf)).forEach(x => add(x.period_start, x.direction === "bullish" ? { position: "belowBar", shape: "square", color: up, text: "D" } : { position: "aboveBar", shape: "square", color: dn, text: "D" }));
+  const key = t => typeof t === "number" ? t : Date.parse(t), seen = new Set();
+  // one marker per candle, side and label (repeated events on the same candle only stack and overlap)
+  return out.sort((a, b) => key(a.time) - key(b.time)).filter(m => { const k = m.time + "|" + m.position + "|" + m.text; if (seen.has(k)) return false; seen.add(k); return true; });
 }
 function renderPairProfile(r) {
   const sym = S.pair, box = $("#pairProf"), body = $("#pairProfBody"); box.replaceChildren(); body.replaceChildren();
@@ -2894,9 +2992,14 @@ async function renderPair() {
   const leg = (color, text) => { const s = document.createElement("span"); const i = document.createElement("i"); i.style.background = color; s.append(i, document.createTextNode(text)); lg.append(s); };
   if (S.ov_on.has("ema")) { leg("var(--warn)", "EMA21"); leg("var(--accent)", "EMA50"); leg("var(--muted)", "EMA200"); }
   if (S.ov_on.has("bb")) leg("var(--violet)", "Bollinger 20,2"); if (S.ov_on.has("st")) leg("var(--up)", "Supertrend 10,3"); if (S.ov_on.has("cloud")) leg("var(--cold)", "Ichimoku cloud A/B");
-  const chLs = S.ov_on.has("ch") && (S.pairTf === "1d" || S.pairTf === "4h") ? chanAll(S.pair, S.pairTf) : [], chL = chLs[0];
+  const chAll = S.ov_on.has("ch") && (S.pairTf === "1d" || S.pairTf === "4h") ? chanAll(S.pair, S.pairTf) : [], chLs = chAll.slice(0, 2), chL = chLs[0];
   chLs.forEach((x, k) => leg(["var(--soft-blue)", "var(--violet)", "var(--cold)"][k] || "var(--muted)", "Channel " + (k + 1) + ": " + ((chanData().labels || {})[x.status] || x.status).toLowerCase() + " · " + Math.round(x.days) + " days · " + x.touches[0] + "/" + x.touches[1] + " touches"));
   if (!chL && S.ov_on.has("ch") && (S.pairTf === "1d" || S.pairTf === "4h")) { const other = chanFor(S.pair, S.pairTf === "1d" ? "4h" : "1d"); if (other) { const s0 = document.createElement("span"); s0.textContent = "Channel on the " + (other.tf === "4h" ? "4h" : "daily") + " chart"; lg.append(s0); } }
+  if (S.ov_on.has("mk")) { (hsData().rows || []).filter(x => x.symbol === S.pair && S.pairTf === "1d").forEach(x => leg(x.kind === "top" ? "var(--down)" : "var(--up)", (x.kind === "top" ? "H&S top" : "Inverse H&S") + " · neckline " + fPx(x.neck) + " · target " + fPx(x.target)));
+    (ptData().rows || []).filter(x => x.symbol === S.pair && x.tf === S.pairTf).forEach(x => leg(x.kind === "top" ? "var(--down)" : "var(--up)", x.name + " (" + ((ptData().labels || {})[x.status] || x.status).toLowerCase() + ") · " + (x.family === "cup" ? "rim " : "neckline ") + fPx(x.line) + " · target " + fPx(x.target)));
+    const other = (ptData().rows || []).filter(x => x.symbol === S.pair && x.tf !== S.pairTf && x.status !== "after_break");
+    if (other.length && (S.pairTf === "1d" || S.pairTf === "1w")) { const s0 = document.createElement("span"); s0.textContent = other.map(x => x.name).join(", ") + " on the " + (other[0].tf === "1w" ? "weekly" : "daily") + " chart"; lg.append(s0); } }
+  if (chAll.length > 2) { const s0 = document.createElement("span"); s0.textContent = "+" + (chAll.length - 2) + " more channel" + (chAll.length > 3 ? "s" : "") + " in Trade Ideas › Channels"; lg.append(s0); }
   const n = document.createElement("span"); n.textContent = "Lines appear once each indicator is warmed up"; lg.append(n);
   charts.forEach(c => c.remove()); charts = [];
   renderPairProfile(r);
@@ -2927,12 +3030,13 @@ async function renderPair() {
   if (S.ov_on.has("bb")) { line("bbu", 1, css("--violet"), { lineWidth: 1 }); line("bbl", 1, css("--violet"), { lineWidth: 1 }); }
   const cs = main.addCandlestickSeries({ upColor: css("--up"), downColor: css("--down"), wickUpColor: css("--up"), wickDownColor: css("--down"), borderVisible: false, priceFormat: pf });
   cs.setData(rows.map(x => ({ time: x[0], open: x[ci.o], high: x[ci.h], low: x[ci.l], close: x[ci.c] })));
-  if (S.ov_on.has("mk")) { try { cs.setMarkers(chartMarkers(rows.map(x => x[0]))); } catch (e) {} }
+  if (["mk", "sg", "tr"].some(k => S.ov_on.has(k))) { try { cs.setMarkers(chartMarkers(rows.map(x => x[0]))); } catch (e) {} }
   if (S.ov_on.has("ema")) { line("e21", 2, css("--warn")); line("e50", 4, css("--accent")); line("e200", 8, css("--muted")); }
-  if (S.ov_on.has("mk") && S.pairTf === "1d") ((setupData().rows) || []).filter(x => x.symbol === S.pair && x.pattern && x.pattern.neck[0][0] >= rows[0][0]).forEach(x => {
+  const hsHere = (hsData().rows || []).some(x => x.symbol === S.pair);
+  if (S.ov_on.has("mk") && S.pairTf === "1d" && !hsHere) ((setupData().rows) || []).filter(x => x.symbol === S.pair && x.pattern && x.pattern.neck[0][0] >= rows[0][0]).forEach(x => {
     const nk = x.pattern.neck; main.addLineSeries({ color: css("--warn"), lineWidth: 2, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: pf })
       .setData([{ time: nk[0][0], value: nk[0][1] }, { time: nk[1][0], value: nk[1][1] }]);
-    if (isNum(x.target) && x.date < rows[rows.length - 1][0]) main.addLineSeries({ color: css("--down"), lineWidth: 1, lineStyle: 1, priceLineVisible: false, lastValueVisible: true, title: "H&S target", crosshairMarkerVisible: false, priceFormat: pf })
+    if (isNum(x.target) && x.date < rows[rows.length - 1][0]) main.addLineSeries({ color: css("--down"), lineWidth: 1, lineStyle: 1, priceLineVisible: false, lastValueVisible: true, title: "H&S target", crosshairMarkerVisible: false, priceFormat: pf, autoscaleInfoProvider: () => null })
       .setData([{ time: x.date, value: x.target }, { time: rows[rows.length - 1][0], value: x.target }]); });
   // head and shoulders: neckline from the first trough, extended past today; target as a dotted line
   if (S.ov_on.has("mk") && S.pairTf === "1d" && rows.length) (hsData().rows || []).filter(x => x.symbol === S.pair).forEach(x => {
@@ -2940,16 +3044,28 @@ async function renderPair() {
     const tEnd = new Date(Date.parse(n1[0]) + ext * 864e5).toISOString().slice(0, 10), vEnd = n1[1] + (P.neck_slope || 0) * ext;
     const o = { priceLineVisible: false, crosshairMarkerVisible: false, priceFormat: pf };
     main.addLineSeries({ color: css(top ? "--down" : "--up"), lineWidth: 2, lastValueVisible: false, ...o }).setData([{ time: n0[0], value: n0[1] }, { time: n1[0], value: n1[1] }, { time: tEnd, value: vEnd }]);
-    main.addLineSeries({ color: css(top ? "--down" : "--up"), lineWidth: 1, lineStyle: 1, lastValueVisible: true, title: (top ? "H&S" : "Inv. H&S") + " target", ...o }).setData([{ time: n1[0], value: x.target }, { time: tEnd, value: x.target }]); });
+    main.addLineSeries({ color: css(top ? "--down" : "--up"), lineWidth: 1, lineStyle: 1, lastValueVisible: true, title: (top ? "H&S" : "Inv. H&S") + " target", ...o, autoscaleInfoProvider: () => null }).setData([{ time: n1[0], value: x.target }, { time: tEnd, value: x.target }]); });
+  // double tops / bottoms and cups: the line from the first peak / left rim to a little past today, and the measured target
+  if (S.ov_on.has("mk") && (S.pairTf === "1d" || S.pairTf === "1w") && rows.length) (ptData().rows || []).filter(x => x.symbol === S.pair && x.tf === S.pairTf).forEach(x => {
+    const P = x.points, bear = x.kind === "top", col = css(bear ? "--down" : "--up"), t0 = P.a[0], lastT = rows[rows.length - 1][0]; if (t0 < rows[0][0]) return;
+    const step = S.pairTf === "1w" ? 7 : 1, ext = Math.max(S.pairTf === "1w" ? 4 : 10, Math.round(x.bars / 5)), tEnd = new Date(Date.parse(lastT) + ext * step * 864e5).toISOString().slice(0, 10);
+    const o = { priceLineVisible: false, crosshairMarkerVisible: false, priceFormat: pf };
+    const old = x.status === "after_break";                 // broken earlier: context only, a thin dashed line and no target
+    main.addLineSeries({ color: col, lineWidth: old ? 1 : 2, lineStyle: old ? 2 : 0, lastValueVisible: false, ...o }).setData([{ time: t0, value: x.line }, { time: tEnd, value: x.line }]);
+    if (old) return;
+    const tb = x.break_date ? (S.pairTf === "1w" ? new Date(Date.parse(x.break_date) - (new Date(x.break_date).getUTCDay() + 6) % 7 * 864e5).toISOString().slice(0, 10) : x.break_date) : P.z[0];
+    main.addLineSeries({ color: col, lineWidth: 1, lineStyle: 1, lastValueVisible: true, title: "Target", ...o, autoscaleInfoProvider: () => null }).setData([{ time: tb < t0 ? t0 : tb, value: x.target }, { time: tEnd, value: x.target }]); });
   // channels: drawn from a little before the first touch to a little past today (extended 8% left, 15% right)
-  if (S.ov_on.has("ch") && (S.pairTf === "1d" || S.pairTf === "4h") && rows.length) chanAll(S.pair, S.pairTf).forEach((x, k) => {
-    const cc = css(["--soft-blue", "--violet", "--cold"][k] || "--muted"), o = { lineWidth: k ? 1 : 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: pf };
+  // channels: the two best (the second thinner and without its midline), so the chart stays readable
+  if (S.ov_on.has("ch") && (S.pairTf === "1d" || S.pairTf === "4h") && rows.length) chanAll(S.pair, S.pairTf).slice(0, 2).forEach((x, k) => {
+    const cc = css(["--soft-blue", "--violet", "--cold"][k] || "--muted"), o = { lineWidth: k ? 1 : 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: pf,
+      autoscaleInfoProvider: () => null };                 // a wide channel never squeezes the candles: the price scale follows the candles only
     const a = Math.max(chBar(x, rows[0][0]), -(x.bars - 1) - Math.round(0.08 * x.bars)), b = Math.min(Math.round(0.15 * x.bars), x.tf === "4h" ? 240 : 180);
     if (a >= b) return;
     const ta = chTime(x, a), tb = chTime(x, b), la = chLines(x, a), lb = chLines(x, b);
     main.addLineSeries({ color: cc, ...o }).setData([{ time: ta, value: la[0] }, { time: tb, value: lb[0] }]);
     main.addLineSeries({ color: cc, ...o }).setData([{ time: ta, value: la[1] }, { time: tb, value: lb[1] }]);
-    main.addLineSeries({ color: cc, ...o, lineWidth: 1, lineStyle: 2 }).setData([{ time: ta, value: (la[0] + la[1]) / 2 }, { time: tb, value: (lb[0] + lb[1]) / 2 }]); });
+    if (!k) main.addLineSeries({ color: cc, ...o, lineWidth: 1, lineStyle: 2 }).setData([{ time: ta, value: (la[0] + la[1]) / 2 }, { time: tb, value: (lb[0] + lb[1]) / 2 }]); });
   if (S.ov_on.has("st")) { const s = main.addLineSeries({ lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: pf });
     s.setData(rows.map(x => warm(x, 64) && isNum(x[ci.st]) ? { time: x[0], value: x[ci.st], color: x[ci.st] < x[ci.c] ? css("--up") : css("--down") } : { time: x[0] })); }
   const vs = main.addHistogramSeries({ priceScaleId: "vol", priceFormat: { type: "volume" }, lastValueVisible: false, priceLineVisible: false });
@@ -2973,7 +3089,8 @@ async function renderPair() {
   const span = { "1h": "last " + dur + " of 1-hour candles (UTC times)", "4h": "last " + dur + " of 4-hour candles (UTC times)",
     "1d": full ? "complete daily history since listing" : "last 2 years of daily candles", "1w": full ? "complete weekly history" : "last 3 years of weekly candles", "1M": "every monthly candle since listing" }[S.pairTf];
   $("#pairNote").textContent = "Showing the " + span + "." + (last && !(last[ci.x] & 1) ? " The last candle hasn't closed yet, so its values can still change." : "") + " Orange volume bars mark RVOL ≥ 3×." +
-    (S.ov_on.has("mk") ? " Markers: ▼ possible top, ▲ possible bottom or breakout, LS / H / RS a head-and-shoulders top (orange dashed line = neckline, red line = measured target), L / S trade ideas, B / X bot buys and sells (paper), small b / x backtest trades, D divergences." : "");
+    (S.ov_on.has("mk") ? " Patterns: solid line = neckline or rim (red bearish, green bullish), dotted line = measured target; Top 1 / Top 2, Bottom 1 / 2, Rim / Cup and LS / H / RS mark the swing points, arrows the break, squares the retest; ▼ / ▲ possible tops and bottoms." : "") +
+    (S.ov_on.has("sg") ? " Ideas: L / S trade ideas, D divergences." : "") + (S.ov_on.has("tr") ? " Bot trades: B buys, X sells (paper)." : "");
   const ps = $("#pairSig"); ps.replaceChildren(); S.sig.filter(s => s.symbol === S.pair && s.tf === (INTRA[S.pairTf] ? "1d" : S.pairTf)).slice(0, 60).forEach(s => ps.append(sigRow(s, false)));
   if (!ps.children.length) ps.innerHTML = '<tr><td colspan="5" class="empty">No recent events on this timeframe.</td></tr>';
 }

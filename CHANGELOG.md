@@ -5,6 +5,10 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- Cup & handle and Double tops & bottoms (Bilal): bin/patterns.py scans every tracked pair (universe, not stablecoins, 20-day volume >= $200K or added on purpose) on the daily chart and on complete weekly candles; statuses near the line / handle, broken, retest, broken earlier; target = measured move; two new Trade Ideas sections with cards, a full table, the rules and the track record, and the patterns drawn on the pair chart (daily and weekly). Track record from research/patterns_bt.py (liquid pairs, 2022 on, next-open entry): see docs/RESEARCH.md.
+- "Added" date on every listed entry (Bilal): channel calls, head and shoulders, channels, cup & handle, double tops / bottoms (bin/first_seen.py keeps the first day an entry was listed while it stays listed; long-term breakouts keep their breakout date), on the cards and in the tables.
+### Changed
+- Pair chart, cleaner: separate toggles for Patterns (on), Ideas and Bot trades (off by default); no backtest-trade dots; one marker per candle and label; at most two channels drawn (the second without a midline); channel and target lines no longer stretch the price scale; broken-earlier patterns drawn thin and dashed without a target; the setups' head-and-shoulders is not drawn twice; the legend names each pattern drawn with its line and target.
 - MM-Bee periods 15-D, 1-M, 3-M, 6-M and 1-Y (Bilal): every backtest period ends at the latest hour and starts at the 00:00 UTC close that many days earlier, for all four bots and for the other-coin study; MM Bots and Backtest switch between them. Lighter data (compact hourly points, no duplicated run).
 ### Fixed
 - binance_sync: a local `import subprocess` shadowed the module import (CI ruff F823) — removed before it deployed.

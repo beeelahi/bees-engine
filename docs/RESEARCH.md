@@ -88,3 +88,25 @@ Reading: entering during the day on a stop order catches many breakouts that fai
 volume confirmation are the edge). Waiting for a retracement misses the strongest moves, which rarely come back.
 Taking profit earlier raises the win rate (42% -> 55%) and lowers the drawdown, but gives up more return than it saves
 in drawdown. Decision: rules unchanged; entries and stops are now shown live, hour by hour.
+
+## Cup & handle, double tops and bottoms (29 Oct 2026, research/patterns_bt.py)
+Rules in bin/patterns.py. Liquid pairs (20-day volume >= $2M at the signal), no look-ahead (a swing point counts P candles later; weekly patterns only after the Sunday close), entry at the next daily open in the pattern's direction (top down, bottom and cup up). Horizon 30 days for daily patterns, 90 for weekly. "vs market" = the move minus the average liquid coin's, direction-adjusted. As a trade: stop at the invalid level, measured target, first hit wins, R capped at -1.5.
+
+| Pattern, entry (2022 on) | Cases | Median move its way | Went its way | vs market | Beat market | Target hit | Avg R |
+|---|---|---|---|---|---|---|---|
+| Daily double top, near neckline | 281 | +8.5% | 65% | -0.2% | 49% | 30% | +0.07 |
+| Daily double top, break | 323 | +9.0% | 68% | +0.8% | 53% | 37% | +0.25 |
+| Daily double top, retest | 117 | +5.3% | 61% | -0.2% | 50% | 31% | +0.06 |
+| Daily double bottom, near neckline | 804 | -5.0% | 43% | +0.8% | 53% | 47% | +0.16 |
+| Daily double bottom, break | 1245 | -9.0% | 40% | -1.5% | 46% | 45% | +0.15 |
+| Daily double bottom, retest | 324 | -6.1% | 42% | +0.7% | 52% | 40% | +0.07 |
+| Daily cup & handle, handle | 304 | 0.0% | 50% | +1.9% | 55% | 19% | +0.16 |
+| Daily cup & handle, breakout | 228 | -5.3% | 42% | -0.9% | 46% | 40% | +0.09 |
+| Daily cup & handle, retest | 98 | -4.6% | 44% | +3.8% | 57% | 40% | +0.17 |
+| Weekly double bottom, near neckline | 125 | -4.0% | 45% | +0.7% | 53% | 52% | +0.23 |
+| Weekly double bottom, break | 284 | -17.4% | 34% | -1.7% | 45% | 50% | +0.09 |
+| Weekly cup & handle, handle | 23 | +9.8% | 61% | -1.5% | 48% | 26% | +0.49 |
+| Weekly cup & handle, breakout | 14 | +22.3% | 71% | -8.2% | 36% | 50% | +0.64 |
+
+Honest read: since 2022 most altcoins fell, so tops "worked" and bottoms mostly did not in absolute terms; against the average coin none of these is a strong edge on its own (beat-market 45-57%). As trades with a stop at the invalid level and the measured target, every daily variant has a small positive average R (+0.06 to +0.25), driven by targets being hit 30-50% of the time. Weekly cups are rare (fewer than 25 cases each): treat their numbers as anecdotes. The cup roundness rule matters: with a looser rule (V shapes allowed) daily cups had about zero average R. Use these as context and levels (where it is wrong, where it targets), not as stand-alone signals.
+
