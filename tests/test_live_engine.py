@@ -286,5 +286,54 @@ class LiveEngineTest(unittest.TestCase):
         self.assertEqual(len(self.E(ex).positions("closed")), 1)
 
 
+    def test_failed_cancels_never_stack_protection(self):
+        ex = Ex()
+        self.run_(ex, {"orders": [ORDER]})
+        ex.fail["cancel"] = {"times": 2}
+        moved = dict(OPEN, stop=1990.0)                              # the paper bot raises the stop
+        self.run_(ex, {"open": [moved], "orders": []})
+        live = [o for o in ex.o.values() if o["status"] == "NEW" and o["kind"] in ("tp", "stop") and not o.get("list", "").endswith("x")]
+        locked = ex.locked["ETH"]
+        self.assertLessEqual(locked, 0.15 + 1e-9)                    # never more than the bot's own coins locked
+        self.assertTrue(live)
+        self.run_(ex, {"open": [moved], "orders": []})               # cancels work now: the move goes through
+        self.assertAlmostEqual(self.E(ex).positions()[0]["stop"], 1990.0)
+        self.assertLessEqual(ex.locked["ETH"], 0.15 + 1e-9)
+
+    def test_lost_sell_is_resolved_even_if_the_exit_reason_goes_away(self):
+        ex = Ex()
+        self.run_(ex, {"orders": [ORDER]})
+        ex.p["ETHUSDT"] = 1890.0                                     # gap below stop and stop-limit
+        ex.fail["sell"] = {"lost": True}
+        self.run_(ex, {"open": [OPEN], "orders": []})
+        ex.p["ETHUSDT"] = 2000.0                                     # price recovers: no exit condition any more
+        self.run_(ex, {"open": [dict(OPEN, stop=1990.0)], "orders": []})
+        self.assertEqual(self.E(ex).positions(), [])                 # the lost sell was found and booked
+        self.assertAlmostEqual(ex.free["ETH"], 0.5, places=4)        # owner's coins neither sold nor locked
+        self.assertAlmostEqual(ex.locked["ETH"], 0.0, places=6)
+
+    def test_stop_above_the_price_sells_instead(self):
+        ex = Ex()
+        self.run_(ex, {"orders": [ORDER]})
+        ex.p["ETHUSDT"] = 1995.0                                     # between the old stop and the new one
+        self.run_(ex, {"open": [dict(OPEN, stop=2000.0)], "orders": []})
+        self.assertEqual(self.E(ex).positions(), [])
+        self.assertAlmostEqual(ex.free["ETH"], 0.5, places=4)
+
+    def test_bad_symbol_in_balance_check_does_not_stop_the_run(self):
+        ex = Ex()
+        o2 = dict(ORDER, symbol="BTCUSDT", ref_close=60000.0, stop_dist=1800.0, signal_date="2026-10-27")
+        self.run_(ex, {"orders": [ORDER, o2]})
+        real = ex.filters
+
+        def filters(sym):
+            if sym == "ETHUSDT":
+                raise ExchangeError(-1121, "Invalid symbol.", 400)
+            return real(sym)
+        ex.filters = filters
+        self.run_(ex, {"open": [OPEN], "closed": [{"symbol": "BTCUSDT", "signal_date": "2026-10-27", "reason": "x"}], "orders": []})
+        self.assertFalse([p for p in self.E(ex).positions() if p["symbol"] == "BTCUSDT"])
+
+
 if __name__ == "__main__":
     unittest.main()

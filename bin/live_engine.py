@@ -161,11 +161,20 @@ class Engine:
         """Exchange-side protection: OCO on one third (+2R / stop) until the take-profit has filled, stop-limit on
         the rest. Each id is saved BEFORE its order is sent; a lost reply is checked on the next run."""
         sym, buf = p["symbol"], self.c["stop_limit_buffer_pct"] / 100.0
+        if not self.shadow:
+            if self.protection_live(self.row(p["id"])):   # old orders not (yet) cancelled: never stack new ones on
+                return self.act(sym, "protection waiting", {"reason": "earlier protective orders still on the book; retried next run"})
+            px = self.ex.price(sym)
+            if px <= p["stop"] * 1.001:                    # a stop at or above the price would be refused: sell now
+                return self.close(p, "price at or below the stop")
         n = 1 + (self.con.execute("SELECT COALESCE(MAX(prot_n),0) FROM positions WHERE id=?", (p["id"],)).fetchone()[0] or 0)
         self.con.execute("UPDATE positions SET prot_n=? WHERE id=?", (n, p["id"]))
         third = self.ex.qty(sym, p["qty_open"] / 3.0) if not p["partial_done"] else 0
+        if third > 0 and not self.shadow and self.ex.price(sym) >= p["target"]:
+            third = 0                                      # already over the target: the stop covers everything
         rest = self.ex.qty(sym, p["qty_open"] - float(third))
         stop = self.ex.px(sym, p["stop"])
+        self.con.execute("UPDATE positions SET oco_id=NULL WHERE id=? AND ?", (p["id"], 1 if third <= 0 else 0))
         stop_lim = self.ex.px(sym, p["stop"] * (1 - buf))
         done = {}
         if third > 0 and not p["partial_done"]:
@@ -177,6 +186,8 @@ class Engine:
                 done["oco_qty"] = float(third)
             except Exception as e:
                 self.protection_failed(p, "oco_id", e)
+                if self.outcome(e) == "rejected":          # no OCO: the stop covers the whole position
+                    rest = self.ex.qty(sym, p["qty_open"])
         if rest > 0:
             stop_id = self.cid_for("s", p["id"], n)
             self.con.execute("UPDATE positions SET stop_id=? WHERE id=?", (stop_id, p["id"]))
@@ -327,6 +338,9 @@ class Engine:
             self.ex.sync_time()
             for p in self.positions("pending"):              # buys sent in an earlier run without a clear answer
                 self.guarded(p, "pending buy", lambda p=p: self.settle_pending(p))
+            for p in self.positions():                       # sells sent without a clear answer, whatever happens next
+                if p["exit_cid"]:
+                    self.guarded(p, "pending sell", lambda p=p: self.close(p, str(p["reason"] or "exit")[9:] if str(p["reason"] or "").startswith("closing: ") else "exit"))
         # 0) kill switches and limits
         if os.path.exists(FLAT_FILE):
             for p in self.positions():
@@ -358,10 +372,7 @@ class Engine:
                 self.guarded(p, "fills", lambda p=p: self.refresh_fills(p))
             bal = self.ex.balances()
             for p in self.positions():
-                base = self.ex.filters(p["symbol"])["base"]
-                if sum(bal.get(base, (0.0, 0.0))) + 1e-9 < p["qty_open"] * 0.999:
-                    open(STOP_FILE, "w").close()
-                    self.act(p["symbol"], "reconcile problem", {"reason": "exchange holds less than the bot's position; new entries paused"})
+                self.guarded(p, "balance check", lambda p=p: self.check_balance(p, bal))
         # 2) exits and stop management, driven by the paper bot
         pos_paper = {(x["symbol"], x["signal_date"]): x for x in paper.get("open", [])}
         closed_paper = {(x["symbol"], x["signal_date"]): x for x in paper.get("closed", [])}
@@ -386,8 +397,19 @@ class Engine:
                 self.guarded(None, "entry " + o["symbol"], lambda o=o: self.enter(o, eq))
         return self.report()
 
+    def check_balance(self, p, bal):
+        base = self.ex.filters(p["symbol"])["base"]
+        if sum(bal.get(base, (0.0, 0.0))) + 1e-9 < p["qty_open"] * 0.999:
+            open(STOP_FILE, "w").close()
+            self.act(p["symbol"], "reconcile problem", {"reason": "exchange holds less than the bot's position; new entries paused"})
+
     def manage(self, p, pos_paper, closed_paper):
         c = self.c
+        p = self.row(p["id"])
+        if p["status"] != "open" or p["exit_cid"]:
+            return                                       # closed meanwhile, or a sell still being looked up
+        if str(p["reason"] or "").startswith("closing: "):
+            return self.close(p, p["reason"][9:])         # an exit already decided is finished, never undone
         k = (p["symbol"], p["signal_date"])
         px = self.ex.price(p["symbol"])
         mine = p["bot"] == c["bot"]
