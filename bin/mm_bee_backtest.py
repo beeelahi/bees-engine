@@ -62,8 +62,8 @@ def t_of(s):
 class CandleEx:
     """Exchange stand-in driven by candles [(open_s, o, h, l, c)], bar length `bar` seconds."""
 
-    def __init__(self, candles, bar, coins, usdt, others=None):
-        self.c, self.bar, self.i = candles, bar, 0
+    def __init__(self, candles, bar, coins, usdt, others=None, taker_fee=0.0):
+        self.c, self.bar, self.i, self.taker_fee = candles, bar, 0, taker_fee
         self.times = [r[0] for r in candles]
         self.others = {k: (v, [r[0] for r in v]) for k, v in (others or {}).items()}
         self.w = {"ZIG": [float(coins), 0.0], "USDT": [float(usdt), 0.0]}
@@ -162,6 +162,8 @@ class CandleEx:
         else:
             self.w["USDT"][1] -= q * p
             self.w["ZIG"][0] += q
+        if liq == "taker" and self.taker_fee:               # taker fee, paid in USDT
+            self.w["USDT"][0] -= q * p * self.taker_fee
         self.fills.append([iso(self.now()), o["side"], p, q, liq])           # stamped at the close of the candle it filled in
 
     def advance(self):
@@ -179,7 +181,7 @@ class CandleEx:
                 self._fill(cid, "maker")
 
 
-def run(candles, start=START, bar=H, settings=None, coins=None, usdt=None, end=None, btc=None, symbol=SYMBOL):
+def run(candles, start=START, bar=H, settings=None, coins=None, usdt=None, end=None, btc=None, symbol=SYMBOL, taker_fee=0.0):
     """Backtest from `start` (ISO, UTC) over candles [(open_s, o, h, l, c)] sorted by time. Needs the day before."""
     if end:
         candles = [r for r in candles if r[0] < t_of(end)]
@@ -191,7 +193,7 @@ def run(candles, start=START, bar=H, settings=None, coins=None, usdt=None, end=N
     first = next((i for i, r in enumerate(candles) if r[0] >= t0), None)
     if first is None or first == 0 or candles[0][0] > t0 - 3600:
         raise RuntimeError("mm bee backtest: need candles before the start")
-    ex = CandleEx(candles, bar, coins, usdt, others={c["btc_symbol"]: btc} if btc else None)
+    ex = CandleEx(candles, bar, coins, usdt, others={c["btc_symbol"]: btc} if btc else None, taker_fee=taker_fee)
     ex.i = first - 1                                    # the bot starts at the close just before START
     con = sqlite3.connect(":memory:")
     bee = mm_bee.BeeLadder(ex, c, con, log=lambda *a: None, clock=ex.now, sleep=lambda s: None)

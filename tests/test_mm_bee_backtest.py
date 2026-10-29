@@ -85,6 +85,26 @@ class BacktestTest(unittest.TestCase):
             self.assertAlmostEqual(r["change_usdt"], r["value_usdt"] - r["start_value_usdt"], places=1)
 
 
+class ChaseTest(unittest.TestCase):
+    def test_chase_buys_back_in_a_rally(self):
+        t0 = BT.t_of(BT.START)
+        cs = [(t0 - 86400 + i * H, 0.05, 0.0501, 0.0499, 0.05) for i in range(24)]
+        px = 0.05
+        for i in range(40):                                                 # +1.5% an hour: through the first sells and on
+            o, px = px, px * 1.015
+            cs.append((t0 + i * H, o, px * 1.001, o * 0.999, px))
+        base = {"vol_fast": 0, "btc_guard": 0}
+        off = BT.run(cs, settings=base, taker_fee=0.001)
+        on = BT.run(cs, settings=dict(base, chase=0.08), taker_fee=0.001)
+        self.assertFalse([e for e in off["events"] if e[1] == "chase"])
+        ch = [e for e in on["events"] if e[1] == "chase"]
+        self.assertTrue(ch)
+        self.assertGreater(on["coins"], off["coins"])                       # back in the coin
+        self.assertGreater(on["vs_hold_usdt"], off["vs_hold_usdt"])         # and better off in this rally
+        self.assertGreater(on["taker_fills"], 0)
+        self.assertAlmostEqual(on["value_usdt"], on["coins"] * on["end_price"] + on["usdt"], places=1)
+
+
 class GuardTest(unittest.TestCase):
     def setUp(self):
         self.t0 = BT.t_of(BT.START)

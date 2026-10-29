@@ -56,7 +56,9 @@ DEFAULTS = {"mode": "bee", "units": 20, "size": 15000, "first": 0.03, "gap": 0.0
             "acc_units": 0, "acc_after": 3, "acc_first": 0.03, "acc_gap": 0.02, "recycle": "off",
             "btc_guard": 0.02, "btc_symbol": "BTCUSDT", "btc_zig_max": 0.01, "btc_pause_h": 8,
             "vol_fast": 0.10, "vol_calm": 0.05, "drip_min": 2.0, "drip_max": 4.0,
-            "regimes": None, "regime_ema": 30, "regime_band": 0.03}
+            "regimes": None, "regime_ema": 30, "regime_band": 0.03, "chase": 0.0}
+# "chase" (0 = off): upside stop. A unit that sold and waits to buy back lower, while the price has run `chase` above
+# its sell price, buys back at once at the market (taker), taking a small, capped loss instead of staying out of a rally.
 # "regimes": {"up": {...}, "down": {...}, "flat": {...}} switches settings by market state at each rebase: "up" while
 # the 4h close is more than regime_band above its regime_ema-candle EMA, "down" while that much below, else "flat".
 META_COLS = ("base", "base_utc", "base_from", "ladders", "rounds", "profit_usdt", "proceeds_usdt", "spent_usdt",
@@ -291,6 +293,9 @@ class BeeLadder:
             self.set_meta(last_fill_utc=self.now(), active_utc=self.now())
             m = self.meta()
         self.con.commit()
+        # 1b) upside stop: buy back units the market has run away from
+        if c.get("chase"):
+            self.chase(mid)
         # 2) buys for sold units (paid from the sells; never more than max_usdt of the wallet's own USDT)
         self.place_buys(mid)
         # 3) resells for bought units
@@ -298,6 +303,36 @@ class BeeLadder:
         # 4) first-ladder sells that can rest above the market
         self.place_armed(mid)
         return self.after(mid, m)
+
+    def chase(self, mid):
+        c = self.c
+        for ladder, k, st, kind, sp, bp, scid, bcid, q, cyc in self.units():
+            if st not in ("sold", "buying") or kind == "acc" or not sp or mid < sp * (1 + c["chase"]):
+                continue
+            if st == "buying" and bcid:
+                try:
+                    self.ex.cancel(self.sym, bcid)
+                except Exception:
+                    pass
+                s, filled = self.status(bcid)
+                if s == "FILLED" or filled > 0 or s not in DONE:
+                    continue                            # it traded (or is still live): the progress step settles it
+            px = self.ex.px(self.sym, mid * 1.002, up=True)        # marketable limit, a little over the price
+            free = self.ex.balances().get("USDT", (0.0, 0.0))[0]
+            qq = self.ex.qty(self.sym, min(q, free / float(px) if px else 0))
+            if float(qq) <= 0:
+                self.upd(ladder, k, state="sold", buy_cid=None)
+                continue
+            cid = self.cid("B")
+            try:
+                self.ex.limit(self.sym, "BUY", qq, px, cid)
+            except Exception as e:
+                self.log(f"mm bee: chase {ladder}/{k} not placed: {e}")
+                self.upd(ladder, k, state="sold", buy_cid=None)
+                continue
+            self.upd(ladder, k, state="buying", buy_cid=cid, buy_px=float(px), qty=float(qq))
+            self.note("chase", ladder, k, float(px), float(qq), 0, f"price {mid:.6g} ran {100 * c['chase']:.0f}% over the sell {sp:.6g}")
+        self.con.commit()
 
     def place_buys(self, mid):
         c, m = self.c, self.meta()
