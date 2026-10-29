@@ -35,11 +35,12 @@ SCENARIOS = [("5d", "2026-10-24T00:00:00Z", "Live 5 days ago (24 Oct)"),        
              ("15d", START, "Started 13 Oct (15 days)"),
              ("1y", "2025-11-01T00:00:00Z", "Started 1 Nov 2025 (1 year)")]
 # the strategies compared on the MM-Bee tab: (id, label, settings over mm_bee.DEFAULTS)
-STRATEGIES = [("v2", "MM-Bee v2 (base follows each 4h close)", {}),
+STRATEGIES = [("pro", "MM-Bee Pro (+4% first, every 1%, buy back -4.5%, resell +4.5%, recycling)", {"recycle": "ladder", "vol_fast": 0, "first": 0.04, "gap": 0.01, "rebuy": 0.045, "resell": 0.045}),
+              ("v2", "MM-Bee v2 (base follows each 4h close)", {}),
               ("plus", "MM-Bee+ (v2, bought-back units rejoin the ladder; no 1h mode)", {"recycle": "ladder", "vol_fast": 0}),
               ("v1", "MM-Bee v1 (daily base, 12 h revision)", {"rebase_hours": 0})]
 SYMBOL = "ZIGUSDT"
-VERSION = 4                            # bump when the strategy or the backtest changes: the next engine run reruns it
+VERSION = 5                            # bump when the strategy or the backtest changes: the next engine run reruns it
 H = 3600
 
 

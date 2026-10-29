@@ -5,6 +5,8 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- MM-Bee Pro (paper variant bee_pro, backtest "pro"): first sell +4%, then every 1%, buy back 4.5% lower, resell 4.5% higher, recycling, BTC guard, no fast mode. Chosen from 243 settings (research/mm_bee_study4.py) as the best on all three ZIG paths over a year: +31,249 USDT ahead of holding on the real (falling) year, +65,292 on its mirror (rising), +17,516 on the flat version; both halves of the real year ahead (+21,028 / +9,145). Regime switching (recycling off in flat markets) was tested (study5) and was not consistently better, so it stays off.
+- Engine deploys research/ (ops: bee-study runs the multi-coin MM-Bee study on the server).
 - MM-Bee v2 (Bilal, 29 Oct): the base follows every 4-hour close; the 5 nearest orders move right after it, the rest 150 s later; orders move one at a time 2-4 s apart; a change under 0.3% leaves the order in place; sold units keep their buy-backs. BTC guard (BTC +2% in ~2 h while ZIG < +1%: sells pulled for 8 h) and fast mode (ZIG 10%+ in the 4h/day candle: base follows every 1h close until under 5%). Optional accumulation after the first sells.
 - MM-Bee+ (paper variant bee_plus): v2 with bought-back units rejoining the sell ladder ("recycle"), no fast mode. Over a year of ZIG it was +20,175 USDT ahead of holding (v2 +12,758) and, on the same year mirrored into an uptrend, +42,942 (v2 -21,836).
 - Backtest: v2, MM-Bee+ and v1 over 5 days, 15 days and 1 year, with BTC candles for the guard; the MM-Bee tab compares them and the two paper runs.

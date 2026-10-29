@@ -293,7 +293,8 @@ def variants(coin):
     return out
 
 
-BEE_VARIANTS = [("bee", {}), ("bee_plus", {"recycle": "ladder", "vol_fast": 0})]
+BEE_VARIANTS = [("bee", {}), ("bee_plus", {"recycle": "ladder", "vol_fast": 0}),
+                ("bee_pro", {"recycle": "ladder", "vol_fast": 0, "first": 0.04, "gap": 0.01, "rebuy": 0.045, "resell": 0.045})]          # the most robust setting of research/mm_bee_study4-5
 
 
 def bee_coin(c, cfg, extra=None):

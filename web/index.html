@@ -684,7 +684,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       </div>
     </div>
     <div class="sub-panel" data-s="live" hidden>
-    <div class="mb-row"><div class="seg" id="mbVarSeg"><button type="button" data-v="bee" aria-pressed="true">MM-Bee v2 (your rules)</button><button type="button" data-v="bee_plus" aria-pressed="false">MM-Bee+ (recycling)</button></div></div>
+    <div class="mb-row"><div class="seg" id="mbVarSeg"><button type="button" data-v="bee_pro" aria-pressed="false">MM-Bee Pro</button><button type="button" data-v="bee" aria-pressed="true">MM-Bee v2 (your rules)</button><button type="button" data-v="bee_plus" aria-pressed="false">MM-Bee+ (recycling)</button></div></div>
     <div class="grid-kpi" id="mbKpis">
       <div class="card kpi"><div class="label">Ahead of just holding</div><div class="v" id="mbEdge">—</div><div class="note" id="mbEdgeNote">&nbsp;</div></div>
       <div class="card kpi"><div class="label">Profit locked in</div><div class="v" id="mbProfit">—</div><div class="note" id="mbProfitNote">&nbsp;</div></div>
@@ -731,7 +731,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
     </div>
     <div class="sub-panel" data-s="backtest" hidden>
       <div class="card mb-row">
-        <div class="card-head"><div class="seg" id="btStratSeg"><button type="button" data-v="v2" aria-pressed="true">MM-Bee v2</button><button type="button" data-v="plus" aria-pressed="false">MM-Bee+</button><button type="button" data-v="v1" aria-pressed="false">v1 (original)</button></div>
+        <div class="card-head"><div class="seg" id="btStratSeg"><button type="button" data-v="pro" aria-pressed="false">MM-Bee Pro</button><button type="button" data-v="v2" aria-pressed="true">MM-Bee v2</button><button type="button" data-v="plus" aria-pressed="false">MM-Bee+</button><button type="button" data-v="v1" aria-pressed="false">v1 (original)</button></div>
           <div class="seg" id="btSeg"><button type="button" data-v="5d" aria-pressed="true">5 days</button><button type="button" data-v="15d" aria-pressed="false">15 days</button><button type="button" data-v="1y" aria-pressed="false">1 year</button></div></div>
         <h3 id="btTitle">Backtest</h3><span class="note" id="btRange"></span>
         <p class="mb-verdict" id="btVerdict">&nbsp;</p>
@@ -1868,7 +1868,7 @@ const fUs = v => isNum(v) ? (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toL
 const fQ = v => isNum(v) ? Math.round(v).toLocaleString("en-US") : "—";
 const mbT = s => s ? s.slice(0, 16).replace("T", " ") : "—";
 const mbAgo = s => { if (!s) return ""; const h = (Date.now() - Date.parse(s)) / 36e5; return h < 1 ? Math.max(1, Math.round(h * 60)) + " min ago" : h < 48 ? h.toFixed(1) + " h ago" : (h / 24).toFixed(1) + " days ago"; };
-const MB_NAME = { bee: "MM-Bee v2", bee_plus: "MM-Bee+", base: "Grid 1.5%", tight: "Grid 1%", wide: "Grid 2%" };
+const MB_NAME = { bee: "MM-Bee v2", bee_plus: "MM-Bee+", bee_pro: "MM-Bee Pro", base: "Grid 1.5%", tight: "Grid 1%", wide: "Grid 2%" };
 const MB_STATE = { armed: ["Waiting to sell", "The price is above this level; the order rests once the price is under it"], selling: ["Sell resting", ""], sold: ["Buy to place", ""], buying: ["Buy resting", ""], bought: ["Resell to place", ""] };
 function mbSet(id, text, c) { const e = $("#" + id); if (!e) return; e.textContent = text; e.classList.remove("pos", "neg", "cold"); if (c) e.classList.add(c); }
 function mbLine(id, parts) { const el = $("#" + id); el.replaceChildren(); parts.forEach(p => { if (Array.isArray(p)) { const b = document.createElement("b"); b.textContent = p[0]; if (p[1]) b.className = p[1]; el.append(b); } else el.append(document.createTextNode(p)); }); }
@@ -1955,8 +1955,8 @@ const usdFmt = { type: "custom", formatter: v => (v >= 0 ? "+" : "") + v.toFixed
 function renderMMBee() {
   renderMMHead();
   if (S.mm === undefined) return;
-  const D = S.mm, V = D && D.variants, B = V && (V[S.mbVar || "bee"] || V.bee);
-  $$("#mbVarSeg button").forEach(b => { b.hidden = !(V && V[b.dataset.v]); b.setAttribute("aria-pressed", String(b.dataset.v === (S.mbVar || "bee"))); });
+  const D = S.mm, V = D && D.variants, vk = S.mbVar || (V && V.bee_pro && V.bee_pro.bee ? "bee_pro" : "bee"), B = V && (V[vk] || V.bee);
+  $$("#mbVarSeg button").forEach(b => { b.hidden = !(V && V[b.dataset.v]); b.setAttribute("aria-pressed", String(b.dataset.v === vk)); });
   if (!B || !B.bee) { ["mbRules", "mbLadder", "mbFeed", "mbCompare", "mbFills"].forEach(id => $("#" + id).replaceChildren()); return; }
   const c = B.settings || {}, m = B.bee, px = B.price, units = B.units || [];
   mbSet("mbEdge", fUs(B.vs_hold_usdt) + " USDT", cls(B.vs_hold_usdt));
@@ -1986,7 +1986,8 @@ function renderMMBee() {
   const n = mbLadder("mbLadder", units, px, m.ladders); $("#mbLadderNote").textContent = `${n.sells} sells and ${n.buys} buys resting`;
   mbFeed("mbFeed", B.events, c); $("#mbFeedNote").textContent = `${(B.events || []).length} events`;
   const cb = $("#mbCompare"); cb.replaceChildren();
-  Object.entries(V).sort((a, b) => (a[0] === "bee" ? -1 : b[0] === "bee" ? 1 : a[0] < b[0] ? -1 : 1)).forEach(([nm, v]) => { const s = v.settings || {};
+  const ORD = ["bee_pro", "bee", "bee_plus", "base", "tight", "wide"], oi = n => (ORD.indexOf(n) + 1) || 99;
+  Object.entries(V).sort((a, b) => oi(a[0]) - oi(b[0])).forEach(([nm, v]) => { const s = v.settings || {};
     const rule = s.mode === "bee" || nm === "bee" ? `Sell first +${(100 * s.first).toFixed(0)}%, then every ${(100 * s.gap).toFixed(0)}%; buy −${(100 * s.rebuy).toFixed(1)}%, sell +${(100 * s.resell).toFixed(0)}%` : `Grid every ${(100 * (s.step || 0)).toFixed(1)}%, ${s.levels} levels × ${fQ(s.size)}`;
     const tr = document.createElement("tr"); tr.append(td(MB_NAME[nm] || nm), td(rule, ""), td(mbHrs(v.started_utc, D.generated_utc).toFixed(1) + " h", "num"), td(String(v.rounds), "num"), td(fUs(v.profit_usdt), "num " + cls(v.profit_usdt)), td(fUs(v.vs_hold_usdt), "num " + cls(v.vs_hold_usdt)), td(String(v.fills), "num"), td(String(v.open_orders), "num")); cb.append(tr); });
   mbFills("mbFills", B.fill_list, `No fills yet. The nearest sell rests ${fPct(100 * (Math.min(...units.filter(u => u[2] === "selling").map(u => u[4]).concat([Infinity])) / px - 1))} above the price.`);
@@ -1995,9 +1996,9 @@ function renderMMBee() {
   const box = $("#mbCurve");
   if (typeof LightweightCharts !== "undefined" && (B.snaps || []).length >= 2) {
     box.replaceChildren(); mbChart = mbChartMake(box);
-    const cols = { bee: css("--accent"), base: css("--warn"), tight: css("--up"), wide: css("--muted") }, leg = [];
+    const cols = { bee_pro: css("--accent"), bee: css("--up"), bee_plus: css("--warn"), base: css("--muted"), tight: css("--cold"), wide: css("--line") }, leg = [];
     Object.entries(V).forEach(([nm, v]) => { const pts = mbPts(v.snaps, x => x[2] - x[3]); if (pts.length < 2) return; const col = cols[nm] || css("--cold");
-      mbChart.addLineSeries({ color: col, lineWidth: nm === "bee" ? 3 : 1, priceLineVisible: false, lastValueVisible: nm === "bee", priceFormat: usdFmt }).setData(pts); leg.push([col, MB_NAME[nm] || nm]); });
+      mbChart.addLineSeries({ color: col, lineWidth: nm.startsWith("bee") ? 2 : 1, priceLineVisible: false, lastValueVisible: nm === vk, priceFormat: usdFmt }).setData(pts); leg.push([col, MB_NAME[nm] || nm]); });
     mbLegend("mbLegend", leg); mbChart.timeScale().fitContent();
   } else { mbLegend("mbLegend", []); box.innerHTML = '<div class="empty">The chart starts after the second hourly snapshot.</div>'; }
 }
@@ -2005,7 +2006,7 @@ function renderMBBacktest() {
   renderMMHead();
   if (S.mm === undefined) return;
   const BTD = S.mm && S.mm.backtest, runs = BTD && BTD.runs ? BTD.runs : BTD ? [BTD] : [];
-  const sg = r => r.strategy || "v2", want = S.btStrat || "v2", win = S.btRun || "5d";
+  const sg = r => r.strategy || "v2", want = S.btStrat || "pro", win = S.btRun || "1y";
   const T = runs.find(r => sg(r) === want && r.id === win) || runs.find(r => sg(r) === want) || runs[0];
   $$("#btSeg button").forEach(b => { const r = runs.find(x => sg(x) === (T ? sg(T) : want) && x.id === b.dataset.v); b.hidden = !r; b.setAttribute("aria-pressed", String(!!T && r === T)); if (r) b.title = r.label; });
   $$("#btStratSeg button").forEach(b => { const r = runs.find(x => sg(x) === b.dataset.v); b.hidden = !r; b.setAttribute("aria-pressed", String(!!T && sg(T) === b.dataset.v)); if (r) b.title = r.strategy_label || ""; });
