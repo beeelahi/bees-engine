@@ -311,3 +311,59 @@ class ChaosTest(unittest.TestCase):
         ev = dict(bee.con.execute("SELECT event, COUNT(*) FROM bee_log GROUP BY event").fetchall())
         self.assertGreater(ev.get("not placed", 0), 0)       # the faults really happened and were recovered
         self.assertGreater(ev.get("chase", 0), 0)
+
+
+class ReviewFixesTest(unittest.TestCase):
+    """Defects found in the independent review (30 Oct 2026)."""
+
+    def setUp(self):
+        B.STOP = os.path.join(tempfile.mkdtemp(), "STOP")
+        self.clock = Clock()
+
+    def make(self, ex_cls=LiveEx, cfg=None, **kw):
+        ex = ex_cls(0.05, self.clock, **kw)
+        c = dict({"symbol": "ZIGUSDT", "rebase_hours": 0, "btc_guard": 0, "vol_fast": 0}, **(cfg or {}))
+        return ex, B.BeeLadder(ex, c, sqlite3.connect(":memory:"), log=lambda *a: None, clock=self.clock, sleep=lambda s: None)
+
+    def test_server_error_after_acceptance_never_duplicates(self):
+        class Ex(LiveEx):
+            def limit_maker(s, sym, side, q, p, cid):
+                FakeEx.limit_maker(s, sym, side, q, p, cid)
+                raise Exception("MEXC error 504: gateway timeout")      # accepted, but a 5xx came back
+        ex, bee = self.make(Ex)
+        bee.step(0.05)
+        self.assertEqual(len(ex.resting("SELL")), 20)
+        self.assertEqual(len(bee.units("placing_s")), 20)
+        self.clock.t += 900
+        bee.step(0.05)
+        self.assertEqual(len(ex.resting("SELL")), 20)                    # still 20, not 40
+        self.assertEqual(len(bee.units("selling")), 20)
+
+    def test_classification(self):
+        self.assertTrue(B.rejected(Exception("MEXC error 30004: insufficient position")))
+        self.assertTrue(B.rejected(Exception("post-only would cross")))
+        for e in ("MEXC error 504: x", "MEXC error 429: too many", "unexpected reply (502)", "network error (curl 28)"):
+            self.assertFalse(B.rejected(Exception(e)), e)
+
+    def test_partially_cancelled_sell_is_booked_and_the_rest_keeps_selling(self):
+        ex, bee = self.make()
+        bee.step(0.05)
+        cid = bee.units("selling")[0][6]
+        o = ex.o[cid]
+        o.update(status="PARTIALLY_CANCELED", filled=7500.0)
+        ex.w["ZIG"][1] -= 15000; ex.w["ZIG"][0] += 7500; ex.w["USDT"][0] += 7500 * o["price"]
+        self.clock.t += 900
+        bee.step(0.05)
+        self.assertAlmostEqual(bee.meta()["proceeds_usdt"], 7500 * o["price"])
+        rest = [u for u in bee.units() if u[1] >= 100]
+        self.assertEqual(len(rest), 1)
+        self.assertAlmostEqual(rest[0][8], 7500)
+        self.assertIn(rest[0][2], ("selling", "armed"))
+
+    def test_chase_respects_the_usdt_budget(self):
+        ex, bee = self.make(cfg={"chase": 0.08, "max_usdt": 0}, usdt=50_000.0)    # plenty of the wallet's own USDT
+        bee.step(0.05)
+        self.clock.t += 900; ex.bar(0.0516, 0.05, 0.0516); ex.hour_close = 0.0516; bee.step(0.0516)   # one sell at 0.0515
+        self.clock.t += 900; ex.bar(0.0560, 0.0516, 0.0560); ex.hour_close = 0.0560; bee.step(0.0560)  # chase
+        m = bee.meta()
+        self.assertLessEqual(m["spent_usdt"] - m["proceeds_usdt"], 1.0)          # never paid from the wallet's own USDT

@@ -85,7 +85,25 @@ CREATE TABLE IF NOT EXISTS bee_log(utc TEXT, symbol TEXT, event TEXT, ladder INT
 """
 # unit states: armed (holds coins, ladder sell not resting yet) -> selling -> sold (coins out, buy to place) -> buying
 #              -> bought (coins back, resell to place) -> selling -> ...   kind: "ladder" (first sell) or "cycle"
-DONE = ("CANCELED", "EXPIRED", "REJECTED")
+DONE = ("CANCELED", "EXPIRED", "REJECTED", "PARTIALLY_CANCELED")
+import re  # noqa: E402
+
+
+def rejected(e):
+    """True only when the exchange clearly refused the order (it did not land). A server error (5xx), a rate limit,
+    an unreadable reply or a lost connection may hide an order that DID land: those are "unknown", never "rejected"."""
+    m = str(e)
+    if re.search(r"would cross|post.?only|insufficient|duplicate client|would match|quantity / price", m, re.I):
+        return True
+    code = re.search(r"MEXC error (-?\d+)", m)
+    if code:
+        n = int(code.group(1))
+        return not (500 <= n <= 599 or n == 429 or n == 418)
+    return False
+
+
+def crossed(e):
+    return bool(re.search(r"would cross|post.?only|would match|30087", str(e), re.I))
 # placing_s / placing_b: an order was sent but not confirmed (written BEFORE the exchange call, so a crash or a lost
 # reply can never leave an order on the exchange that the database does not know). The next step asks the exchange:
 # found -> selling / buying; MISSING -> never placed, back to where it was. A confirmed order the exchange no longer
@@ -213,18 +231,19 @@ class BeeLadder:
             m = str(e).lower()
             return ("MISSING", 0.0) if ("-2013" in m or "does not exist" in m or "not exist" in m or "unknown order" in m) else (None, 0.0)
 
-    def send(self, ladder, k, side, kind_state, fields, call, revert):
-        """Place an order the safe way: record the intent first, then call the exchange. A clear rejection reverts
-        the unit; a lost reply (network) keeps the intent, and the next step asks the exchange what happened."""
+    def send(self, ladder, k, side, kind_state, fields, call, revert, restore=None):
+        """Place an order the safe way: record the intent first, then call the exchange. Only a clear rejection
+        reverts the unit (and raises); anything else (no reply, a server error, a rate limit) keeps the intent and
+        returns False: the next step asks the exchange whether the order landed. Never sent twice."""
         self.upd(ladder, k, state="placing_" + side.lower()[0], **fields)
         self.con.commit()
         try:
             call()
         except Exception as e:
-            if "network" in str(e).lower() or "timed out" in str(e).lower():
-                self.log(f"mm bee: {self.sym} {side.lower()} {ladder}/{k}: no reply ({str(e)[:80]}); will check the exchange")
+            if not rejected(e):
+                self.log(f"mm bee: {self.sym} {side.lower()} {ladder}/{k}: outcome unknown ({str(e)[:80]}); will check the exchange")
                 return False
-            self.upd(ladder, k, state=revert, **{x: None for x in fields if x.endswith("_cid")})
+            self.upd(ladder, k, state=revert, **{x: None for x in fields if x.endswith("_cid")}, **(restore or {}))
             self.con.commit()
             raise
         self.upd(ladder, k, state=kind_state)
@@ -346,6 +365,8 @@ class BeeLadder:
                     if kind == "ladder":
                         m["ladder_sold"] += 1
                     self.upd(ladder, k, state="sold", sell_cid=None, qty=qq, buy_px=sp * (1 - c["rebuy"]), cycles=cyc + (kind == "acc"))
+                    if s != "FILLED" and q - qq > 0:               # partly filled, then cancelled: the rest keeps selling
+                        self.split(ladder, k, q - qq, "armed" if kind == "ladder" else "bought", kind, sp, bp, sp)
                     m["proceeds_usdt"] += qq * sp
                     self.set_meta(proceeds_usdt=m["proceeds_usdt"], rounds=m["rounds"], profit_usdt=m["profit_usdt"], ladder_sold=m["ladder_sold"])
                     self.note("sold", ladder, k, sp, qq, gain, kind)
@@ -355,15 +376,18 @@ class BeeLadder:
             elif st == "buying" and bcid:
                 s, filled = got[bcid]
                 if s == "FILLED" or (s in DONE and filled > 0):
-                    qq = q if s == "FILLED" else filled
+                    got_q = q if s == "FILLED" else filled
+                    if s != "FILLED" and q - got_q > 0:            # partly filled, then cancelled: the rest keeps buying
+                        self.split(ladder, k, q - got_q, "sold", kind, sp, bp, None)
+                    qq = got_q
                     if str(bcid).startswith("bmT") and c.get("taker_reserve"):     # it may have paid its fee in the coin
                         qq = float(self.ex.qty(self.sym, qq * (1 - c["taker_reserve"])))
                     acc = kind == "acc"
-                    gain = 0.0 if acc else qq * (sp - bp)
+                    gain = 0.0 if acc else got_q * (sp - bp) - (got_q - qq) * bp     # the fee reserve is a cost
                     if not acc:
                         m["rounds"] += 1
                         m["profit_usdt"] += gain
-                    m["spent_usdt"] += qq * bp
+                    m["spent_usdt"] += got_q * bp
                     self.set_meta(rounds=m["rounds"], profit_usdt=m["profit_usdt"], spent_usdt=m["spent_usdt"])
                     self.upd(ladder, k, state="bought", kind="acc" if acc else "cycle", buy_cid=None, qty=qq,
                              sell_px=bp * (1 + c["resell"]), cycles=cyc + (0 if acc else 1))
@@ -381,7 +405,7 @@ class BeeLadder:
         # 2) buys for sold units (paid from the sells; never more than max_usdt of the wallet's own USDT)
         self.place_buys(mid)
         # 3) resells for bought units
-        self.place_resells()
+        self.place_resells(mid)
         # 4) first-ladder sells that can rest above the market
         self.place_armed(mid)
         return self.after(mid, m)
@@ -410,17 +434,19 @@ class BeeLadder:
                 s, filled = self.status(bcid)
                 if s == "FILLED" or filled > 0 or s not in DONE:
                     continue                            # it traded (or is still live): the progress step settles it
+                self.upd(ladder, k, state="sold", buy_cid=None)    # its own buy is off the book: not in the budget
             px = self.ex.px(self.sym, mid * 1.002, up=True)        # marketable limit, a little over the price
             free = self.ex.balances().get("USDT", (0.0, 0.0))[0]
-            qq = self.ex.qty(self.sym, min(q, free / float(px) if px else 0))
-            if float(qq) <= 0:
+            m = self.meta()                                         # the same budget as every buy: what the sells
+            budget = m["proceeds_usdt"] + c["max_usdt"] - m["spent_usdt"] - self.resting_buys()   # raised, + max_usdt
+            qq = self.ex.qty(self.sym, max(0.0, min(q, free / float(px) if px else 0, budget / float(px) if px else 0)))
+            if float(qq) * float(px) < 1.0:
                 self.upd(ladder, k, state="sold", buy_cid=None)
                 continue
             cid = self.cid("T")
-            self.upd(ladder, k, qty=float(qq))
             try:
-                self.send(ladder, k, "BUY", "buying", {"buy_cid": cid, "buy_px": float(px)},
-                          lambda: self.ex.limit(self.sym, "BUY", qq, px, cid), "sold")
+                self.send(ladder, k, "BUY", "buying", {"buy_cid": cid, "buy_px": float(px), "qty": float(qq)},
+                          lambda: self.ex.limit(self.sym, "BUY", qq, px, cid), "sold", restore={"qty": q, "buy_px": bp})
             except Exception as e:
                 self.log(f"mm bee: chase {ladder}/{k} not placed: {e}")
                 continue
@@ -483,40 +509,64 @@ class BeeLadder:
     def place_buys(self, mid):
         c, m = self.c, self.meta()
         for ladder, k, st, kind, sp, bp, scid, bcid, q, cyc in self.units("sold"):
-            resting = sum(u[8] * u[5] for u in self.units("buying"))
-            if m["spent_usdt"] + resting + q * bp - m["proceeds_usdt"] > c["max_usdt"]:
+            if m["spent_usdt"] + self.resting_buys() + q * bp - m["proceeds_usdt"] > c["max_usdt"]:
                 continue
             px, qq = self.ex.px(self.sym, bp), self.ex.qty(self.sym, q)
-            cid = self.cid("B")
+            take = mid is not None and float(px) >= mid       # the market is already under the planned buy
+            cid = self.cid("T" if take else "B")
             try:
                 self.send(ladder, k, "BUY", "buying", {"buy_cid": cid, "buy_px": float(px)},
-                          lambda: self.ex.limit_maker(self.sym, "BUY", qq, px, cid), "sold")
-            except Exception:
-                cid = self.cid("T")                     # market already under the planned buy: buy at that price
+                          (lambda: self.ex.limit(self.sym, "BUY", qq, px, cid)) if take else
+                          (lambda: self.ex.limit_maker(self.sym, "BUY", qq, px, cid)), "sold")
+            except Exception as e:
+                if take or not crossed(e):
+                    self.log(f"mm bee: buy {ladder}/{k} not placed: {e}")
+                    continue
+                cid = self.cid("T")                     # the post-only buy would have crossed: buy at that price
                 try:
                     self.send(ladder, k, "BUY", "buying", {"buy_cid": cid, "buy_px": float(px)},
                               lambda: self.ex.limit(self.sym, "BUY", qq, px, cid), "sold")
-                except Exception as e:
-                    self.log(f"mm bee: buy {ladder}/{k} not placed: {e}")
+                except Exception as e2:
+                    self.log(f"mm bee: buy {ladder}/{k} not placed: {e2}")
                     continue
         self.con.commit()
 
-    def place_resells(self):
+    def split(self, ladder, k, rest, state, kind, sp, bp, sell_px):
+        """A partly filled order was cancelled: the unfilled part becomes its own unit (same ladder, a new number),
+        so no coin and no USDT silently leaves the loop. Dust under $1 is left out."""
+        px = sp if state in ("armed", "bought") else bp
+        if not px or rest * px < 1.0:
+            return
+        k2 = 1 + self.con.execute("SELECT COALESCE(MAX(k), 0) FROM bee_units WHERE symbol=? AND ladder=?", (self.sym, ladder)).fetchone()[0]
+        k2 = max(k2, 100)
+        self.con.execute("INSERT INTO bee_units VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                         (self.sym, ladder, k2, state, kind, sell_px if sell_px is not None else sp, bp, None, None, float(rest), 0, self.now()))
+        self.note("split", ladder, k2, px, rest, 0, f"rest of unit {ladder}/{k} after a partial fill")
+
+    def resting_buys(self):
+        return sum(u[8] * (u[5] or 0) for u in self.units() if u[2] in ("buying", "placing_b"))
+
+    def place_resells(self, mid=None):
         if self.paused():
             return
         for ladder, k, st, kind, sp, bp, scid, bcid, q, cyc in self.units("bought"):
             px, qq = self.ex.px(self.sym, sp, up=True), self.ex.qty(self.sym, q)
+            take = mid is not None and float(px) <= mid       # the market is already over the planned sell
             cid = self.cid("S")
             try:
                 self.send(ladder, k, "SELL", "selling", {"sell_cid": cid, "sell_px": float(px)},
-                          lambda: self.ex.limit_maker(self.sym, "SELL", qq, px, cid), "bought")
-            except Exception:
-                cid = self.cid("S")                     # market already over the planned sell: sell at that price
+                          (lambda: self.ex.limit(self.sym, "SELL", qq, px, cid)) if take else
+                          (lambda: self.ex.limit_maker(self.sym, "SELL", qq, px, cid)), "bought")
+            except Exception as e:
+                if take or not crossed(e):
+                    self.log(f"mm bee: resell {ladder}/{k} not placed: {e}")
+                    continue
+                cid = self.cid("S")                     # the post-only sell would have crossed: sell at that price
                 try:
                     self.send(ladder, k, "SELL", "selling", {"sell_cid": cid, "sell_px": float(px)},
                               lambda: self.ex.limit(self.sym, "SELL", qq, px, cid), "bought")
-                except Exception as e:
-                    self.log(f"mm bee: resell {ladder}/{k} not placed: {e}")
+                except Exception as e2:
+                    self.log(f"mm bee: resell {ladder}/{k} not placed: {e2}")
                     continue
         self.con.commit()
 
@@ -627,7 +677,7 @@ class BeeLadder:
                 if side == "S" and kind != "ladder":
                     self.upd(ladder, k, state="bought", sell_px=px, sell_cid=None)
                     self.con.commit()
-                    self.place_resells()
+                    self.place_resells(mid)
                 elif side == "S":
                     self.upd(ladder, k, state="armed", sell_px=px, sell_cid=None)
                     self.con.commit()
@@ -641,7 +691,7 @@ class BeeLadder:
         self.con.commit()
         self.place_armed(mid)
         self.place_buys(mid)
-        self.place_resells()
+        self.place_resells(mid)
         return moved
 
     def drip(self):
