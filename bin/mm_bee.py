@@ -57,7 +57,8 @@ DEFAULTS = {"mode": "bee", "units": 20, "size": 15000, "first": 0.03, "gap": 0.0
             "btc_guard": 0.02, "btc_symbol": "BTCUSDT", "btc_zig_max": 0.01, "btc_pause_h": 8,
             "vol_fast": 0.10, "vol_calm": 0.05, "drip_min": 2.0, "drip_max": 4.0,
             "regimes": None, "regime_ema": 30, "regime_band": 0.03, "chase": 0.0,
-            "max_chases_day": 6, "sanity": 0.15, "circuit": 0.25, "circuit_pause_h": 2, "taker_reserve": 0.002}
+            "max_chases_day": 6, "sanity": 0.15, "circuit": 0.25, "circuit_pause_h": 2, "taker_reserve": 0.002,
+            "taker_fee": 0.0005}
 # Safety (live hardening, 30 Oct 2026):
 #   max_chases_day  at most this many upside-stop buy-backs per coin per UTC day; then no more that day (a choppy
 #                   market cannot bleed the position through repeated buy-backs)
@@ -80,6 +81,7 @@ CREATE TABLE IF NOT EXISTS bee_units(symbol TEXT, ladder INTEGER, k INTEGER, sta
     buy_px REAL, sell_cid TEXT, buy_cid TEXT, qty REAL, cycles INTEGER, updated_utc TEXT, PRIMARY KEY(symbol, ladder, k));
 CREATE TABLE IF NOT EXISTS bee_meta(symbol TEXT PRIMARY KEY, base REAL, base_utc TEXT, base_from TEXT, ladders INTEGER,
     rounds INTEGER, profit_usdt REAL, proceeds_usdt REAL, spent_usdt REAL, last_fill_utc TEXT, active_utc TEXT);
+CREATE TABLE IF NOT EXISTS bee_plan(symbol TEXT, ladder INTEGER, k INTEGER, buy_px REAL, qty REAL, PRIMARY KEY(symbol, ladder, k));
 CREATE TABLE IF NOT EXISTS bee_log(utc TEXT, symbol TEXT, event TEXT, ladder INTEGER, k INTEGER, price REAL, qty REAL,
     profit REAL, note TEXT);
 """
@@ -93,7 +95,11 @@ def rejected(e):
     """True only when the exchange clearly refused the order (it did not land). A server error (5xx), a rate limit,
     an unreadable reply or a lost connection may hide an order that DID land: those are "unknown", never "rejected"."""
     m = str(e)
-    if re.search(r"would cross|post.?only|insufficient|duplicate client|would match|quantity / price", m, re.I):
+    http = re.search(r"HTTP (\d+)", m)
+    if http:                                    # the real exchange: decide by the HTTP status, never by the body alone
+        n = int(http.group(1))
+        return 400 <= n < 500 and n not in (408, 418, 429) and "duplicate" not in m.lower()
+    if re.search(r"would cross|post.?only|insufficient|would match|quantity / price", m, re.I):
         return True
     code = re.search(r"MEXC error (-?\d+)", m)
     if code:
@@ -339,10 +345,17 @@ class BeeLadder:
                 if s == "MISSING":
                     back = ("armed" if kind == "ladder" else "bought") if st == "placing_s" else "sold"
                     self.upd(ladder, k, state=back, **({"sell_cid": None} if st == "placing_s" else {"buy_cid": None}))
+                    if st == "placing_b":                   # a lost upside-stop buy: back to the planned buy-back
+                        pl = self.con.execute("SELECT buy_px, qty FROM bee_plan WHERE symbol=? AND ladder=? AND k=?", (self.sym, ladder, k)).fetchone()
+                        if pl:
+                            self.upd(ladder, k, buy_px=pl[0], qty=pl[1])
+                            self.con.execute("DELETE FROM bee_plan WHERE symbol=? AND ladder=? AND k=?", (self.sym, ladder, k))
                     self.note("not placed", ladder, k, sp if st == "placing_s" else bp, q, 0, "the exchange never got it; retried")
                 elif s is not None:
                     self.upd(ladder, k, state=PLACING[st])
         self.con.commit()
+        if self.paused() and self.units("selling"):
+            self.pull_sells()                           # a sell confirmed during a pause does not stay on the book
         # 1) progress
         got = {}
         for ladder, k, st, kind, sp, bp, scid, bcid, q, cyc in self.units():
@@ -359,15 +372,18 @@ class BeeLadder:
                 if s == "FILLED" or (s in DONE and filled > 0):
                     qq = q if s == "FILLED" else filled
                     gain = qq * (sp - bp) if kind == "acc" and bp else 0.0     # an accumulation unit books on its sell
+                    fee = qq * sp * c["taker_fee"] if str(scid).startswith("bmU") else 0.0   # it may have taken: fee in USDT
+                    if fee:
+                        m["profit_usdt"] -= fee
                     if gain:
                         m["rounds"] += 1
                         m["profit_usdt"] += gain
-                    if kind == "ladder":
+                    if kind == "ladder" and k < 100:
                         m["ladder_sold"] += 1
                     self.upd(ladder, k, state="sold", sell_cid=None, qty=qq, buy_px=sp * (1 - c["rebuy"]), cycles=cyc + (kind == "acc"))
                     if s != "FILLED" and q - qq > 0:               # partly filled, then cancelled: the rest keeps selling
-                        self.split(ladder, k, q - qq, "armed" if kind == "ladder" else "bought", kind, sp, bp, sp)
-                    m["proceeds_usdt"] += qq * sp
+                        self.split(ladder, k, q - qq, "armed" if kind == "ladder" else "bought", kind, sp, bp, sp, cyc)
+                    m["proceeds_usdt"] += qq * sp - fee
                     self.set_meta(proceeds_usdt=m["proceeds_usdt"], rounds=m["rounds"], profit_usdt=m["profit_usdt"], ladder_sold=m["ladder_sold"])
                     self.note("sold", ladder, k, sp, qq, gain, kind)
                     filled_any = True
@@ -378,7 +394,7 @@ class BeeLadder:
                 if s == "FILLED" or (s in DONE and filled > 0):
                     got_q = q if s == "FILLED" else filled
                     if s != "FILLED" and q - got_q > 0:            # partly filled, then cancelled: the rest keeps buying
-                        self.split(ladder, k, q - got_q, "sold", kind, sp, bp, None)
+                        self.split(ladder, k, q - got_q, "sold", kind, sp, bp, None, cyc)
                     qq = got_q
                     if str(bcid).startswith("bmT") and c.get("taker_reserve"):     # it may have paid its fee in the coin
                         qq = float(self.ex.qty(self.sym, qq * (1 - c["taker_reserve"])))
@@ -392,6 +408,7 @@ class BeeLadder:
                     self.upd(ladder, k, state="bought", kind="acc" if acc else "cycle", buy_cid=None, qty=qq,
                              sell_px=bp * (1 + c["resell"]), cycles=cyc + (0 if acc else 1))
                     self.note("bought", ladder, k, bp, qq, gain, kind)
+                    self.con.execute("DELETE FROM bee_plan WHERE symbol=? AND ladder=? AND k=?", (self.sym, ladder, k))
                     filled_any = True
                 elif s in DONE:
                     self.upd(ladder, k, state="sold", buy_cid=None)
@@ -444,6 +461,7 @@ class BeeLadder:
                 self.upd(ladder, k, state="sold", buy_cid=None)
                 continue
             cid = self.cid("T")
+            self.con.execute("INSERT OR REPLACE INTO bee_plan VALUES(?,?,?,?,?)", (self.sym, ladder, k, bp, q))
             try:
                 self.send(ladder, k, "BUY", "buying", {"buy_cid": cid, "buy_px": float(px), "qty": float(qq)},
                           lambda: self.ex.limit(self.sym, "BUY", qq, px, cid), "sold", restore={"qty": q, "buy_px": bp})
@@ -531,16 +549,21 @@ class BeeLadder:
                     continue
         self.con.commit()
 
-    def split(self, ladder, k, rest, state, kind, sp, bp, sell_px):
+    def split(self, ladder, k, rest, state, kind, sp, bp, sell_px, cycles=0):
         """A partly filled order was cancelled: the unfilled part becomes its own unit (same ladder, a new number),
-        so no coin and no USDT silently leaves the loop. Dust under $1 is left out."""
+        so no coin and no USDT silently leaves the loop. A rest under 1.5 x MEXC's minimum order is left out (it
+        could never be placed)."""
         px = sp if state in ("armed", "bought") else bp
-        if not px or rest * px < 1.0:
+        try:
+            floor = 1.5 * float(self.ex.info(self.sym).get("min_quote") or 1)
+        except Exception:
+            floor = 5.0
+        if not px or rest * px < max(1.0, floor):
             return
         k2 = 1 + self.con.execute("SELECT COALESCE(MAX(k), 0) FROM bee_units WHERE symbol=? AND ladder=?", (self.sym, ladder)).fetchone()[0]
         k2 = max(k2, 100)
         self.con.execute("INSERT INTO bee_units VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
-                         (self.sym, ladder, k2, state, kind, sell_px if sell_px is not None else sp, bp, None, None, float(rest), 0, self.now()))
+                         (self.sym, ladder, k2, state, kind, sell_px if sell_px is not None else sp, bp, None, None, float(rest), cycles, self.now()))
         self.note("split", ladder, k2, px, rest, 0, f"rest of unit {ladder}/{k} after a partial fill")
 
     def resting_buys(self):
@@ -552,7 +575,7 @@ class BeeLadder:
         for ladder, k, st, kind, sp, bp, scid, bcid, q, cyc in self.units("bought"):
             px, qq = self.ex.px(self.sym, sp, up=True), self.ex.qty(self.sym, q)
             take = mid is not None and float(px) <= mid       # the market is already over the planned sell
-            cid = self.cid("S")
+            cid = self.cid("U" if take else "S")
             try:
                 self.send(ladder, k, "SELL", "selling", {"sell_cid": cid, "sell_px": float(px)},
                           (lambda: self.ex.limit(self.sym, "SELL", qq, px, cid)) if take else
@@ -561,7 +584,7 @@ class BeeLadder:
                 if take or not crossed(e):
                     self.log(f"mm bee: resell {ladder}/{k} not placed: {e}")
                     continue
-                cid = self.cid("S")                     # the post-only sell would have crossed: sell at that price
+                cid = self.cid("U")                     # the post-only sell would have crossed: sell at that price
                 try:
                     self.send(ladder, k, "SELL", "selling", {"sell_cid": cid, "sell_px": float(px)},
                               lambda: self.ex.limit(self.sym, "SELL", qq, px, cid), "bought")

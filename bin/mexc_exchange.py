@@ -82,9 +82,9 @@ class Mexc:
         try:
             data = json.loads(body) if body else {}
         except ValueError:
-            raise MexcError(f"unexpected reply ({status})")
+            raise MexcError(f"unexpected reply (HTTP {status})")
         if status != 200 or (isinstance(data, dict) and data.get("code") not in (None, 0, 200) and "msg" in data):
-            raise MexcError(f"MEXC error {data.get('code', status) if isinstance(data, dict) else status}: "
+            raise MexcError(f"MEXC error {data.get('code', status) if isinstance(data, dict) else status} (HTTP {status}): "
                             f"{(data.get('msg', '') if isinstance(data, dict) else '')[:160]}")
         return data
 

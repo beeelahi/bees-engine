@@ -367,3 +367,32 @@ class ReviewFixesTest(unittest.TestCase):
         self.clock.t += 900; ex.bar(0.0560, 0.0516, 0.0560); ex.hour_close = 0.0560; bee.step(0.0560)  # chase
         m = bee.meta()
         self.assertLessEqual(m["spent_usdt"] - m["proceeds_usdt"], 1.0)          # never paid from the wallet's own USDT
+
+    def test_http_status_decides(self):
+        self.assertFalse(B.rejected(Exception("MEXC error -1001 (HTTP 503): internal")))     # a code in a 5xx body
+        self.assertFalse(B.rejected(Exception("MEXC error 10072 (HTTP 500): x")))
+        self.assertFalse(B.rejected(Exception("MEXC error 30016 (HTTP 400): duplicate client order id")))
+        self.assertTrue(B.rejected(Exception("MEXC error 30004 (HTTP 400): insufficient position")))
+        self.assertFalse(B.rejected(Exception("unexpected reply (HTTP 502)")))
+
+    def test_lost_chase_goes_back_to_the_planned_buy_back(self):
+        class Ex(LiveEx):
+            def limit(s, sym, side, q, p, cid):
+                if cid.startswith("bmT") and getattr(s, "drop", False):
+                    raise Exception("unexpected reply (HTTP 502)")        # never landed
+                return LiveEx.limit(s, sym, side, q, p, cid)
+        ex, bee = self.make(Ex, cfg={"chase": 0.08}, usdt=0.0)
+        bee.step(0.05)
+        for h, px in ((0.0546, 0.0546), (0.0600, 0.0600)):            # four sells, then 8%+ over the first ones
+            self.clock.t += 900; ex.bar(h, 0.05, px); ex.hour_close = px
+            ex.drop = px >= 0.06
+            bee.step(px)
+        lost = [u for u in bee.units() if u[2] == "placing_b"]
+        self.assertTrue(lost)
+        ladder, k = lost[0][0], lost[0][1]
+        ex.drop = False
+        self.clock.t += 900; ex.bar(0.0536, 0.0534, 0.0535); ex.hour_close = 0.0535   # back under the trigger
+        bee.step(0.0535)
+        u = [x for x in bee.units() if (x[0], x[1]) == (ladder, k)][0]
+        self.assertLess(u[5], 0.0535)                                  # buy-back price restored, not the chase price
+        self.assertEqual(u[2], "buying")
