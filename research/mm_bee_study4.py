@@ -37,8 +37,10 @@ def main():
     z = [tuple(r[:5]) for r in d["pairs"]["ZIGUSDT"]]
     paths = {"down": z, "up": mirror(z), "flat": flat(z)}
     jobs = []
-    for rec in sys.argv[2:] or ("ladder",):
-        for first, gap, rebuy, resell in itertools.product((0.02, 0.03, 0.04), (0.01, 0.02, 0.03), (0.02, 0.031, 0.045), (0.02, 0.03, 0.045)):
+    for rec in [a for a in sys.argv[2:] if not a.startswith("--")] or ("ladder",):
+        grid = ((0.035, 0.04, 0.05), (0.0075, 0.01, 0.0125), (0.04, 0.045, 0.055), (0.04, 0.045, 0.055)) if "--near-pro" in sys.argv else \
+            ((0.02, 0.03, 0.04), (0.01, 0.02, 0.03), (0.02, 0.031, 0.045), (0.02, 0.03, 0.045))
+        for first, gap, rebuy, resell in itertools.product(*grid):
             st = {"recycle": rec, "vol_fast": 0, "btc_guard": 0, "first": first, "gap": gap, "rebuy": rebuy, "resell": resell}
             jobs.append((f"{rec} first {first} gap {gap} rebuy {rebuy} resell {resell}", st))
     with Pool(initializer=init, initargs=(paths,)) as p:        # one JSON line per result, as they finish
