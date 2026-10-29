@@ -29,6 +29,7 @@ case "$CMD" in
   deploy-log)      tail -n "$N" "$ROOT/logs/deploy.log" 2>/dev/null | scrub ;;
   mm-log)          sudo -n journalctl -u bees-mm --no-pager -n "$N" 2>/dev/null | scrub ;;
   mm-preflight)    python3 "$ROOT/bin/mm_preflight.py" 2>&1 | scrub ;;
+  live-drill)      python3 "$ROOT/bin/live_engine.py" --testnet-drill 2>&1 | scrub ;;   # Binance TESTNET only (fake money)
   mm-plan)         python3 "$ROOT/bin/mm_plan.py" 2>&1 | scrub ;;
   mm-status)
     echo "bees-mm: $(systemctl is-active bees-mm.service 2>/dev/null) | kill switch MM_STOP: $([ -f "$ROOT/MM_STOP" ] && echo SET || echo off)"
@@ -74,5 +75,5 @@ case "$CMD" in
   bee-tune-stop)   pf="$ROOT/logs/bee_tune.pid"; if [ -f "$pf" ] && kill -- -"$(cat "$pf")" 2>/dev/null; then echo "MM-Bee tuning study stopped"; else echo "no MM-Bee tuning study running"; fi; rm -f "$pf" ;;
   bee-tune-log)    tail -n "$N" "$ROOT/logs/bee_tune.txt" 2>/dev/null || echo "no MM-Bee tuning output yet" ;;
   bee-study-log)   tail -n "$N" "$ROOT/logs/bee_study.txt" 2>/dev/null || echo "no MM-Bee study output yet" ;;
-  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status"; exit 2 ;;
+  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill"; exit 2 ;;
 esac
