@@ -5,6 +5,7 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- MM-Bee for new positions (Bilal, 29 Oct): optional upside stop "chase" (a sold unit buys back at the market once the price is 8% over its sell); research/mm_bee_tune.py (18 settings x 15 coins x falling / rising year, ops bee-tune) found MM-Bee Pro + buy back at +8% the most robust. Paper runs of that setup on MORPHO, ONDO, CAKE, UNI, PEPE, JUP, PENGU and TAO ($25K position, 25% market-made, public MEXC prices, simulated money), and a "New positions" card on MM Bots with the study and the paper results.
 - Cup & handle and Double tops & bottoms (Bilal): bin/patterns.py scans every tracked pair (universe, not stablecoins, 20-day volume >= $200K or added on purpose) on the daily chart and on complete weekly candles; statuses near the line / handle, broken, retest, broken earlier; target = measured move; two new Trade Ideas sections with cards, a full table, the rules and the track record, and the patterns drawn on the pair chart (daily and weekly). Track record from research/patterns_bt.py (liquid pairs, 2022 on, next-open entry): see docs/RESEARCH.md.
 - "Added" date on every listed entry (Bilal): channel calls, head and shoulders, channels, cup & handle, double tops / bottoms (bin/first_seen.py keeps the first day an entry was listed while it stays listed; long-term breakouts keep their breakout date), on the cards and in the tables.
 ### Changed

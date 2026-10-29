@@ -68,11 +68,27 @@ def build(data=DATA):
         except sqlite3.Error:            # busy or damaged: publish nothing this run rather than a partial file
             return None
         if v:
-            out["variants"][os.path.basename(p)[9:-3]] = v
+            name = os.path.basename(p)[9:-3]
+            if name.startswith("np_"):       # new-position runs: the summary, the hourly curve and the last events only
+                v["events"] = (v.get("events") or [])[:40]
+                for k in ("fill_list", "orders", "units"):
+                    v.pop(k, None)
+                v["snaps"] = v["snaps"][-24 * 30:]
+            out["variants"][name] = v
     try:                                 # MM-Bee on other coins (research/mm_bee_multi.py, once a day)
         with open(os.path.join(data, "mm_bee_multi.json")) as f:
             out["multi"] = json.load(f)
     except (OSError, ValueError):
+        pass
+    try:                                 # MM-Bee for new positions (research/mm_bee_tune.py): totals and the key settings per coin
+        with open(os.path.join(data, "mm_bee_tune.json")) as f:
+            t = json.load(f)
+        keep = ("pro+chase8", "pro+chase15", "pro", "plus", "v2")
+        out["tune"] = {k: t[k] for k in ("generated_utc", "position_usd", "share", "units", "taker_fee", "totals") if k in t}
+        out["tune"]["coins"] = {s: {"best": c["best"], "start_utc": c["start_utc"],
+                                    "results": {n: c["results"][n] for n in set(keep) | {c["best"]} if n in c["results"]}}
+                                for s, c in t.get("coins", {}).items()}
+    except (OSError, ValueError, KeyError):
         pass
     try:                                 # the MM-Bee backtest (mm_bee_backtest.py), when it has run
         with open(os.path.join(data, "mm_bee_backtest.json")) as f:

@@ -134,6 +134,7 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .hx-av.up { background: var(--up-soft); color: var(--up); } .hx-av.down { background: var(--down-soft); color: var(--down); } .hx-av.warn { background: var(--warn-soft); color: var(--warn); }
 .hx-id { min-width: 0; flex: 1; } .hx-id b { font-size: 15.5px; font-weight: 650; } .hx-id small { color: var(--muted); margin-left: 2px; font-size: 11.5px; }
 .hx-id .hx-sub { color: var(--muted); font-size: 12px; line-height: 1.35; margin-top: 1px; }
+.mb-best td { font-weight: 600; }
 .hx-added { color: var(--muted); font-size: 11.5px; margin: -2px 0 6px; font-variant-numeric: tabular-nums; }
 .hx-added b { color: var(--text); font-weight: 600; }
 .hx-badges { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; max-width: 50%; }
@@ -792,6 +793,14 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
         <div class="seg mbx-pseg" id="mbxMSeg"><button type="button" data-v="15d" aria-pressed="false">15-D</button><button type="button" data-v="1m" aria-pressed="false">1-M</button><button type="button" data-v="3m" aria-pressed="false">3-M</button><button type="button" data-v="6m" aria-pressed="false">6-M</button><button type="button" data-v="1y" aria-pressed="true">1-Y</button></div>
         <div class="tbl-wrap mb-tall"><table><thead><tr><th>Coin</th><th>Best bot</th><th id="mbxMPrice">Price</th><th id="mbxMLock" title="USDT banked by completed rounds over the period">Banked</th><th id="mbxMEdge">Ahead of holding</th><th title="USDT banked per year, as a share of the traded slice (1-Y)">Banked a year, %</th><th title="The same year with every move reversed: how the bot does in a strong rally">In a rally, 1-Y</th></tr></thead><tbody id="mbxMulti"></tbody></table></div>
         <p class="note">Rounds bank USDT on every coin. But selling a slice into a big rally costs more than the rounds earn: in the "in a rally" column a coin that doubled or tripled leaves the bot behind holding. Market making is extra income on a position you plan to keep, not protection, and each coin needs its own settings.</p>
+      </div>
+
+      <div class="card mb-row" id="mbxNpCard" hidden>
+        <div class="card-head"><h3>New positions: MM-Bee Pro with buy-back</h3><span class="mbx-badge">Backtest + paper trading</span></div>
+        <p class="note" id="mbxNpLead">&nbsp;</p>
+        <div class="tbl-wrap"><table><thead><tr><th>Setup</th><th title="The real past year (mostly falling): USDT ahead of just holding, all coins together">Falling year</th><th title="The same year with every move reversed (a strong rally)">Rising year</th><th title="Coins where the bot was ahead of holding in both years">Ahead in both</th></tr></thead><tbody id="mbxNpTot"></tbody></table></div>
+        <div class="tbl-wrap mb-tall" style="margin-top:12px"><table><thead><tr><th>Coin</th><th>Best setup for it</th><th title="Pro + buy back at +8%: falling / rising year, USDT ahead of holding">Pro + buy-back, fall / rise</th><th title="Pro without buy-back: falling / rising year">Pro alone, fall / rise</th><th title="Paper trading on live MEXC prices since it started (simulated money)">Paper since</th><th>Banked (paper)</th><th>vs holding (paper)</th></tr></thead><tbody id="mbxNp"></tbody></table></div>
+        <p class="note" id="mbxNpNote"></p>
       </div>
 
       <div class="grid-2 mb-row">
@@ -2325,12 +2334,32 @@ function renderMMBots() {
         td(fUs(X.vs_hold_usdt), "num " + cls(X.vs_hold_usdt)));
       mb.append(tr); });
   } else { $("#mbxMultiLead").textContent = "The other-coin study is being refreshed; it appears here within a day."; }
+  // new positions: the tuning study and the paper runs
+  const TU = D.tune, npCard = $("#mbxNpCard"), f0 = v => isNum(v) ? (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(Math.round(v)).toLocaleString("en-US") : "—";
+  if (TU && TU.totals && npCard) { npCard.hidden = false;
+    const NAMES = { "pro+chase8": "MM-Bee Pro + buy back at +8%", "pro+chase15": "MM-Bee Pro + buy back at +15%", "v2+chase8": "MM-Bee v2 + buy back at +8%", pro: "MM-Bee Pro", plus: "MM-Bee+", v2: "MM-Bee v2" };
+    const nm = k => NAMES[k] || k.replace("pro", "Pro").replace("plus", "MM-Bee+").replace("+chase", " + buy back at +").replace(/(\d+)/, "$1%").replace("+trend", " + trend");
+    const nc = Object.keys(TU.coins || {}).length;
+    $("#mbxNpLead").textContent = `For new long positions ($${fQ(TU.position_usd)} a coin, ${Math.round(100 * TU.share)}% market-made): the bots were run over the past year on ${nc} coins, and on the same year reversed (a strong rally). Plain market making falls far behind holding in a rally, because it sells into it. The fix is the buy-back: when the price runs 8% above a coin we sold, the bot buys it back at once (a small, capped loss, 0.1% fee) instead of missing the move.`;
+    const tb = $("#mbxNpTot"); tb.replaceChildren();
+    ["pro+chase8", "pro+chase15", "v2+chase8", "pro", "plus", "v2"].forEach(k => { const x = TU.totals.find(z => z.setting === k); if (!x) return; const tr = document.createElement("tr");
+      if (k === "pro+chase8") tr.className = "mb-best";
+      tr.append(td(nm(k) + (k === "pro+chase8" ? " (recommended)" : ""), ""), td(f0(x.real), "num " + cls(x.real)), td(f0(x.mirror), "num " + cls(x.mirror)), td(x.coins_ahead_both + " / " + nc, "num")); tb.append(tr); });
+    const body = $("#mbxNp"); body.replaceChildren();
+    Object.entries(TU.coins).forEach(([sym, c]) => { const R = c.results || {}, a = R["pro+chase8"], b = R.pro, v = (D.variants || {})["np_" + sym.toLowerCase()], tr = document.createElement("tr");
+      const pair = x => x ? f0(x.real.vs_hold) + " / " + f0(x.mirror.vs_hold) : "—";
+      tr.append(td(sym.replace(/USDT$/, ""), ""), td(nm(c.best), ""), td(pair(a), "num " + (a ? cls(Math.min(a.real.vs_hold, a.mirror.vs_hold)) : "")), td(pair(b), "num " + (b ? cls(Math.min(b.real.vs_hold, b.mirror.vs_hold)) : "")),
+        td(v ? v.started_utc.slice(0, 10) : "—", "num"), td(v ? f0(v.profit_usdt) + " · " + v.rounds + " rounds" : "—", "num"), td(v ? f0(v.vs_hold_usdt) : "—", "num " + (v ? cls(v.vs_hold_usdt) : ""))); body.append(tr); });
+    $("#mbxNpNote").textContent = `Falling / rising year in USDT ahead of just holding the same coins. "Best setup for it" is picked after the fact from 18 options, so expect less live; one setup for every coin (the recommended row) is the fairer test. Paper runs use MM-Bee Pro + buy back at +8% on live MEXC prices with simulated money; real-money trading has not started. Study run ${(TU.generated_utc || "").slice(0, 10)}.`;
+  }
   // where we are
   const now = $("#mbxNow"); now.replaceChildren();
   const li = (t, sm) => { const l = document.createElement("li"); l.textContent = t; if (sm) { const x = document.createElement("small"); x.textContent = sm; l.append(x); } now.append(l); };
   const V = D.variants || {};
   [["bee_pro", "MM-Bee Pro"], ["bee", "MM-Bee v2"], ["bee_plus", "MM-Bee+"]].forEach(([k, n]) => { const v = V[k]; if (!v) return;
     li(`${n}: paper trading since ${v.started_utc.slice(0, 10)}`, `${v.rounds} rounds, ${fUs(v.profit_usdt)} USDT banked, ${fUs(v.vs_hold_usdt)} vs holding, ${v.open_orders} orders resting on simulated money`); });
+  const np = Object.keys(V).filter(k => k.startsWith("np_"));
+  if (np.length) li(`New positions: ${np.length} coins paper trading with MM-Bee Pro + buy-back`, np.map(k => k.slice(3).replace(/usdt$/, "").toUpperCase()).join(", ") + " · simulated money, live MEXC prices");
   li("Backtests rerun every hour on the newest prices", "the numbers on this page move as new hours close");
   li("Real-money trading has not started", "it starts only after the paper period, on a dedicated account with withdrawals switched off");
   $("#mbxNowNote").textContent = D.generated_utc ? "updated " + mbAgo(D.generated_utc) : "";

@@ -117,6 +117,8 @@ def paper_mm(out_data):
     for vn, extra in MP.BEE_VARIANTS:
         bc = dict(MP.bee_coin({"symbol": "ZIGUSDT"}, {}, extra), btc_guard=0, vol_fast=0, drip_max=0)   # no BTC feed / sleeps here
         runs.append(MP.Variant(vn, bc, feed, None, log=lambda *a: None))
+    np_c = dict(MP.np_coin("ZIGUSDT", feed, data=tmp), btc_guard=0, drip_max=0)       # a new-position run (Pro + buy-back)
+    runs.append(MP.Variant("np_aaausdt", np_c, feed, None, log=lambda *a: None))
     rnd, px = random.Random(11), 0.0420
     for i in range(72 * 4):
         clock[0] += 900_000
@@ -153,6 +155,14 @@ def paper_mm(out_data):
         multi["coins"].append(c)
     with open(os.path.join(tmp, "mm_bee_multi.json"), "w") as f:
         json.dump(multi, f)
+    names = ["pro+chase8", "pro+chase15", "v2+chase8", "pro", "plus", "v2"]
+    res = lambda a, b: {"real": {"vs_hold": a, "locked": abs(a), "rounds": 10, "taker": 1}, "mirror": {"vs_hold": b, "locked": abs(b), "rounds": 9, "taker": 2}}  # noqa: E731
+    tune = {"generated_utc": BT.iso(T.time()), "position_usd": 25000.0, "share": 0.25, "units": 20, "taker_fee": 0.001, "settings": names,
+            "totals": [{"setting": n, "real": 1000.0 - 100 * k, "mirror": 500.0 - 400 * k, "worst_sum": 400.0 - 300 * k, "coins_ahead_both": max(0, 2 - k)} for k, n in enumerate(names)],
+            "coins": {s: {"start_utc": BT.START, "start_price": 1.0, "best": "pro+chase8", "results": {n: res(300.0 - 50 * k, 200.0 - 400 * k) for k, n in enumerate(names)}}
+                      for s in ("AAAUSDT", "BBBUSDT")}}
+    with open(os.path.join(tmp, "mm_bee_tune.json"), "w") as f:
+        json.dump(tune, f)
     mm_site.export(out_data, data=tmp)
     print("site_smoke_data: MM-Bee paper data:", sorted(json.load(open(os.path.join(out_data, "mmbee.json")))["variants"]))
 
