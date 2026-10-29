@@ -58,7 +58,7 @@ class CandleEx:
         self.times = [r[0] for r in candles]
         self.others = {k: (v, [r[0] for r in v]) for k, v in (others or {}).items()}
         self.w = {"ZIG": [float(coins), 0.0], "USDT": [float(usdt), 0.0]}
-        self.o, self.fills = {}, []
+        self.o, self.fills, self.live = {}, [], set()
 
     # clock and market
     def now(self):
@@ -116,11 +116,13 @@ class CandleEx:
             raise RuntimeError("post-only would cross")
         self._lock(side, q, p)
         self.o[cid] = {"side": side, "price": p, "qty": q, "status": "NEW", "filled": 0.0, "placed": self.i}
+        self.live.add(cid)
 
     def limit(self, s, side, q, p, cid):
         q, p = float(q), float(p)
         self._lock(side, q, p)
         self.o[cid] = {"side": side, "price": p, "qty": q, "status": "NEW", "filled": 0.0, "placed": self.i}
+        self.live.add(cid)
         m = self.mid()
         if (side == "BUY" and m <= p) or (side == "SELL" and m >= p):
             self._fill(cid, "taker")
@@ -153,8 +155,12 @@ class CandleEx:
         """Move to the next candle and fill what it trades through."""
         self.i += 1
         _, o_, h, l, c = self.c[self.i]
-        for cid, o in list(self.o.items()):
-            if o["status"] != "NEW" or o["placed"] >= self.i:
+        for cid in list(self.live):                             # only orders still resting (not the whole history)
+            o = self.o[cid]
+            if o["status"] != "NEW":
+                self.live.discard(cid)
+                continue
+            if o["placed"] >= self.i:
                 continue
             if (o["side"] == "SELL" and h > o["price"]) or (o["side"] == "BUY" and l < o["price"]):
                 self._fill(cid, "maker")
