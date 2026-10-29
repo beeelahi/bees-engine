@@ -74,7 +74,7 @@ class Engine:
         self.shadow = self.mode == "shadow"
         con.executescript(SCHEMA)
         have = {r[1] for r in con.execute("PRAGMA table_info(positions)")}
-        for col, typ in (("entry_cid", "TEXT"), ("prot_n", "INTEGER"), ("exit_cid", "TEXT")):
+        for col, typ in (("entry_cid", "TEXT"), ("prot_n", "INTEGER"), ("exit_cid", "TEXT"), ("stop_full", "INTEGER"), ("oco_fail", "INTEGER")):
             if col not in have:
                 con.execute(f"ALTER TABLE positions ADD COLUMN {col} {typ}")
         con.commit()
@@ -163,10 +163,12 @@ class Engine:
         sym, buf = p["symbol"], self.c["stop_limit_buffer_pct"] / 100.0
         if not self.shadow:
             if self.protection_live(self.row(p["id"])):   # old orders not (yet) cancelled: never stack new ones on
-                return self.act(sym, "protection waiting", {"reason": "earlier protective orders still on the book; retried next run"})
+                self.act(sym, "protection waiting", {"reason": "earlier protective orders still on the book; retried next run"})
+                return False
             px = self.ex.price(sym)
             if px <= p["stop"] * 1.001:                    # a stop at or above the price would be refused: sell now
-                return self.close(p, "price at or below the stop")
+                self.close(p, "price at or below the stop")
+                return True
         n = 1 + (self.con.execute("SELECT COALESCE(MAX(prot_n),0) FROM positions WHERE id=?", (p["id"],)).fetchone()[0] or 0)
         self.con.execute("UPDATE positions SET prot_n=? WHERE id=?", (n, p["id"]))
         third = self.ex.qty(sym, p["qty_open"] / 3.0) if not p["partial_done"] else 0
@@ -184,6 +186,7 @@ class Engine:
             try:
                 self._send(self.ex.oco_sell, sym, third, self.ex.px(sym, p["target"], up=True), stop, stop_lim, oco_id)
                 done["oco_qty"] = float(third)
+                self.con.execute("UPDATE positions SET oco_fail=0 WHERE id=?", (p["id"],))
             except Exception as e:
                 self.protection_failed(p, "oco_id", e)
                 if self.outcome(e) == "rejected":          # no OCO: the stop covers the whole position
@@ -197,12 +200,16 @@ class Engine:
                 done["stop_qty"] = float(rest)
             except Exception as e:
                 self.protection_failed(p, "stop_id", e)
+        self.con.execute("UPDATE positions SET stop_full=? WHERE id=?", (1 if "oco_qty" not in done else 0, p["id"]))
         self.con.commit()
         self.act(sym, "protected", dict({"stop": float(stop), "target": p["target"]}, **done))
+        return True
 
     def protection_failed(self, p, col, e):
         if self.outcome(e) == "rejected":              # it did not land: clear the id; ensure_protected retries
             self.con.execute(f"UPDATE positions SET {col}=NULL WHERE id=?", (p["id"],))
+            if col == "oco_id":
+                self.con.execute("UPDATE positions SET oco_fail=COALESCE(oco_fail,0)+1 WHERE id=?", (p["id"],))
         self.con.commit()
         self.act(p["symbol"], "protection problem", {"reason": f"{col[:-3]} order: {str(e)[:120]}"})
 
@@ -223,6 +230,14 @@ class Engine:
             return                                       # an exit is under way: never re-protect it
         need = False
         for col, cid in (("oco_id", (p["oco_id"] + "b") if p["oco_id"] else None), ("stop_id", p["stop_id"])):
+            if col == "oco_id" and not cid and p["stop_full"] and not p["partial_done"]:
+                try:                                     # the stop covers everything; add the take-profit OCO back
+                    px = self.ex.price(p["symbol"])     # only when it can succeed, and give up after 3 refusals
+                except Exception:
+                    px = None
+                if (p["oco_fail"] or 0) < 3 and px and p["stop"] * 1.01 < px < p["target"] * 0.99:
+                    need = True
+                continue
             if col == "oco_id" and p["partial_done"]:
                 continue
             if not cid:
@@ -426,9 +441,9 @@ class Engine:
                 p = self.row(p["id"])
                 if p["status"] != "open":
                     return
-                self.con.execute("UPDATE positions SET stop=? WHERE id=?", (new_stop, p["id"]))
-                self.con.commit()
-                self.protect(dict(p, stop=new_stop))
+                if self.protect(dict(p, stop=new_stop)):     # the new stop is recorded only once it is on the book,
+                    self.con.execute("UPDATE positions SET stop=? WHERE id=? AND status='open'", (new_stop, p["id"]))
+                    self.con.commit()                         # so a move that could not happen is retried next run
 
     def refresh_fills(self, p):
         """Book what the protective orders traded: both OCO legs and the stop, partial fills included. Each order's

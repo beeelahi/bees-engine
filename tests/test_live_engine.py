@@ -296,8 +296,11 @@ class LiveEngineTest(unittest.TestCase):
         locked = ex.locked["ETH"]
         self.assertLessEqual(locked, 0.15 + 1e-9)                    # never more than the bot's own coins locked
         self.assertTrue(live)
+        self.assertAlmostEqual(self.E(ex).positions()[0]["stop"], 1940.0)   # not recorded: the move did not happen
         self.run_(ex, {"open": [moved], "orders": []})               # cancels work now: the move goes through
-        self.assertAlmostEqual(self.E(ex).positions()[0]["stop"], 1990.0)
+        p = self.E(ex).positions()[0]
+        self.assertAlmostEqual(p["stop"], 1990.0)
+        self.assertEqual(ex.o[p["stop_id"]]["stop"], 1990.0)          # and it is on the exchange
         self.assertLessEqual(ex.locked["ETH"], 0.15 + 1e-9)
 
     def test_lost_sell_is_resolved_even_if_the_exit_reason_goes_away(self):
@@ -333,6 +336,20 @@ class LiveEngineTest(unittest.TestCase):
         ex.filters = filters
         self.run_(ex, {"open": [OPEN], "closed": [{"symbol": "BTCUSDT", "signal_date": "2026-10-27", "reason": "x"}], "orders": []})
         self.assertFalse([p for p in self.E(ex).positions() if p["symbol"] == "BTCUSDT"])
+
+
+    def test_no_hourly_churn_when_the_stop_covers_everything(self):
+        ex = Ex()
+        ex.fail["oco"] = {"times": 99}                               # the OCO is always refused
+        self.run_(ex, {"orders": [ORDER]})
+        for _ in range(3):                                           # at most two more tries to add the OCO back
+            self.run_(ex, {"open": [OPEN], "orders": []})
+        n = len(ex.calls)
+        for _ in range(3):                                           # then no churn at all
+            self.run_(ex, {"open": [OPEN], "orders": []})
+        self.assertFalse([c for c in ex.calls[n:] if c[0] in ("cancel", "stop", "cancel_list", "oco")])
+        p = self.E(ex).positions()[0]
+        self.assertAlmostEqual(ex.o[p["stop_id"]]["q"], p["qty_open"], places=4)
 
 
 if __name__ == "__main__":
