@@ -5,6 +5,9 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- MM-Bee periods 15-D, 1-M, 3-M, 6-M and 1-Y (Bilal): every backtest period ends at the latest hour and starts at the 00:00 UTC close that many days earlier, for all four bots and for the other-coin study; MM Bots and Backtest switch between them. Lighter data (compact hourly points, no duplicated run).
+### Fixed
+- binance_sync: a local `import subprocess` shadowed the module import (CI ruff F823) — removed before it deployed.
 - MM-Bee tab, "MM Bots" (now the first section): a plain explainer for the team and for visitors: how a market-making bot earns on coins you hold (with a ladder diagram on today's numbers), what MM-Bee Pro would have done had it gone live on 13 Oct (simulated on real MEXC prices, rerun hourly), the full-year backtest, the four bots side by side, up/down/flat robustness, the same idea on 15 other coins, how to build one, where we really are (paper since 28 Oct), and the risks. Simulated figures are labelled as such; the live record is the paper trading.
 - research/mm_bee_multi.py writes data/mm_bee_multi.json (also the last 15 days per coin); the engine refreshes it once a day in the background and publishes it with the MM-Bee data.
 - MM-Bee Pro (paper variant bee_pro, backtest "pro"): first sell +4%, then every 1%, buy back 4.5% lower, resell 4.5% higher, recycling, BTC guard, no fast mode. Chosen from 243 settings (research/mm_bee_study4.py) as the best on all three ZIG paths over a year: +31,249 USDT ahead of holding on the real (falling) year, +65,292 on its mirror (rising), +17,516 on the flat version; both halves of the real year ahead (+21,028 / +9,145). Regime switching (recycling off in flat markets) was tested (study5) and was not consistently better, so it stays off.

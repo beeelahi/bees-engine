@@ -61,7 +61,7 @@ class BacktestTest(unittest.TestCase):
         self.assertEqual(len(r["equity"]), r["candles"])
         json.dumps(r)
 
-    def test_needs_the_day_before(self):
+    def test_needs_history_before_the_start(self):
         with self.assertRaises(RuntimeError):
             BT.run(candles(self.t0, 48, 0.05))
 
@@ -69,7 +69,9 @@ class BacktestTest(unittest.TestCase):
         d = tempfile.mkdtemp()
         con = sqlite3.connect(":memory:")
         con.execute("CREATE TABLE candles_1h(symbol TEXT, open_ms INTEGER, open REAL, high REAL, low REAL, close REAL)")
-        for t, o, h, l, c in candles(self.t0 - 2 * 86400, 16 * 24, 0.05):
+        import time as _t
+        now = int(_t.time()) - int(_t.time()) % 3600
+        for t, o, h, l, c in candles(now - 40 * 86400, 40 * 24, 0.05):
             con.execute("INSERT INTO candles_1h VALUES('ZIGUSDT',?,?,?,?,?)", (t * 1000, o, h, l, c))
         out = os.path.join(d, "bt.json")
         self.assertTrue(BT.refresh(con, out, log=lambda *a: None))
@@ -77,8 +79,8 @@ class BacktestTest(unittest.TestCase):
         res = json.load(open(out))
         self.assertIn("last_candle_utc", res)
         self.assertEqual(sorted({(r["strategy"], r["id"]) for r in res["runs"]}),
-                         sorted((g, w) for g, _, _ in BT.STRATEGIES for w in ("5d", "15d")))     # 1y: not enough data here
-        self.assertEqual(res["rounds"], res["runs"][0]["rounds"])
+                         sorted((g, w) for g, _, _ in BT.STRATEGIES for w in ("15d", "1m")))      # longer periods: not enough data here
+        self.assertNotIn("rounds", res)                                     # no duplicated top-level run
         for r in res["runs"]:
             self.assertAlmostEqual(r["change_usdt"], r["value_usdt"] - r["start_value_usdt"], places=1)
 

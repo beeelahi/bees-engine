@@ -939,7 +939,6 @@ def main():
             lock = os.path.join(ROOT, "data", ".mm_bee_multi.started")
             if not os.path.exists(lock) or time.time() - os.path.getmtime(lock) > 6 * 3600:
                 open(lock, "w").close()
-                import subprocess
                 subprocess.Popen(["nice", "-n", "15", sys.executable, os.path.join(ROOT, "research", "mm_bee_multi.py")],
                                  stdout=open(os.path.join(ROOT, "logs", "bee_study.txt"), "w"), stderr=subprocess.STDOUT,
                                  stdin=subprocess.DEVNULL, start_new_session=True)

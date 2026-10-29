@@ -41,18 +41,22 @@ def main():
         p0 = rows[next(i for i, r in enumerate(rows) if r[0] >= BT.t_of(start)) - 1][4]
         coins = POSITION / p0
         size = coins * SHARE / UNITS
-        coin = {"symbol": sym, "start_utc": start, "real": {}, "mirror": {}, "15d": {}}
+        coin = {"symbol": sym, "start_utc": start, "real": {}, "mirror": {}, "periods": {}}
         out["coins"].append(coin)
-        start15 = BT.iso(last - last % 86400 - 15 * 86400)
-        for name, st in STRATS:                                    # the last 15 days, real prices
-            st = dict(st, btc_guard=0) if sym == "BTCUSDT" else st
-            i15 = next((i for i, r in enumerate(rows) if r[0] >= BT.t_of(start15)), None)
-            if not i15:
+        for pid, pstart, _ in BT.scenarios(last + 3600):          # 15-D ... 1-Y on real prices, a fresh position each
+            i0 = next((i for i, r in enumerate(rows) if r[0] >= BT.t_of(pstart)), None)
+            if not i0:
                 continue
-            c15 = POSITION / rows[i15 - 1][4]
-            r = BT.run(rows, start=start15, settings=dict(st, size=c15 * SHARE / UNITS, units=UNITS, extra_ladders=0, max_usdt=0),
-                       coins=c15, usdt=0.0, btc=btc, symbol=sym)
-            coin["15d"][name] = {k: r[k] for k in ("start_utc", "end_utc", "start_price", "end_price", "rounds", "profit_usdt", "vs_hold_usdt", "sells", "buys")}
+            cp = POSITION / rows[i0 - 1][4]
+            for name, st in STRATS:
+                st = dict(st, btc_guard=0) if sym == "BTCUSDT" else st
+                try:
+                    r = BT.run(rows, start=pstart, settings=dict(st, size=cp * SHARE / UNITS, units=UNITS, extra_ladders=0, max_usdt=0),
+                               coins=cp, usdt=0.0, btc=btc, symbol=sym)
+                except RuntimeError:
+                    continue
+                coin["periods"].setdefault(pid, {})[name] = {k: r[k] for k in ("start_utc", "end_utc", "start_price", "end_price", "rounds",
+                                                                                 "profit_usdt", "vs_hold_usdt", "sells", "buys")}
         for path, z, b in (("real", rows, btc), ("mirror", mirror(rows), mirror(btc))):
             for name, st in STRATS:
                 if sym == "BTCUSDT":

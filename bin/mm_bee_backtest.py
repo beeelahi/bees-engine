@@ -31,16 +31,23 @@ OUT = os.path.join(ROOT, "data", "mm_bee_backtest.json")
 START = "2026-10-13T00:00:00Z"        # "created 15 days ago" (Bilal, 28 Oct 2026)
 # every scenario shown on the MM-Bee tab: (id, start, label). The bot goes live at a daily close (00:00 UTC) and takes
 # that day's close as its base, exactly as the live code does.
-SCENARIOS = [("5d", "2026-10-24T00:00:00Z", "Live 5 days ago (24 Oct)"),        # Bilal, 29 Oct 2026
-             ("15d", START, "Started 13 Oct (15 days)"),
-             ("1y", "2025-11-01T00:00:00Z", "Started 1 Nov 2025 (1 year)")]
+# the periods shown on the MM-Bee tab (Bilal, 29 Oct 2026): each one ends at the latest hour and starts at the 00:00 UTC
+# close N days earlier, as if the bot had gone live then: (id, days, label)
+PERIODS = [("15d", 15, "15-D"), ("1m", 30, "1-M"), ("3m", 91, "3-M"), ("6m", 182, "6-M"), ("1y", 364, "1-Y")]
+THIN = {"1y": 16, "6m": 8, "3m": 4, "1m": 2}               # keep the page light: long periods keep every Nth hour
+
+
+def scenarios(last_s):
+    day = last_s - last_s % 86400
+    return [(pid, iso(day - n * 86400), label) for pid, n, label in PERIODS]
+
 # the strategies compared on the MM-Bee tab: (id, label, settings over mm_bee.DEFAULTS)
 STRATEGIES = [("pro", "MM-Bee Pro (+4% first, every 1%, buy back -4.5%, resell +4.5%, recycling)", {"recycle": "ladder", "vol_fast": 0, "first": 0.04, "gap": 0.01, "rebuy": 0.045, "resell": 0.045}),
               ("v2", "MM-Bee v2 (base follows each 4h close)", {}),
               ("plus", "MM-Bee+ (v2, bought-back units rejoin the ladder; no 1h mode)", {"recycle": "ladder", "vol_fast": 0}),
               ("v1", "MM-Bee v1 (daily base, 12 h revision)", {"rebase_hours": 0})]
 SYMBOL = "ZIGUSDT"
-VERSION = 5                            # bump when the strategy or the backtest changes: the next engine run reruns it
+VERSION = 7                            # bump when the strategy or the backtest changes: the next engine run reruns it
 H = 3600
 
 
@@ -182,8 +189,8 @@ def run(candles, start=START, bar=H, settings=None, coins=None, usdt=None, end=N
     usdt = c["max_usdt"] if usdt is None else usdt
     t0 = t_of(start)
     first = next((i for i, r in enumerate(candles) if r[0] >= t0), None)
-    if first is None or first == 0 or candles[0][0] > t0 - 86400:
-        raise RuntimeError("mm bee backtest: need candles from the day before the start")
+    if first is None or first == 0 or candles[0][0] > t0 - 3600:
+        raise RuntimeError("mm bee backtest: need candles before the start")
     ex = CandleEx(candles, bar, coins, usdt, others={c["btc_symbol"]: btc} if btc else None)
     ex.i = first - 1                                    # the bot starts at the close just before START
     con = sqlite3.connect(":memory:")
@@ -196,7 +203,7 @@ def run(candles, start=START, bar=H, settings=None, coins=None, usdt=None, end=N
         t, m = ex.now(), ex.mid()
         if t % H == 0:
             zig, us = sum(ex.w["ZIG"]), sum(ex.w["USDT"])
-            equity.append([iso(t), round(m, 8), round(zig * m + us, 2), round(coins * m + usdt, 2)])
+            equity.append([int(t), float(f"{m:.6g}"), round(zig * m + us, 2), round(coins * m + usdt, 2)])   # [unix s, price, wallet, hold]
         if ex.i + 1 >= len(candles):
             break
         ex.advance()
@@ -237,7 +244,7 @@ def run(candles, start=START, bar=H, settings=None, coins=None, usdt=None, end=N
             "equity": equity, "fill_list": ex.fills[::-1], "events": events, "units": units,
             "days": sorted(days.values(), key=lambda d: d["date"]),
             "method": "1-hour MEXC candles; orders fill only on a later candle that trades through their price; maker fee 0%.",
-            "guards": [e for e in events if e[1] in ("btc guard", "fast mode", "calm")][:50]}
+            "guards": [e for e in events if e[1] in ("btc guard", "fast mode", "calm")][:20]}
 
 
 def candles_from_db(con, symbol=SYMBOL, since_s=None):
@@ -247,9 +254,9 @@ def candles_from_db(con, symbol=SYMBOL, since_s=None):
 
 def refresh(con, out=OUT, log=print):
     """Re-run when a new hourly candle exists. Returns True when the file was rewritten."""
-    since = min(t_of(x[1]) for x in SCENARIOS) - 2 * 86400
-    rows = candles_from_db(con, SYMBOL, since)
     now_s = datetime.now(timezone.utc).timestamp()
+    since = int(now_s) - (max(n for _, n, _ in PERIODS) + 3) * 86400
+    rows = candles_from_db(con, SYMBOL, since)
     rows = [r for r in rows if r[0] + H <= now_s]          # completed candles only
     if not rows:
         return False
@@ -264,18 +271,18 @@ def refresh(con, out=OUT, log=print):
     btc = [r for r in candles_from_db(con, "BTCUSDT", since) if r[0] + H <= now_s] or None
     runs = []
     for gid, glabel, gset in STRATEGIES:
-        for sid, start, label in SCENARIOS:
+        for sid, start, label in scenarios(rows[-1][0] + H):
             try:
                 r = run(rows, start=start, settings=gset, btc=btc)
             except RuntimeError:                           # not enough history for this window
                 continue
             r.update(id=sid, label=label, strategy=gid, strategy_label=glabel)
-            if sid == "1y":                                # keep the page light: a year of detail is summarised
-                r["equity"] = r["equity"][::12]
-                r["fill_list"] = r["fill_list"][:150]
-                r["events"] = r["events"][:150]
+            r["equity"] = r["equity"][::THIN.get(sid, 1)]  # keep the page light: long periods are summarised
+            r["days"] = r["days"][-60:]
+            r["fill_list"] = r["fill_list"][:60]
+            r["events"] = r["events"][:60]
             runs.append(r)
-    res = dict(runs[0], runs=runs)                         # top level = the first scenario (older pages read it)
+    res = {"runs": runs}
     res["last_candle_utc"] = last
     res["version"] = VERSION
     res["generated_utc"] = iso(now_s)

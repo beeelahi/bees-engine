@@ -137,19 +137,19 @@ def paper_mm(out_data):
         p = max(0.02, p * (1 + rnd.gauss(-0.0006, 0.01)))
         cs.append((t0 + i * 3600, o, max(o, p) * 1.004, min(o, p) * 0.996, p))
     with open(os.path.join(tmp, "mm_bee_backtest.json"), "w") as f:
-        runs = [dict(BT.run(cs, start=st, settings=gs), id=sid, label=lab, strategy=g, strategy_label=gl)
-                for g, gl, gs in BT.STRATEGIES for sid, st, lab in BT.SCENARIOS if BT.t_of(st) - 86400 >= cs[0][0]]
-        runs += [dict(BT.run(cs, start=BT.SCENARIOS[1][1], settings=gs), id="1y", label="1 year (smoke: 15 days)", strategy=g, strategy_label=gl)
-                 for g, gl, gs in BT.STRATEGIES]
+        st0 = BT.iso(cs[0][0] - cs[0][0] % 86400 + 2 * 86400)    # the synthetic walk is short: every period starts here
+        runs = [dict(BT.run(cs, start=st0, settings=gs), id=pid, label=lab, strategy=g, strategy_label=gl)
+                for g, gl, gs in BT.STRATEGIES for pid, _, lab in BT.PERIODS]
         json.dump(dict(runs[0], runs=runs), f)
     multi = {"generated_utc": BT.iso(T.time()), "position_usd": 25000.0, "share": 0.25, "units": 20, "strategies": ["v2", "pro"], "coins": []}
     for sym in ("AAAUSDT", "BBBUSDT"):                        # the other-coin table, on the same synthetic walk
-        c = {"symbol": sym, "start_utc": BT.START, "real": {}, "mirror": {}, "15d": {}}
+        c = {"symbol": sym, "start_utc": BT.START, "real": {}, "mirror": {}, "periods": {"15d": {}, "1y": {}}}
         for g, gs in (("v2", {}), ("pro", {"recycle": "ladder"})):
-            for path in ("real", "mirror", "15d"):
+            for path in ("real", "mirror"):
                 r = BT.run(cs, start=BT.START, settings=dict(gs, btc_guard=0), symbol=sym)
                 c[path][g] = {"days": 15.0, "start_price": r["start_price"], "end_price": r["end_price"], "rounds": r["rounds"], "sells": r["sells"], "buys": r["buys"],
                               "profit_usdt": r["profit_usdt"], "vs_hold_usdt": r["vs_hold_usdt"], "locked_pct_year": 12.3}
+                c["periods"]["15d"][g] = c["periods"]["1y"][g] = c["real"][g]
         multi["coins"].append(c)
     with open(os.path.join(tmp, "mm_bee_multi.json"), "w") as f:
         json.dump(multi, f)
