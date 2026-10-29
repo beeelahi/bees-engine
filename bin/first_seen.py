@@ -8,13 +8,33 @@ Table first_seen(section, key, first_date, last_date). Seed: an entry that is ne
 to the highlights feed (highlight_log) recently takes the date of that post, so entries listed before this module
 existed keep their real date.
 """
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 GAP_DAYS = 3
 
 
 def _d(s):
     return date.fromisoformat(s[:10])
+
+
+def as_date(v):
+    """'YYYY-MM-DD...' or a unix time (seconds or ms) -> 'YYYY-MM-DD'; anything else -> None."""
+    if v is None or v == "":
+        return None
+    if isinstance(v, (int, float)) or (isinstance(v, str) and v.isdigit()):
+        t = float(v)
+        t = t / 1000 if t > 1e11 else t
+        return datetime.fromtimestamp(t, timezone.utc).strftime("%Y-%m-%d")
+    v = str(v)[:10]
+    return v if _ok(v) else None
+
+
+def _ok(s):
+    try:
+        date.fromisoformat(s)
+        return len(s) == 10
+    except (TypeError, ValueError):
+        return False
 
 
 def stamp(con, section, rows, key, today, seed=None, field="added"):
@@ -26,12 +46,14 @@ def stamp(con, section, rows, key, today, seed=None, field="added"):
     for r in rows:
         k = key(r)
         old = have.get(k)
+        if old and not _ok(old[0]):
+            old = None                                    # a bad stored date (e.g. a raw timestamp): seed it again
         if old and old[1] >= cut:
             first = old[0]
         else:
             first = None
             if not old and seed:
-                s = seed(r)
+                s = as_date(seed(r))
                 if s and s <= today:
                     first = s
             first = first or today
