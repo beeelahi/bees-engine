@@ -17,6 +17,7 @@ Called by the engine (binance_sync) once per new hourly candle; writes data/mm_b
 """
 import bisect
 import json
+import math
 import os
 import sqlite3
 import sys
@@ -73,7 +74,7 @@ class CandleEx:
         series given in `others` (BTCUSDT for the BTC guard)."""
         step = {"1d": 86400, "4h": 4 * H}.get(interval, H)
         t = self.now()
-        rows, times = (self.c, self.times) if symbol == SYMBOL or symbol not in self.others else self.others[symbol]
+        rows, times = (self.c, self.times) if symbol not in self.others else self.others[symbol]
         j = bisect.bisect_right(times, t - self.bar) - 1         # the last candle that has closed by the clock
         if j < 0:
             return []
@@ -97,8 +98,10 @@ class CandleEx:
         return (Decimal(str(q)) / Decimal("0.01")).to_integral_value(rounding=ROUND_DOWN) * Decimal("0.01")
 
     def px(self, s, p, up=False):
+        """ZIG: MEXC's 0.000001 tick. Other coins (multi-coin study): 6 significant digits."""
         from decimal import Decimal, ROUND_DOWN, ROUND_UP
-        return (Decimal(str(p)) / Decimal("0.000001")).to_integral_value(rounding=ROUND_UP if up else ROUND_DOWN) * Decimal("0.000001")
+        tick = Decimal("0.000001") if s == SYMBOL else Decimal(1).scaleb(math.floor(math.log10(float(p))) - 5)
+        return (Decimal(str(p)) / tick).to_integral_value(rounding=ROUND_UP if up else ROUND_DOWN) * tick
 
     def balances(self):
         return {a: (f, l) for a, (f, l) in self.w.items()}
@@ -166,12 +169,12 @@ class CandleEx:
                 self._fill(cid, "maker")
 
 
-def run(candles, start=START, bar=H, settings=None, coins=None, usdt=None, end=None, btc=None):
+def run(candles, start=START, bar=H, settings=None, coins=None, usdt=None, end=None, btc=None, symbol=SYMBOL):
     """Backtest from `start` (ISO, UTC) over candles [(open_s, o, h, l, c)] sorted by time. Needs the day before."""
     if end:
         candles = [r for r in candles if r[0] < t_of(end)]
     # orders move at the candle close in the backtest: the 150-second stagger is shorter than one candle
-    c = dict(mm_bee.DEFAULTS, **dict({"stagger_delay_s": 0}, **(settings or {})), symbol=SYMBOL)
+    c = dict(mm_bee.DEFAULTS, **dict({"stagger_delay_s": 0}, **(settings or {})), symbol=symbol)
     coins = c["units"] * c["size"] * (1 + c["extra_ladders"]) if coins is None else coins
     usdt = c["max_usdt"] if usdt is None else usdt
     t0 = t_of(start)

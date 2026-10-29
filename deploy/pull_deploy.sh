@@ -15,7 +15,7 @@ APP="${BEES_APP:-/home/bees/app}"                # git checkout of the repositor
 ROOT="${BEES_ROOT:-/home/bees/BinanceData}"      # live install: code dirs + private data, settings and keys
 RELEASES="${BEES_RELEASES:-/home/bees/releases}" # unpacked, tested releases (last 5 kept)
 GIT_URL="${BEES_GIT_URL:-https://github.com/$REPO.git}"
-PARTS="bin web deploy picks"
+PARTS="bin web deploy picks research"
 mkdir -p "$ROOT/logs" "$RELEASES"
 [ "${1:-}" = "--now" ] || exec >>"$ROOT/logs/deploy.log" 2>&1
 ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }

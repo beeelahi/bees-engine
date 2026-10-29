@@ -52,5 +52,8 @@ case "$CMD" in
   calls-study)     setsid nohup nice -n 15 python3 "$ROOT/bin/calls_study.py" > "$ROOT/logs/calls_study.txt" 2>&1 < /dev/null &
                    echo "channel calls study started in the background; read it with study-log" ;;
   study-log)       tail -n "$N" "$ROOT/logs/calls_study.txt" 2>/dev/null || echo "no study output yet" ;;
-  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log"; exit 2 ;;
+  bee-study)       setsid nohup nice -n 15 python3 "$ROOT/research/mm_bee_multi.py" > "$ROOT/logs/bee_study.txt" 2>&1 < /dev/null &
+                   echo "MM-Bee multi-coin study started in the background; read it with bee-study-log" ;;
+  bee-study-log)   tail -n "$N" "$ROOT/logs/bee_study.txt" 2>/dev/null || echo "no MM-Bee study output yet" ;;
+  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log"; exit 2 ;;
 esac
