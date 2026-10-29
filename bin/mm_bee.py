@@ -394,7 +394,11 @@ class BeeLadder:
                 if s == "FILLED" or (s in DONE and filled > 0):
                     got_q = q if s == "FILLED" else filled
                     if s != "FILLED" and q - got_q > 0:            # partly filled, then cancelled: the rest keeps buying
-                        self.split(ladder, k, q - got_q, "sold", kind, sp, bp, None, cyc)
+                        rest_px = bp                               # ... at the planned buy-back, never at a chase price
+                        if str(bcid).startswith("bmT"):
+                            pl = self.con.execute("SELECT buy_px FROM bee_plan WHERE symbol=? AND ladder=? AND k=?", (self.sym, ladder, k)).fetchone()
+                            rest_px = pl[0] if pl and pl[0] else (sp * (1 - c["rebuy"]) if sp else bp)
+                        self.split(ladder, k, q - got_q, "sold", kind, sp, rest_px, None, cyc)
                     qq = got_q
                     if str(bcid).startswith("bmT") and c.get("taker_reserve"):     # it may have paid its fee in the coin
                         qq = float(self.ex.qty(self.sym, qq * (1 - c["taker_reserve"])))

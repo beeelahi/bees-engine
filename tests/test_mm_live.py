@@ -396,3 +396,29 @@ class ReviewFixesTest(unittest.TestCase):
         u = [x for x in bee.units() if (x[0], x[1]) == (ladder, k)][0]
         self.assertLess(u[5], 0.0535)                                  # buy-back price restored, not the chase price
         self.assertEqual(u[2], "buying")
+
+    def test_partly_filled_chase_rest_goes_back_to_plan(self):
+        class Ex(LiveEx):
+            def limit(s, sym, side, q, p, cid):                       # a chase that rests instead of filling at once
+                if cid.startswith("bmT"):
+                    s._lock(side, float(q), float(p))
+                    s.o[cid] = dict(side=side, price=float(p), qty=float(q), status="NEW", filled=0.0)
+                    return
+                return LiveEx.limit(s, sym, side, q, p, cid)
+        ex, bee = self.make(Ex, cfg={"chase": 0.08}, usdt=0.0)
+        bee.step(0.05)
+        for h, px in ((0.0546, 0.0546), (0.0600, 0.0600)):
+            self.clock.t += 900; ex.bar(h, 0.05, px); ex.hour_close = px
+            bee.step(px)
+        # take a fresh chase order and make it half-filled then cancelled
+        ch = [u for u in bee.units() if u[2] == "buying" and str(u[7]).startswith("bmT")]
+        self.assertTrue(ch)
+        u = ch[0]
+        o = ex.o[u[7]]
+        o.update(status="PARTIALLY_CANCELED", filled=o["qty"] / 2)
+        ex.w["USDT"][1] -= o["qty"] * o["price"]; ex.w["USDT"][0] += o["qty"] / 2 * o["price"]; ex.w["ZIG"][0] += o["qty"] / 2
+        self.clock.t += 900; ex.hour_close = 0.0535
+        bee.step(0.0535)
+        rest = [x for x in bee.units() if x[0] == u[0] and x[1] >= 100]
+        self.assertTrue(rest)
+        self.assertLess(rest[0][5], 0.0535)
