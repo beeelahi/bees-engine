@@ -146,3 +146,19 @@ Reading:
   Stronger fits: MORPHO, ONDO, CAKE, UNI, PEPE, JUP, PENGU, TAO.
 * ZIG is different: on ZIG the upside stop lowered Pro on both paths (real +40.2K -> +17.2K, mirror +66.6K -> +41.8K
   with chase 8%), so ZIG stays on Pro without it.
+
+### At 40% of the position ($10,000 a coin, 30 Oct 2026)
+
+Same study, rerun with 40% of each $25,000 position market-made (and the upside stop held to the same USDT budget
+as every buy). USDT ahead of holding, 15 coins together:
+
+| setting | falling year | rising year | coins ahead on both |
+|---|---|---|---|
+| Pro + buy back at +8% | +8,679 | +22,289 | 11 / 15 |
+| Pro + buy back at +15% | +12,287 | +4,596 | 10 / 15 |
+| Pro | +17,070 | -80,032 | 3 / 15 |
+| MM-Bee+ | +20,533 | -82,582 | 7 / 15 |
+| v2 | +23,771 | -132,066 | 4 / 15 |
+
+Pro + buy back at +8% stays the choice: the only setting clearly ahead in both directions. Selling 40% without the
+upside stop would have cost up to $132K across the 15 coins in a rally.
