@@ -69,6 +69,11 @@ def build(data=DATA):
             return None
         if v:
             out["variants"][os.path.basename(p)[9:-3]] = v
+    try:                                 # MM-Bee on other coins (research/mm_bee_multi.py, once a day)
+        with open(os.path.join(data, "mm_bee_multi.json")) as f:
+            out["multi"] = json.load(f)
+    except (OSError, ValueError):
+        pass
     try:                                 # the MM-Bee backtest (mm_bee_backtest.py), when it has run
         with open(os.path.join(data, "mm_bee_backtest.json")) as f:
             out["backtest"] = json.load(f)

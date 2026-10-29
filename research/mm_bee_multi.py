@@ -6,9 +6,11 @@ the position at the start price, sell first, no wallet USDT. Binance 1-hour cand
 
     python3 research/mm_bee_multi.py [DB] > out.txt
 """
+import json
 import os
 import sqlite3
 import sys
+import time
 
 import _env  # noqa: F401
 import mm_bee_backtest as BT
@@ -28,6 +30,8 @@ def main():
     since = last - 367 * 86400
     btc = BT.candles_from_db(con, "BTCUSDT", since)
     print(f"# MM-Bee on other coins: ${POSITION:,.0f} position, {100 * SHARE:.0f}% traded, {UNITS} units; 1h Binance candles")
+    out = {"generated_utc": BT.iso(time.time()), "position_usd": POSITION, "share": SHARE, "units": UNITS,
+           "strategies": [n for n, _ in STRATS], "coins": []}
     for sym in COINS:
         rows = BT.candles_from_db(con, sym, since)
         if len(rows) < 24 * 60:
@@ -37,6 +41,18 @@ def main():
         p0 = rows[next(i for i, r in enumerate(rows) if r[0] >= BT.t_of(start)) - 1][4]
         coins = POSITION / p0
         size = coins * SHARE / UNITS
+        coin = {"symbol": sym, "start_utc": start, "real": {}, "mirror": {}, "15d": {}}
+        out["coins"].append(coin)
+        start15 = BT.iso(last - last % 86400 - 15 * 86400)
+        for name, st in STRATS:                                    # the last 15 days, real prices
+            st = dict(st, btc_guard=0) if sym == "BTCUSDT" else st
+            i15 = next((i for i, r in enumerate(rows) if r[0] >= BT.t_of(start15)), None)
+            if not i15:
+                continue
+            c15 = POSITION / rows[i15 - 1][4]
+            r = BT.run(rows, start=start15, settings=dict(st, size=c15 * SHARE / UNITS, units=UNITS, extra_ladders=0, max_usdt=0),
+                       coins=c15, usdt=0.0, btc=btc, symbol=sym)
+            coin["15d"][name] = {k: r[k] for k in ("start_utc", "end_utc", "start_price", "end_price", "rounds", "profit_usdt", "vs_hold_usdt", "sells", "buys")}
         for path, z, b in (("real", rows, btc), ("mirror", mirror(rows), mirror(btc))):
             for name, st in STRATS:
                 if sym == "BTCUSDT":
@@ -45,9 +61,18 @@ def main():
                            coins=coins, usdt=0.0, btc=b, symbol=sym)
                 days = (BT.t_of(r["end_utc"]) - BT.t_of(start)) / 86400
                 traded = POSITION * SHARE
+                coin[path][name] = {"days": round(days, 1), "start_price": r["start_price"], "end_price": r["end_price"],
+                                    "rounds": r["rounds"], "profit_usdt": round(r["profit_usdt"], 2), "vs_hold_usdt": round(r["vs_hold_usdt"], 2),
+                                    "locked_pct_year": round(100 * r["profit_usdt"] / traded / days * 365, 1) if days else None}
                 print(f"{sym:12s} {path:6s} {name:4s} {days:4.0f}d price {r['start_price']:.6g}->{r['end_price']:.6g} "
                       f"({100 * (r['end_price'] / r['start_price'] - 1):+.0f}%) rounds {r['rounds']:4d} locked {r['profit_usdt']:+9.2f} "
                       f"({100 * r['profit_usdt'] / traded / days * 365:+.0f}%/yr of the traded ${traded:,.0f}) vs hold {r['vs_hold_usdt']:+9.2f}", flush=True)
+
+    path = os.path.join(os.path.dirname(db), "mm_bee_multi.json")
+    with open(path + ".tmp", "w") as f:
+        json.dump(out, f, separators=(",", ":"))
+    os.replace(path + ".tmp", path)
+    print(f"# written {path}")
 
 
 if __name__ == "__main__":

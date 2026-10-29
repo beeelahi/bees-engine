@@ -286,6 +286,24 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
 .mb-feed .ic { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font-size: 13px; font-weight: 700; }
 .mb-feed .ic.up { background: var(--up-soft); color: var(--up); } .mb-feed .ic.down { background: var(--down-soft); color: var(--down); } .mb-feed .ic.info { background: var(--accent-soft); color: var(--accent); }
 .mb-feed small { display: block; color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+.mbx-hero { background: radial-gradient(120% 140% at 0% 0%, rgba(4,183,248,.16), transparent 60%), linear-gradient(180deg, rgba(16, 32, 74, 0.55), rgba(11, 23, 57, 0.92)); }
+.mbx-eyebrow { color: var(--accent); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.mbx-title { font-size: clamp(22px, 3.2vw, 32px); margin: 6px 0 8px; text-wrap: balance; }
+.mbx-lead { max-width: 75ch; line-height: 1.6; margin: 0 0 16px; color: var(--fg); }
+.mbx-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
+.mbx-step { display: grid; grid-template-columns: 34px 1fr; gap: 2px 10px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: rgba(8, 16, 40, 0.5); }
+.mbx-step .mbx-n { grid-row: span 2; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.mbx-step span:last-child { color: var(--muted); font-size: 13px; line-height: 1.45; }
+.mbx-diagram { margin-top: 16px; overflow-x: auto; }
+.mbx-diagram svg { display: block; width: 100%; max-width: 980px; min-width: 560px; height: auto; margin: 0 auto; }
+#mbxBots td:nth-child(2) { text-align: left; white-space: normal; min-width: 14em; color: var(--muted); font-size: 12.5px; }
+.mbx-badge { font-size: 11.5px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: var(--warn-soft); color: var(--warn); }
+.mbx-kpis { margin: 12px 0; }
+.mbx-now { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.mbx-now li { border-left: 3px solid var(--accent); padding: 4px 10px; line-height: 1.45; }
+.mbx-now li small { display: block; color: var(--muted); }
+.mbx-contact { font-family: var(--font-num); user-select: all; color: var(--fg); }
+.mbx-risk { border-color: var(--warn); line-height: 1.55; font-size: 13px; }
 </style>
 
 <header class="top" id="top">
@@ -679,8 +697,94 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <div class="card-head"><h2>MM-Bee · ZIG market making</h2><span class="pill" id="mbPill"><span class="dot"></span><span id="mbPillText">Loading…</span></span></div>
       <p class="note sub-lead">Paper trading on live MEXC prices: every order is simulated against MEXC's real trades and order book, and no order reaches the exchange. <b id="mbLead">&nbsp;</b></p>
       <div class="hl-nav sub-nav" data-for="mmbee" role="tablist" aria-label="MM-Bee sections">
+        <button type="button" role="tab" data-s="bots">MM Bots<i></i></button>
         <button type="button" role="tab" data-s="live">Live paper<i></i></button>
         <button type="button" role="tab" data-s="backtest">Backtest<i></i></button>
+      </div>
+    </div>
+    <div class="sub-panel" data-s="bots" hidden>
+      <div class="card mb-row mbx-hero">
+        <div class="mbx-eyebrow">MM Bots · market making on coins you already hold</div>
+        <h2 class="mbx-title">Your coins can earn while you hold them.</h2>
+        <p class="mbx-lead">A market-making bot puts a slice of a coin you hold up for sale a little above the price, buys it back a little lower, and repeats. Every completed round banks the difference in USDT, and you end up holding the same coins. Below: how it works, what our bots would have earned on ZIG had they gone live 15 days ago and over the past year, and how the same idea did on 15 other coins.</p>
+        <div class="mbx-steps">
+          <div class="mbx-step"><span class="mbx-n">1</span><b>Sell a slice higher</b><span>Sell orders rest above the price: a slice of your coins, a few % up, step by step.</span></div>
+          <div class="mbx-step"><span class="mbx-n">2</span><b>Buy it back lower</b><span>When a sell fills, the same amount is bought back a few % lower.</span></div>
+          <div class="mbx-step"><span class="mbx-n">3</span><b>Repeat, bank the gap</b><span>Bought back, it goes up for sale again. Each round adds USDT; the coin count comes back.</span></div>
+        </div>
+        <div class="mbx-diagram" id="mbxDiagram" aria-label="Diagram of the sell ladder and buy-backs"></div>
+      </div>
+
+      <div class="card mb-row">
+        <div class="card-head"><h3 id="mbx15Title">If MM-Bee Pro had gone live 15 days ago</h3><span class="mbx-badge">Simulated on real MEXC prices</span></div>
+        <p class="note" id="mbx15Lead">&nbsp;</p>
+        <div class="grid-kpi mbx-kpis">
+          <div class="card kpi"><div class="label">USDT banked by rounds</div><div class="v" id="mbx15Lock">—</div><div class="note" id="mbx15LockN">&nbsp;</div></div>
+          <div class="card kpi"><div class="label">Completed rounds</div><div class="v" id="mbx15Rounds">—</div><div class="note" id="mbx15RoundsN">&nbsp;</div></div>
+          <div class="card kpi"><div class="label">Ahead of just holding</div><div class="v" id="mbx15Edge">—</div><div class="note" id="mbx15EdgeN">&nbsp;</div></div>
+          <div class="card kpi"><div class="label">ZIG over the period</div><div class="v" id="mbx15Move">—</div><div class="note" id="mbx15MoveN">&nbsp;</div></div>
+        </div>
+        <div class="legend" id="mbx15Legend"></div>
+        <div class="chart-eq" id="mbx15Curve"></div>
+      </div>
+
+      <div class="card mb-row">
+        <div class="card-head"><h3>Over a full year</h3><span class="mbx-badge">Backtest, real MEXC prices</span></div>
+        <p class="note" id="mbxYLead">&nbsp;</p>
+        <div class="grid-kpi mbx-kpis">
+          <div class="card kpi"><div class="label">USDT banked by rounds</div><div class="v" id="mbxYLock">—</div><div class="note" id="mbxYLockN">&nbsp;</div></div>
+          <div class="card kpi"><div class="label">Completed rounds</div><div class="v" id="mbxYRounds">—</div><div class="note" id="mbxYRoundsN">&nbsp;</div></div>
+          <div class="card kpi"><div class="label">Ahead of just holding</div><div class="v" id="mbxYEdge">—</div><div class="note" id="mbxYEdgeN">&nbsp;</div></div>
+          <div class="card kpi"><div class="label">ZIG over the year</div><div class="v" id="mbxYMove">—</div><div class="note" id="mbxYMoveN">&nbsp;</div></div>
+        </div>
+        <div class="legend" id="mbxYLegend"></div>
+        <div class="chart-eq" id="mbxYCurve"></div>
+      </div>
+
+      <div class="grid-2 mb-row">
+        <div class="card">
+          <div class="card-head"><h3>Four bots, side by side</h3><span class="note">ZIG, USDT ahead of holding</span></div>
+          <div class="tbl-wrap"><table><thead><tr><th>Bot</th><th>How it trades</th><th>15 days</th><th>1 year</th></tr></thead><tbody id="mbxBots"></tbody></table></div>
+          <p class="note">Same prices, same wallet (600,000 ZIG + 10,000 USDT), only the rules differ.</p>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Up, down or flat?</h3><span class="note">ZIG year, three versions of the market</span></div>
+          <div class="tbl-wrap"><table><thead><tr><th>Bot</th><th>Real year (ZIG −51%)</th><th>Same moves, upward</th><th>Trend removed</th></tr></thead><tbody>
+            <tr><td><b>MM-Bee Pro</b></td><td class="num pos">+31,249</td><td class="num pos">+65,292</td><td class="num pos">+17,516</td></tr>
+            <tr><td>MM-Bee+</td><td class="num pos">+20,175</td><td class="num pos">+42,942</td><td class="num pos">+17,412</td></tr>
+            <tr><td>MM-Bee v2</td><td class="num pos">+12,758</td><td class="num neg">−21,836</td><td class="num pos">+28,615</td></tr>
+          </tbody></table></div>
+          <p class="note">USDT ahead of holding over a year. A bot that only sells into a rally falls behind; Pro sends coins it bought back on the way down back into its sell ladder, so it keeps trading whichever way the market goes. Its 81 neighbouring settings were all ahead in all three markets: a broad, stable result, not a lucky one (research of 29 Oct 2026).</p>
+        </div>
+      </div>
+
+      <div class="card mb-row">
+        <div class="card-head"><h3>The same idea on other coins</h3><span class="mbx-badge" id="mbxMultiBadge">Backtest, Binance prices</span></div>
+        <p class="note" id="mbxMultiLead">&nbsp;</p>
+        <div class="tbl-wrap mb-tall"><table><thead><tr><th>Coin</th><th>Price, 1 year</th><th>Best bot</th><th title="USDT banked by completed rounds, per year, as a share of the traded slice">Banked a year</th><th>Ahead of holding, 1 year</th><th title="The same year with every move reversed: how the bot does in a strong rally">In a rally</th><th>Last 15 days</th></tr></thead><tbody id="mbxMulti"></tbody></table></div>
+        <p class="note">Rounds bank USDT on every coin. But selling a slice into a big rally costs more than the rounds earn: in the "in a rally" column a coin that doubled or tripled leaves the bot behind holding. Market making is extra income on a position you plan to keep, not protection, and each coin needs its own settings.</p>
+      </div>
+
+      <div class="grid-2 mb-row">
+        <div class="card">
+          <div class="card-head"><h3>Build your own</h3></div>
+          <ol class="mb-rules">
+            <li><b>Pick coins you will hold anyway.</b> The bot sells and buys back a slice; you keep the position.</li>
+            <li><b>Choose the slice.</b> We test 25% of a position, split into 20 orders. The rest is never touched.</li>
+            <li><b>Use a spot account with API trading on and withdrawals off,</b> locked to your server's IP address. The bot can trade but can never move funds out.</li>
+            <li><b>Start on paper.</b> Every bot here ran on simulated money first, against the exchange's real prices and trades.</li>
+            <li><b>Size small, then grow.</b> Real fills differ from a backtest: other traders, queue position, fees on some exchanges.</li>
+          </ol>
+          <p class="note">Talk to us about running one: <span class="mbx-contact">gm@koreit.io</span></p>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Where we are</h3><span class="note" id="mbxNowNote"></span></div>
+          <ul class="mbx-now" id="mbxNow"></ul>
+        </div>
+      </div>
+
+      <div class="card mb-row mbx-risk">
+        <b>Read this first.</b> The 15-day and 1-year figures are simulations: the bot's exact code run on real exchange prices, with conservative fills (an order counts as filled only when a later hour trades through its price). They are not results of a live account. Our live record is the paper trading shown under "Live paper", running since 28 Oct 2026; no real money is traded yet. Past or simulated results do not guarantee future results. Crypto is volatile: you can lose money, and a market maker can leave you with fewer coins after a rally. Not financial advice.
       </div>
     </div>
     <div class="sub-panel" data-s="live" hidden>
@@ -2046,6 +2150,104 @@ function renderMBBacktest() {
     mbLegend("btLegend", [[css("--accent"), "MM-Bee ahead of holding (USDT, right)"], [css("--muted"), "ZIG price (left)"]]); btChart.timeScale().fitContent();
   } else { mbLegend("btLegend", []); box.innerHTML = '<div class="empty">No backtest curve yet.</div>'; }
 }
+// ---------- MM Bots: the explainer (simulated 15 days and 1 year on ZIG, other coins, where we are)
+let mbx15Chart = null, mbxYChart = null;
+const MBX_BOT = { pro: "MM-Bee Pro", v2: "MM-Bee v2", plus: "MM-Bee+", v1: "MM-Bee v1" };
+const MBX_HOW = { pro: "Sells from +4%, every 1%; buys back 4.5% lower, sells again 4.5% up; recycles", v2: "Sells from +3%, every 2%; buys back 3.1% lower, sells again 3% up", plus: "v2 rules + recycles bought-back coins", v1: "v2 rules, base set once a day" };
+function svgEl(tag, attrs, text) { const e = document.createElementNS("http://www.w3.org/2000/svg", tag); Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v)); if (text != null) e.textContent = text; return e; }
+function mbxDiagram(base) {
+  const box = $("#mbxDiagram"); box.replaceChildren();
+  const W = 1000, H = 250, padL = 150, padR = 320, y0 = 30, y1 = H - 36;
+  const lv = [0.04, 0.05, 0.06, 0.07].map(x => base * (1 + x)), buy = lv[0] * (1 - 0.045), resell = buy * 1.045;
+  const lo = buy * 0.985, hi = lv[3] * 1.01, Y = p => y1 - (p - lo) / (hi - lo) * (y1 - y0);
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" });
+  const T = (x, y, t, cls_, anchor) => svg.append(svgEl("text", { x, y, "text-anchor": anchor || "start", style: `fill:${cls_ || "var(--muted)"};font-size:15px;font-family:var(--font-num)` }, t));
+  // the price path: from the base up through the first sell, down to the buy-back, back up to the resell
+  const xs = [padL, padL + 120, padL + 250, padL + 400, W - padR];
+  const ps = [base, lv[0] * 1.004, buy * 0.998, resell * 1.003, resell * 0.99];
+  svg.append(svgEl("path", { d: xs.map((x, i) => (i ? "L" : "M") + x + " " + Y(ps[i]).toFixed(1)).join(" "), fill: "none", style: "stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round" }));
+  svg.append(svgEl("line", { x1: padL, x2: W - padR, y1: Y(base), y2: Y(base), style: "stroke:var(--muted);stroke-dasharray:4 4" }));
+  T(padL - 8, Y(base) + 4, "base " + fZ(base), "var(--muted)", "end");
+  lv.forEach((p, i) => { svg.append(svgEl("line", { x1: W - padR + 8, x2: W - padR + 60, y1: Y(p), y2: Y(p), style: "stroke:var(--down);stroke-width:3" }));
+    T(W - padR + 66, Y(p) + 4, `sell ${fZ(p)} (+${4 + i}%)`, "var(--down)"); });
+  svg.append(svgEl("line", { x1: W - padR + 8, x2: W - padR + 60, y1: Y(buy), y2: Y(buy), style: "stroke:var(--up);stroke-width:3" }));
+  T(W - padR + 66, Y(buy) + 4, `buy back ${fZ(buy)} (−4.5%)`, "var(--up)");
+  const dot = (x, p, col, label, dy) => { svg.append(svgEl("circle", { cx: x, cy: Y(p), r: 6, style: `fill:${col};stroke:var(--panel);stroke-width:2` })); T(x, Y(p) + dy, label, col, "middle"); };
+  dot(xs[1], lv[0], "var(--down)", "① sold", -12);
+  dot(xs[2], buy, "var(--up)", "② bought back", 22);
+  dot(xs[3], resell, "var(--down)", "③ sold again", -12);
+  box.append(svg);
+  const cap = document.createElement("p"); cap.className = "note";
+  cap.textContent = `One unit on the ladder (MM-Bee Pro, today's base ${fZ(base)}): sold at ${fZ(lv[0])}, bought back at ${fZ(buy)}, banking ${fPct(100 * (lv[0] / buy - 1), 1)} of it, then up for sale again at ${fZ(resell)}. Twenty such units, one percent apart, work at the same time.`;
+  box.append(cap);
+}
+function mbxCurve(boxId, legendId, run, old) {
+  if (old) old.remove();
+  const box = $("#" + boxId);
+  if (typeof LightweightCharts === "undefined" || !run || (run.equity || []).length < 2) { box.innerHTML = '<div class="empty">Chart not available.</div>'; return null; }
+  box.replaceChildren(); const ch = mbChartMake(box);
+  ch.addAreaSeries({ lineColor: css("--accent"), topColor: css("--accent-soft"), bottomColor: "transparent", lineWidth: 3, priceLineVisible: false, priceFormat: usdFmt, priceScaleId: "right" }).setData(mbPts(run.equity, x => x[2] - x[3]));
+  ch.addLineSeries({ color: css("--muted"), lineWidth: 1, lineStyle: 2, priceLineVisible: false, priceFormat: zigFmt, priceScaleId: "left" }).setData(mbPts(run.equity, x => x[1]));
+  ch.applyOptions({ leftPriceScale: { visible: true } }); ch.timeScale().fitContent();
+  mbLegend(legendId, [[css("--accent"), "USDT ahead of just holding (right)"], [css("--muted"), "ZIG price (left)"]]);
+  return ch;
+}
+function mbxKpis(pre, r) {
+  if (!r) return;
+  const days = mbHrs(r.start_utc, r.end_utc) / 24, mv = 100 * (r.end_price / r.start_price - 1);
+  mbSet(pre + "Lock", fUs(r.profit_usdt) + " USDT", cls(r.profit_usdt)); $("#" + pre + "LockN").textContent = `${fUs(r.profit_usdt / Math.max(days, 1e-9))} USDT a day on average`;
+  mbSet(pre + "Rounds", String(r.rounds)); $("#" + pre + "RoundsN").textContent = `${r.sells} sells, ${r.buys} buy-backs`;
+  mbSet(pre + "Edge", fUs(r.vs_hold_usdt) + " USDT", cls(r.vs_hold_usdt)); $("#" + pre + "EdgeN").textContent = isNum(r.change_usdt) ? `wallet ${fUs(r.change_usdt)} vs holding ${fUs(r.hold_change_usdt)}` : "";
+  mbSet(pre + "Move", fPct(mv, 1), cls(mv)); $("#" + pre + "MoveN").textContent = `${fZ(r.start_price)} → ${fZ(r.end_price)}`;
+}
+function renderMMBots() {
+  renderMMHead();
+  if (S.mm === undefined) return;
+  const D = S.mm || {}, runs = (D.backtest && D.backtest.runs) || [], get = (g, w) => runs.find(r => (r.strategy || "v2") === g && r.id === w);
+  const P15 = get("pro", "15d") || get("v2", "15d"), P1 = get("pro", "1y") || get("v2", "1y");
+  const vp = D.variants && (D.variants.bee_pro || D.variants.bee);
+  mbxDiagram((vp && vp.bee && vp.bee.base) || (P15 && P15.base) || 0.042);
+  if (P15) {
+    const days = mbHrs(P15.start_utc, P15.end_utc) / 24;
+    $("#mbx15Title").textContent = `If ${MBX_BOT[P15.strategy] || "MM-Bee"} had gone live on ${P15.start_utc.slice(0, 10)}`;
+    $("#mbx15Lead").textContent = `${days.toFixed(1)} days, ${P15.start_utc.slice(0, 10)} to ${P15.end_utc.slice(0, 16).replace("T", " ")} UTC. The bot's exact code on MEXC's hourly ZIG prices, with a wallet of ${fQ(P15.start_coins)} ZIG and ${fQ(P15.start_usdt)} USDT, of which ${fQ((P15.settings.units || 20) * (P15.settings.size || 15000))} ZIG works in the sell ladder. Rerun every hour.`;
+    mbxKpis("mbx15", P15); mbx15Chart = mbxCurve("mbx15Curve", "mbx15Legend", P15, mbx15Chart);
+  }
+  if (P1) {
+    const days = mbHrs(P1.start_utc, P1.end_utc) / 24;
+    $("#mbxYLead").textContent = `${Math.round(days)} days from ${P1.start_utc.slice(0, 10)}: ZIG went from ${fZ(P1.start_price)} to ${fZ(P1.end_price)}. The wallet went from ${fQ(P1.start_value_usdt)} to ${fQ(P1.value_usdt)} USDT; just holding it would have left ${fQ(P1.hold_usdt)}.`;
+    mbxKpis("mbxY", P1); mbxYChart = mbxCurve("mbxYCurve", "mbxYLegend", P1, mbxYChart);
+  }
+  const tb = $("#mbxBots"); tb.replaceChildren();
+  ["pro", "v2", "plus", "v1"].forEach(g => { const a = get(g, "15d"), b = get(g, "1y"); if (!a && !b) return;
+    const tr = document.createElement("tr"), nm = document.createElement("b"); nm.textContent = MBX_BOT[g];
+    const cell = r => td(r ? fUs(r.vs_hold_usdt) : "—", "num " + (r ? cls(r.vs_hold_usdt) : ""), r ? `${fUs(r.profit_usdt)} USDT banked in ${r.rounds} rounds` : "");
+    tr.append(tdNode(g === "pro" ? nm : document.createTextNode(MBX_BOT[g])), td(MBX_HOW[g], ""), cell(a), cell(b)); tb.append(tr); });
+  // other coins
+  const M = D.multi, mb = $("#mbxMulti"); mb.replaceChildren();
+  if (M && M.coins) {
+    $("#mbxMultiLead").textContent = `A $${fQ(M.position_usd)} position in each coin, ${Math.round(100 * M.share)}% of it ($${fQ(M.position_usd * M.share)}) traded by the bot in ${M.units} orders, sell first, no extra USDT. A year of Binance hourly prices. "In a rally" replays the same year with every move reversed, to show what a strong uptrend does. Updated ${mbAgo(M.generated_utc)}.`;
+    M.coins.forEach(c => { const strats = M.strategies.filter(s => c.real[s] && c.mirror[s]);
+      if (!strats.length) return;
+      const best = strats.reduce((a, s) => Math.min(c.real[s].vs_hold_usdt, c.mirror[s].vs_hold_usdt) > Math.min(c.real[a].vs_hold_usdt, c.mirror[a].vs_hold_usdt) ? s : a, strats[0]);
+      const R = c.real[best], X = c.mirror[best], f15 = c["15d"] && c["15d"][best], mv = 100 * (R.end_price / R.start_price - 1);
+      const tr = document.createElement("tr"); tr.className = "clickable"; tr.onclick = () => openPair(c.symbol, "1d");
+      tr.append(tdNode(symNode(c.symbol)), td(fPct(mv, 0), "num " + cls(mv)), td(MBX_BOT[best] || best, ""),
+        td(isNum(R.locked_pct_year) ? fPct(R.locked_pct_year, 0) : "—", "num pos", `${fUs(R.profit_usdt)} USDT in ${R.rounds} rounds`),
+        td(fUs(R.vs_hold_usdt), "num " + cls(R.vs_hold_usdt)), td(fUs(X.vs_hold_usdt), "num " + cls(X.vs_hold_usdt)),
+        td(f15 ? fUs(f15.profit_usdt) + " banked" : "—", "num " + (f15 ? cls(f15.profit_usdt) : ""), f15 ? `${f15.rounds} rounds; ${fUs(f15.vs_hold_usdt)} vs holding` : ""));
+      mb.append(tr); });
+  } else { $("#mbxMultiLead").textContent = "The other-coin study is being refreshed; it appears here within a day."; }
+  // where we are
+  const now = $("#mbxNow"); now.replaceChildren();
+  const li = (t, sm) => { const l = document.createElement("li"); l.textContent = t; if (sm) { const x = document.createElement("small"); x.textContent = sm; l.append(x); } now.append(l); };
+  const V = D.variants || {};
+  [["bee_pro", "MM-Bee Pro"], ["bee", "MM-Bee v2"], ["bee_plus", "MM-Bee+"]].forEach(([k, n]) => { const v = V[k]; if (!v) return;
+    li(`${n}: paper trading since ${v.started_utc.slice(0, 10)}`, `${v.rounds} rounds, ${fUs(v.profit_usdt)} USDT banked, ${fUs(v.vs_hold_usdt)} vs holding, ${v.open_orders} orders resting on simulated money`); });
+  li("Backtests rerun every hour on the newest prices", "the numbers on this page move as new hours close");
+  li("Real-money trading has not started", "it starts only after the paper period, on a dedicated account with withdrawals switched off");
+  $("#mbxNowNote").textContent = D.generated_utc ? "updated " + mbAgo(D.generated_utc) : "";
+}
 function renderRecord() {
   const R = S.bot; if (!R) return; const P = R.portfolio || {}, pc = P.paper_curve || [];
   const usd = v => isNum(v) ? "$" + v.toLocaleString("en-US", { maximumFractionDigits: 0 }) : "—";
@@ -2963,16 +3165,16 @@ const fUsd2 = v => isNum(v) ? (v < 0 ? "−$" : "$") + Math.abs(v).toLocaleStrin
 // ---------- routing + controls
 const VIEWS = ["me", "overview", "bot", "mmbee", "lab", "highlights", "screener", "watchlist", "signals", "listings", "pair"];
 // sub-sections inside a tab (#bot/record, #signals/library ...); old tab names still open the right place
-const SUBS = { bot: ["portfolio", "each", "record", "fade"], signals: ["latest", "library"], mmbee: ["live", "backtest"] };
+const SUBS = { bot: ["portfolio", "each", "record", "fade"], signals: ["latest", "library"], mmbee: ["bots", "live", "backtest"] };
 const ALIAS = { top50: ["overview", "t50"], record: ["bot", "record"], library: ["signals", "library"] };
-S.sub = { bot: "portfolio", signals: "latest", mmbee: "live" };
+S.sub = { bot: "portfolio", signals: "latest", mmbee: "bots" };
 function setSub(view, sub) {
   const list = SUBS[view]; if (!list) return;
   if (!list.includes(sub) || (view === "bot" && sub === "fade" && $("#botNavFade").hidden)) sub = list[0];
   S.sub[view] = sub;
   $$('.sub-nav[data-for="' + view + '"] button').forEach(b => { const on = b.dataset.s === sub; b.setAttribute("aria-selected", String(on)); if (on && !$("#v-" + view).hidden) b.scrollIntoView({ block: "nearest", inline: "nearest" }); });
   $$("#v-" + view + " > .sub-panel").forEach(x => { x.hidden = x.dataset.s !== sub; });
-  ({ bot: { portfolio: renderBot, each: renderBot, record: renderRecord, fade: renderBot }, signals: { latest: renderSignals, library: renderLibrary }, mmbee: { live: renderMMBee, backtest: renderMBBacktest } })[view][sub]();
+  ({ bot: { portfolio: renderBot, each: renderBot, record: renderRecord, fade: renderBot }, signals: { latest: renderSignals, library: renderLibrary }, mmbee: { bots: renderMMBots, live: renderMMBee, backtest: renderMBBacktest } })[view][sub]();
 }
 $$(".sub-nav button").forEach(b => b.onclick = () => { location.hash = b.closest(".sub-nav").dataset.for + "/" + b.dataset.s; });
 function show(v) {

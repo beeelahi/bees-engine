@@ -933,6 +933,19 @@ def main():
         mm_bee_backtest.refresh(con, log=log.info)
     except Exception as e:
         log.warning(f"MM-Bee backtest skipped: {e}")
+    try:                                       # MM-Bee on other coins: refreshed once a day, in the background
+        mp = os.path.join(ROOT, "data", "mm_bee_multi.json")
+        if not os.path.exists(mp) or time.time() - os.path.getmtime(mp) > 20 * 3600:
+            lock = os.path.join(ROOT, "data", ".mm_bee_multi.started")
+            if not os.path.exists(lock) or time.time() - os.path.getmtime(lock) > 6 * 3600:
+                open(lock, "w").close()
+                import subprocess
+                subprocess.Popen(["nice", "-n", "15", sys.executable, os.path.join(ROOT, "research", "mm_bee_multi.py")],
+                                 stdout=open(os.path.join(ROOT, "logs", "bee_study.txt"), "w"), stderr=subprocess.STDOUT,
+                                 stdin=subprocess.DEVNULL, start_new_session=True)
+                log.info("MM-Bee multi-coin study started in the background")
+    except Exception as e:
+        log.warning(f"MM-Bee multi-coin study not started: {e}")
     try:                                       # MM-Bee tab: paper market-making results (paper files only)
         import mm_site
         if mm_site.export(os.path.join(ROOT, "web_export")):

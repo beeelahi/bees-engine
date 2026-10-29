@@ -139,7 +139,20 @@ def paper_mm(out_data):
     with open(os.path.join(tmp, "mm_bee_backtest.json"), "w") as f:
         runs = [dict(BT.run(cs, start=st, settings=gs), id=sid, label=lab, strategy=g, strategy_label=gl)
                 for g, gl, gs in BT.STRATEGIES for sid, st, lab in BT.SCENARIOS if BT.t_of(st) - 86400 >= cs[0][0]]
+        runs += [dict(BT.run(cs, start=BT.SCENARIOS[1][1], settings=gs), id="1y", label="1 year (smoke: 15 days)", strategy=g, strategy_label=gl)
+                 for g, gl, gs in BT.STRATEGIES]
         json.dump(dict(runs[0], runs=runs), f)
+    multi = {"generated_utc": BT.iso(T.time()), "position_usd": 25000.0, "share": 0.25, "units": 20, "strategies": ["v2", "pro"], "coins": []}
+    for sym in ("AAAUSDT", "BBBUSDT"):                        # the other-coin table, on the same synthetic walk
+        c = {"symbol": sym, "start_utc": BT.START, "real": {}, "mirror": {}, "15d": {}}
+        for g, gs in (("v2", {}), ("pro", {"recycle": "ladder"})):
+            for path in ("real", "mirror", "15d"):
+                r = BT.run(cs, start=BT.START, settings=dict(gs, btc_guard=0), symbol=sym)
+                c[path][g] = {"days": 15.0, "start_price": r["start_price"], "end_price": r["end_price"], "rounds": r["rounds"], "sells": r["sells"], "buys": r["buys"],
+                              "profit_usdt": r["profit_usdt"], "vs_hold_usdt": r["vs_hold_usdt"], "locked_pct_year": 12.3}
+        multi["coins"].append(c)
+    with open(os.path.join(tmp, "mm_bee_multi.json"), "w") as f:
+        json.dump(multi, f)
     mm_site.export(out_data, data=tmp)
     print("site_smoke_data: MM-Bee paper data:", sorted(json.load(open(os.path.join(out_data, "mmbee.json")))["variants"]))
 

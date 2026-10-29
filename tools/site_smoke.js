@@ -11,7 +11,7 @@ const server = http.createServer((q, r) => { const u = decodeURIComponent(q.url.
   if (!f.startsWith(dir) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); return r.end(); }
   r.writeHead(200, { "Content-Type": TYPES[path.extname(f)] || "application/octet-stream" }); fs.createReadStream(f).pipe(r); });
 const ROUTES = ["overview", "highlights", "highlights/shortlist", "highlights/calls", "highlights/breakouts", "highlights/patterns", "highlights/moves",
-  "highlights/ideas", "highlights/channels", "highlights/bots", "bot", "mmbee", "mmbee/backtest", "bot/each", "bot/record", "bot/fade", "signals", "signals/library", "screener", "watchlist",
+  "highlights/ideas", "highlights/channels", "highlights/bots", "bot", "mmbee", "mmbee/bots", "mmbee/live", "mmbee/backtest", "bot/each", "bot/record", "bot/fade", "signals", "signals/library", "screener", "watchlist",
   "listings", "lab", "pair/BTCUSDT/1d", "pair/BTCUSDT/1w", "pair/BTCUSDT/1M", "pair/BTCUSDT/4h", "pair/BTCUSDT/1h", "pair/ZIGUSDT/1d", "me",
   "top50", "record", "library", "shortlist"];
 (async () => {
