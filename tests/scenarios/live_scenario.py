@@ -21,17 +21,29 @@ class FakeEx:
     def market_sell(self, s, q, cid):
         q = float(q); self.calls.append(("sell", s, q)); assert self.bal["ETH"] >= q - 1e-9, "selling more than held!"
         self.bal["ETH"] -= q; self.bal["USDT"] += q * self.p[s]
-        return {"fills": [{"price": str(self.p[s]), "qty": str(q)}]}
+        return {"status": "FILLED", "executedQty": str(q), "cummulativeQuoteQty": str(q * self.p[s]), "fills": [{"price": str(self.p[s]), "qty": str(q)}]}
     def stop_sell(self, s, q, stop, lim, cid): self.calls.append(("stop", s, float(q), float(stop))); self.orders[cid] = dict(kind="stop", q=float(q), stop=float(stop), status="NEW")
     def oco_sell(self, s, q, take, stop, lim, lid): self.calls.append(("oco", s, float(q), float(take), float(stop))); self.orders[lid] = dict(kind="oco", q=float(q), take=float(take), stop=float(stop), status="NEW")
     def cancel(self, s, cid): self.orders[cid]["status"] = "CANCELED"; self.calls.append(("cancel", cid))
     def cancel_list(self, s, lid): self.orders[lid]["status"] = "CANCELED"; self.calls.append(("cancel_list", lid))
     def order(self, s, cid):
-        base = cid[:-1] if cid.endswith("a") and cid[:-1] in self.orders else cid
-        o = self.orders[base]
-        if o["status"] == "FILLED_TP" and cid.endswith("a"): return {"status": "FILLED", "executedQty": str(o["q"]), "cummulativeQuoteQty": str(o["q"] * o["take"])}
-        if o["status"] == "FILLED": return {"status": "FILLED", "executedQty": str(o["q"]), "cummulativeQuoteQty": str(o["q"] * o["stop"])}
-        return {"status": "NEW" if o["status"] == "NEW" else "EXPIRED"}
+        from live_exchange import ExchangeError
+        leg = None
+        if cid in self.orders:
+            o = self.orders[cid]
+        elif cid[-1:] in ("a", "b") and cid[:-1] in self.orders:
+            o, leg = self.orders[cid[:-1]], cid[-1]
+        else:
+            raise ExchangeError(-2013, "Order does not exist.", 400)
+        st = o["status"]
+        if o["kind"] == "oco":
+            if st == "FILLED_TP":
+                return {"status": "FILLED", "executedQty": str(o["q"]), "cummulativeQuoteQty": str(o["q"] * o["take"])} if leg == "a" else {"status": "EXPIRED", "executedQty": "0"}
+            if st == "FILLED":
+                return {"status": "FILLED", "executedQty": str(o["q"]), "cummulativeQuoteQty": str(o["q"] * o["stop"])} if leg == "b" else {"status": "EXPIRED", "executedQty": "0"}
+        if st == "FILLED":
+            return {"status": "FILLED", "executedQty": str(o["q"]), "cummulativeQuoteQty": str(o["q"] * o["stop"])}
+        return {"status": st if st in ("NEW", "CANCELED") else "EXPIRED", "executedQty": "0"}
     def tick(self, s, price):
         self.p[s] = price
         for k, o in self.orders.items():
