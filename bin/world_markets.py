@@ -37,7 +37,7 @@ EVERY_S = 55 * 60
 UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 MAX_BODY = 3_000_000
 
-# (id, label, group, TradingView ticker, unit)   unit: "" index points, "$" price, "%" yield, "fx" exchange rate
+# (id, label, group, TradingView ticker(s), unit). "A|B|C": the first ticker that answers is used.   unit: "" index points, "$" price, "%" yield, "fx" exchange rate
 INSTRUMENTS = [
     ("spx", "S&P 500", "Americas", "SP:SPX", ""),
     ("ndx", "Nasdaq 100", "Americas", "NASDAQ:NDX", ""),
@@ -55,13 +55,13 @@ INSTRUMENTS = [
     ("shc", "China Shanghai", "Asia & Middle East", "SSE:000001", ""),
     ("kospi", "Korea KOSPI", "Asia & Middle East", "KRX:KOSPI", ""),
     ("nifty", "India Nifty 50", "Asia & Middle East", "NSE:NIFTY", ""),
-    ("asx", "Australia ASX 200", "Asia & Middle East", "ASX:XJO", ""),
+    ("asx", "Australia ASX 200", "Asia & Middle East", "ASX:XJO|TVC:XJO|ASX:XJO1!|ASX24:AP1!", ""),
     ("tasi", "Saudi Tadawul", "Asia & Middle East", "TADAWUL:TASI", ""),
     ("kse", "Pakistan KSE-100", "Asia & Middle East", "PSX:KSE100", ""),
     ("gold", "Gold", "Commodities", "TVC:GOLD", "$"),
     ("silver", "Silver", "Commodities", "TVC:SILVER", "$"),
-    ("brent", "Brent crude", "Commodities", "TVC:UKOIL", "$"),
-    ("wti", "WTI crude", "Commodities", "TVC:USOIL", "$"),
+    ("brent", "Brent crude", "Commodities", "TVC:UKOIL|ICEEUR:BRN1!|NYMEX:BZ1!|FX:UKOIL", "$"),
+    ("wti", "WTI crude", "Commodities", "TVC:USOIL|NYMEX:CL1!|FX:USOIL", "$"),
     ("natgas", "Natural gas (US)", "Commodities", "NYMEX:NG1!", "$"),
     ("copper", "Copper", "Commodities", "COMEX:HG1!", "$"),
     ("platinum", "Platinum", "Commodities", "TVC:PLATINUM", "$"),
@@ -308,9 +308,10 @@ def refresh(force=False, log=print, fetch=fetch, out=OUT, db=DB):
     con.executescript(SCHEMA)
     t0 = time.time()
     cat = catalogue()
-    got = scan([x[3] for x in cat], fetch)
+    got = scan(sorted({t for x in cat for t in x[3].split("|")}), fetch)
     hour, day, ok, miss = now_iso()[:13], now_iso()[:10], 0, []
-    for iid, label, grp, ticker, unit in cat:
+    for iid, label, grp, tickers, unit in cat:
+        ticker = next((t for t in tickers.split("|") if (got.get(t) or {}).get("close") is not None), tickers.split("|")[0])
         r = row_from(iid, label, grp, ticker, unit, got.get(ticker) or {})
         if not r:
             miss.append(iid)
@@ -441,8 +442,10 @@ def summary(by, sectors):
 def probe():
     print(f"== world sources probe {now_iso()} ==")
     cat = catalogue()
-    got = scan([x[3] for x in cat])
-    miss = [x[3] for x in cat if x[3] not in got or (got[x[3]] or {}).get("close") is None]
+    got = scan(sorted({t for x in cat for t in x[3].split("|")}))
+    miss = [x[3] for x in cat if not any((got.get(t) or {}).get("close") is not None for t in x[3].split("|"))]
+    print("  alternatives used: " + ", ".join(next(t for t in x[3].split("|") if (got.get(t) or {}).get("close") is not None)
+                                             for x in cat if "|" in x[3] and x[3] not in miss))
     print(f"  prices (TradingView screener): {len(cat) - len(miss)}/{len(cat)}" + (f"; missing {', '.join(miss)}" if miss else ""))
     for name, url in FEEDS:
         st, body = fetch(url)
