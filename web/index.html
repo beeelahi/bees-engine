@@ -167,7 +167,7 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .wd-tile { border-radius: 10px; padding: 10px; border: 1px solid var(--line); min-height: 64px; }
 .wd-tile b { display: block; font-size: 13px; }
 .wd-tile span { font-family: var(--font-num); font-size: 16px; font-weight: 600; }
-.wd-cal td { padding: 6px 8px; } .wd-cal tr.past td { opacity: 0.55; } .wd-cal tr.next td { background: var(--accent-soft); }
+.wd-cal td { padding: 6px 8px; } .wd-cal tr.day td { background: var(--panel-2); color: var(--muted); font-size: 12px; font-weight: 600; } .wd-cal th:nth-child(-n+3), .wd-cal td:nth-child(-n+3) { text-align: left; } .wd-cal tr.past td { opacity: 0.55; } .wd-cal tr.next td { background: var(--accent-soft); }
 .wd-news { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 70vh; overflow: auto; }
 .wd-news li { padding: 9px 4px; border-bottom: 1px solid var(--line); display: grid; gap: 3px; }
 .wd-news a { color: var(--text); text-decoration: none; font-weight: 500; line-height: 1.35; }
@@ -464,8 +464,8 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
     </div>
     <div class="grid-2" style="margin-top:20px">
       <div class="card">
-        <div class="card-head"><h2>Economic calendar</h2><span class="note">this week · high and medium impact · your local time</span></div>
-        <div class="tbl-wrap" style="max-height:70vh"><table class="wd-cal"><thead><tr><th>When</th><th>Country</th><th>Event</th><th>Actual</th><th>Forecast</th><th>Previous</th></tr></thead><tbody id="wdCal"></tbody></table></div>
+        <div class="card-head"><h2>Economic calendar</h2><span class="note">past 2 days and next 9 · high and medium impact · your local time</span></div>
+        <div class="tbl-wrap" style="max-height:70vh"><table class="wd-cal"><thead><tr><th>When</th><th>Country</th><th>Event</th><th class="wd-act">Actual</th><th>Forecast</th><th>Previous</th></tr></thead><tbody id="wdCal"></tbody></table></div>
       </div>
       <div class="card">
         <div class="card-head"><h2>Market-moving news</h2><span class="note" id="wdNewsNote"></span></div>
@@ -2232,10 +2232,13 @@ function renderWorld() {
   $("#wdSecNote").textContent = "sector ETFs · " + (PER_LABEL[per] || per);
   $("#wdSecLead").textContent = SM.sector_leaders && SM.sector_leaders.length ? `Last session leaders: ${SM.sector_leaders.join(", ")}. Laggards: ${SM.sector_laggards.join(", ")}. Over the month: ${(SM.sector_month_leaders || []).join(", ")} lead; ${(SM.sector_month_laggards || []).join(", ")} lag.` : "";
   // calendar
-  const C = $("#wdCal"); C.replaceChildren(); const now = Date.now() / 1000; let nextMarked = false;
+  const C = $("#wdCal"); C.replaceChildren(); const now = Date.now() / 1000; let nextMarked = false, dayK = null;
+  const hasAct = (D.calendar || []).some(e => e.actual); $$(".wd-act").forEach(x => x.hidden = !hasAct);
   (D.calendar || []).forEach(e => { const tr = document.createElement("tr"); if (e.t < now - 3600) tr.className = "past"; else if (!nextMarked) { tr.className = "next"; nextMarked = true; }
-    const d = new Date(e.t * 1000), when = d.toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" });
+    const d = new Date(e.t * 1000), dk = d.toDateString(), when = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+    if (dk !== dayK) { dayK = dk; const h = document.createElement("tr"); h.className = "day"; const c = td(d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" })); c.colSpan = 6; h.append(c); C.append(h); }
     tr.append(td(when, "num"), td(e.country, ""), tdNode(Object.assign(hxEl("span", ""), { textContent: e.title })), td(e.actual || "—", "num"), td(e.forecast || "—", "num"), td(e.previous || "—", "num"));
+    if (!hasAct) tr.children[3].hidden = true;
     if (e.impact === "High") tr.children[2].prepend(chip("High", "down"), document.createTextNode(" "));
     C.append(tr); });
   if (!C.children.length) C.innerHTML = '<tr><td colspan="6" class="empty">No high or medium impact events published for this week yet.</td></tr>';
@@ -2252,7 +2255,11 @@ function renderWorldNews() {
     sel.onchange = () => { S.wdTag = sel.value; renderWorldNews(); }; $("#wdNewsQ").oninput = e => { S.wdQ = e.target.value.toLowerCase(); renderWorldNews(); }; }
   const f = S.wdTag || "top", q = S.wdQ || "", now = Date.now() / 1000;
   let rows = (D.news || []).filter(n => (f === "all" || f === "top" ? true : (n.tags || []).includes(f)) && (!q || n.title.toLowerCase().includes(q)));
-  if (f === "top") rows = rows.filter(n => n.score >= 2 && n.t > now - 24 * 3600).sort((a, b) => b.score - a.score || b.t - a.t);
+  if (f === "top") {                    // major outlets first, strongest impact first; at most 3 headlines per topic in the first 12
+    rows = rows.filter(n => n.score >= 2 && n.t > now - 24 * 3600 && (n.major || n.score >= 4)).sort((a, b) => (b.score + (b.major ? 1 : 0)) - (a.score + (a.major ? 1 : 0)) || b.t - a.t);
+    const per = {}, head = [], rest = [];
+    rows.forEach(n => { const k = (n.tags || [])[0] || "x"; if (head.length < 12 && (per[k] || 0) < 3) { per[k] = (per[k] || 0) + 1; head.push(n); } else rest.push(n); });
+    rows = head.concat(rest); }
   rows = rows.slice(0, 120);
   const U = $("#wdNews"); U.replaceChildren();
   rows.forEach(n => { const li = document.createElement("li"), a = document.createElement("a");

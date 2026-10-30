@@ -112,6 +112,7 @@ FEEDS = [  # (name, url)
     ("Google News: trade & geopolitics", "https://news.google.com/rss/search?q=tariffs+OR+sanctions+OR+%22trade+war%22+when:2d&hl=en-US&gl=US&ceid=US:en"),
 ]
 CALENDAR = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
+CALENDAR_NEXT = "https://nfs.faireconomy.media/ff_calendar_nextweek.json"
 FNG = "https://api.alternative.me/fng/?limit=8"
 
 # headline tags and how much each says about market impact (the highest tag wins, words add a little)
@@ -126,6 +127,11 @@ TAGS = [
     ("Pakistan", 1, r"\b(pakistan|psx|kse|sbp|rupee|pkr|karachi|islamabad|imf programme|imf program)\b"),
     ("Markets", 1, r"\b(stocks?|shares|s&p|nasdaq|dow|equities|bonds?|yields?|treasur|dollar|yen|euro|selloff|rally|record high)\b"),
 ]
+# outlets whose headlines lead the "most market-moving" view (others still appear in every topic and search)
+MAJOR = r"^(reuters|bloomberg|wsj|the wall street journal|financial times|ft|cnbc|associated press|ap news|marketwatch|barron'?s|" \
+        r"federal reserve|ecb|bbc|the economist|nikkei|axios|yahoo finance|cnn|the new york times|the guardian|politico|fortune|" \
+        r"business insider|investing\.com|forbes|dawn|dawn business|business recorder|the express tribune|oilprice|coindesk|the block|" \
+        r"south china morning post|scmp|bnn bloomberg|al jazeera|kitco|s&p global|morningstar)\b"
 HOT = r"\b(surge|plunge|crash|soar|slump|tumble|record|emergency|unexpected|shock|biggest|warns?|halt|collapse)\w*"
 
 
@@ -333,8 +339,10 @@ def refresh(force=False, log=print, fetch=fetch, out=OUT, db=DB):
                         (norm_key(n["title"]), n["t"], n["title"], n["link"], n["source"], n["via"], json.dumps(tags), sc, now_iso()))
     con.commit()
     cal_ok = False
-    st, body = fetch(CALENDAR)
-    if st == 200:
+    for url in (CALENDAR, CALENDAR_NEXT):
+        st, body = fetch(url)
+        if st != 200:
+            continue
         try:
             for e in json.loads(body):
                 t = int(datetime.fromisoformat(e["date"]).timestamp())
@@ -345,6 +353,7 @@ def refresh(force=False, log=print, fetch=fetch, out=OUT, db=DB):
             cal_ok = True
         except (ValueError, KeyError, TypeError):
             pass
+        time.sleep(1)
     con.commit()
     fng = None
     st, body = fetch(FNG)
@@ -388,12 +397,13 @@ def build(con, cat, fng):
         if k in seen:
             continue
         seen.add(k)
-        news.append({"title": t, "link": lk, "source": s_, "t": tt, "tags": json.loads(tg), "score": sc})
+        news.append({"title": t, "link": lk, "source": s_, "t": tt, "tags": json.loads(tg), "score": sc,
+                     "major": bool(re.search(MAJOR, (s_ or "").strip().lower()))})
     news = news[:300]
     cal = [{"t": t, "country": c, "title": ti, "impact": im, "forecast": f, "previous": p, "actual": a}
            for t, c, ti, im, f, p, a in con.execute(
                "SELECT t, country, title, impact, forecast, previous, actual FROM calendar WHERE t>=? AND t<=? AND impact IN ('High','Medium') ORDER BY t",
-               (now - 2 * 86400, now + 8 * 86400))]
+               (now - 2 * 86400, now + 9 * 86400))]
     return {"generated_utc": now_iso(), "groups": groups, "summary": summary(by_id, groups.get("Sectors", [])),
             "news": news, "news_count": len(news), "calendar": cal, "fear_greed": fng,
             "credits": "Prices: TradingView screener (some delayed up to 15 min). News: publishers' public RSS feeds and Google News. "
@@ -451,7 +461,7 @@ def probe():
         st, body = fetch(url)
         n = parse_feed(body, name) if st == 200 else []
         print(f"  feed {name:34s} http {st} items {len(n)}")
-    for name, url in (("calendar", CALENDAR), ("fear&greed", FNG)):
+    for name, url in (("calendar", CALENDAR), ("next week", CALENDAR_NEXT), ("fear&greed", FNG)):
         st, body = fetch(url)
         print(f"  {name:12s} http {st} bytes {len(body)}")
 
