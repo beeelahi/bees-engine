@@ -2183,7 +2183,7 @@ function wdPx(x) {
   return (x.unit === "$" ? "$" : "") + (v >= 1000 ? v.toLocaleString("en-US", { maximumFractionDigits: 2 }) : v >= 1 ? v.toFixed(2) : fPx(v));
 }
 function wdChg(x, per) {   // [text, numeric value used for colour]
-  if (x.unit === "%" && per === "d1" && isNum(x.d1_bp)) return [(x.d1_bp > 0 ? "+" : "") + x.d1_bp.toFixed(0) + " bp", x.d1_bp];
+  if (x.unit === "%" && per === "d1" && isNum(x.d1_bp)) return [(x.d1_bp > 0 ? "+" : "") + x.d1_bp.toFixed(1) + " bp", x.d1_bp];
   const v = x[per]; return isNum(v) ? [fPct(v, 2), v] : ["—", null];
 }
 const wdUpIsGood = x => !(x.id === "vix");          // a rising VIX is shown as stress

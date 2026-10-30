@@ -409,7 +409,7 @@ def summary(by, sectors):
         v = g(k, "d1_bp") if (by.get(k) or {}).get("unit") == "%" else g(k)
         if v is None:
             return None
-        return f"{name} {'+' if v > 0 else ''}{v:.0f} bp" if (by.get(k) or {}).get("unit") == "%" else f"{name} {'+' if v > 0 else ''}{v:.2f}%"
+        return f"{name} {'+' if v > 0 else ''}{v:.1f} bp" if (by.get(k) or {}).get("unit") == "%" else f"{name} {'+' if v > 0 else ''}{v:.2f}%"
     lines = []
     for head, keys in (("US stocks", (("spx", "S&P 500"), ("ndx", "Nasdaq 100"), ("dji", "Dow"))),
                        ("Europe", (("sx5e", "Euro Stoxx 50"), ("dax", "DAX"), ("ftse", "FTSE 100"))),
