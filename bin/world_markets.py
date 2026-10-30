@@ -461,8 +461,25 @@ def summary(by, sectors):
             "sector_month_leaders": [f"{s['label']} {s['m1']:+.1f}%" for s in sec_m[:3]], "vix": g("vix", "price") if by.get("vix") else None}
 
 
+PROBE_URLS = [
+    "https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=5d&interval=1d",
+    "https://query2.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=5d&interval=1d",
+    "https://stooq.com/q/l/?s=%5Espx&f=sd2t2ohlcv&h&e=csv",
+    "https://stooq.com/q/d/l/?s=%5Espx&i=d",
+    "https://quote.cnbc.com/quote-html-webservice/restQuote/symbolType/symbol?symbols=.SPX%7C@GC.1%7CUS10Y%7CEUR%3D&requestMethod=itv&noform=1&partnerId=2&fund=1&exthrs=1&output=json",
+    "https://fred.stlouisfed.org/graph/fredgraph.csv?id=SP500",
+    "https://www.google.com/finance/quote/.INX:INDEXSP",
+    "https://api.nasdaq.com/api/quote/SPX/info?assetclass=index",
+    "https://www.marketwatch.com/investing/index/spx",
+    "https://scanner.tradingview.com/global/scan",
+]
+
+
 def probe():
     print(f"== world sources probe {now_iso()} ==")
+    for u in PROBE_URLS:
+        st, body = fetch(u)
+        print(f"  raw http {st} {len(body):7d} B {u[:70]} | {re.sub(chr(10), ' ', body[:110])}")
     for iid, label, grp, ysym, ssym, unit in INSTRUMENTS[:6] + [x for x in INSTRUMENTS if x[0] in ("kse", "tasi", "gold", "usdpkr", "us10y", "dxy")]:
         q = yahoo(ysym)
         s = stooq(ssym) if ssym else None
