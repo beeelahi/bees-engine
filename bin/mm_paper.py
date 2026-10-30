@@ -406,6 +406,28 @@ def load_coins(path=CFG):
     return cfg, coins
 
 
+def bee_state(con, now_s=None):
+    """One line on an MM-Bee run's own state (read-only), so a book with few or no open orders can be explained from
+    the report: units per state, a pause (BTC guard / circuit breaker) still running, and the latest event that is
+    not a fill (guard, circuit, price check, rebase, ...). Those events go to the run's bee_log only, not the journal.
+    Returns "" for a run without MM-Bee tables."""
+    if not con.execute("SELECT 1 FROM sqlite_master WHERE name='bee_units'").fetchone():
+        return ""
+    now_s = time.time() if now_s is None else now_s
+    states = con.execute("SELECT state, COUNT(*) FROM bee_units GROUP BY state ORDER BY state").fetchall()
+    out = "bee units: " + (", ".join(f"{s} {n}" for s, n in states) or "none")
+    cols = {r[1] for r in con.execute("PRAGMA table_info(bee_meta)")}
+    if "pause_until" in cols:
+        p = con.execute("SELECT MAX(pause_until) FROM bee_meta").fetchone()[0]
+        if p and p > now_s:
+            out += " | PAUSED until " + datetime.fromtimestamp(p, timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    if con.execute("SELECT 1 FROM sqlite_master WHERE name='bee_log'").fetchone():
+        r = con.execute("SELECT utc, event, note FROM bee_log WHERE event NOT IN ('sold', 'bought') ORDER BY rowid DESC LIMIT 1").fetchone()
+        if r:
+            out += f" | last event {r[0]} {r[1]}" + (f": {r[2]}" if r[2] else "")
+    return out
+
+
 def report(path=CFG, data=DATA):
     """Plain-text results for every variant (read-only)."""
     lines = [f"== paper market making, {now()} =="]
@@ -430,6 +452,7 @@ def report(path=CFG, data=DATA):
                 g = (g[0] + bg[0], g[1] + bg[1])
             opn = con.execute("SELECT COUNT(*) FROM p_orders WHERE status IN ('NEW','PARTIALLY_FILLED')").fetchone()[0]
             low = con.execute("SELECT MIN(coins) FROM p_snap").fetchone()[0]
+            bee = bee_state(con)
         finally:
             con.close()
         mid = meta.get("last_mid") or (snap[0] if snap else st["mid"])
@@ -442,6 +465,8 @@ def report(path=CFG, data=DATA):
                   f"   value {val:,.2f} USDT vs just holding {hold:,.2f}: {val - hold:+,.2f} ({100 * (val / hold - 1) if hold else 0:+.2f}%) | start {start_val:,.2f}",
                   f"   completed rounds {g[0]}, grid profit {g[1]:+,.2f} USDT | fills {fills[0]} ({fills[2]} taker), traded {fills[3]:,.0f} USDT, fees {fills[1]:,.2f}",
                   f"   holdings now {coins:,.2f} coins + {usdt:,.2f} USDT (lowest coins at an hourly check: {low if low is not None else '-'}) | open orders {opn}"]
+        if bee:
+            lines.append("   " + bee)
     if len(lines) == 1:
         lines.append("no paper results yet (service not started, or mm.json has no complete coin settings)")
     return "\n".join(lines)
