@@ -33,6 +33,25 @@ def query(server, name, qtype=1, timeout=3, rd=True):
     return parse(data)
 
 
+def query_raw(server, name, qtype):
+    """The SOA record's last field (minimum = how long resolvers cache a 'does not exist')."""
+    tid = random.randint(0, 65535)
+    q = struct.pack(">HHHHHH", tid, 0, 1, 0, 0, 0) + b"".join(bytes([len(p)]) + p.encode() for p in name.split(".")) + b"\0" + struct.pack(">HH", qtype, 1)
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.settimeout(3)
+    try:
+        s.sendto(q, (server, 53))
+        d, _ = s.recvfrom(4096)
+    finally:
+        s.close()
+    i = 12
+    _, i = _name(d, i)
+    i += 4
+    _, i = _name(d, i)
+    typ, _, ttl, ln = struct.unpack(">HHIH", d[i:i + 10])
+    return struct.unpack(">I", d[i + 10 + ln - 4:i + 10 + ln])[0]
+
+
 def _name(d, i):
     out, jumped, end = [], False, None
     while True:
@@ -116,6 +135,17 @@ def main(domain):
                 k = f"no answer ({e.__class__.__name__})"
             out[k] = out.get(k, 0) + 1
         print(f"  {name:24s} " + " | ".join(f"{k} x{v}" for k, v in out.items()))
+    try:                                           # negative caching and DNSSEC
+        ip = socket.gethostbyname(sorted(deleg)[0])
+        r = query(ip, domain, 6, rd=False)
+        soa = [x for x in r["recs"] if x[2] == 6]
+        if soa:
+            raw = query_raw(ip, domain, 6)
+            print(f"SOA: ttl {soa[0][3]} s, negative-cache (minimum) {raw} s")
+        r = query(tld_ns[0][1], domain, 43, rd=False)
+        print(f"DNSSEC DS at the registry: {'yes' if any(x[2] == 43 for x in r['recs']) else 'no (unsigned)'}")
+    except OSError as e:
+        print(f"SOA / DS not checked ({e})")
     for sub in ("www." + domain,):
         try:
             r = query("8.8.8.8", sub, 1)
