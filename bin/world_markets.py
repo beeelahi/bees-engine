@@ -2,9 +2,10 @@
 World markets for the website's "World" tab (Python 3.9 stdlib only). Refreshed once an hour by the engine.
 
 What it collects (public data only; no key, no account):
-  * prices: stock indexes by region, commodities, currencies, US Treasury yields, US sectors, the largest US
-    companies. Source: Yahoo Finance's public chart endpoint (daily closes for a year plus the latest price);
-    Stooq's CSV as a fallback for any symbol Yahoo does not answer. Pakistan's KSE-100 also from the PSX data portal.
+  * prices: stock indexes by region, commodities, currencies, government bond yields, US sectors and the largest US
+    companies, from TradingView's public screener (one request for everything: price, day / week / month / 3-month /
+    year-to-date / 1-year change, 52-week range; some quotes delayed up to 15 minutes). Every hour's price is kept in
+    the database, so the history (and the sparklines) grow from the first run on.
   * news: headlines from public RSS feeds (central banks, business desks, Google News searches that carry Reuters,
     Bloomberg, FT ... headlines). Only the headline, the source, the time and the link are kept and shown: never the
     article text. Each headline is tagged (central banks, inflation and data, geopolitics and trade, energy, ...)
@@ -18,8 +19,6 @@ page shows them as text. The database (data/world.db) keeps every daily close an
     python3 bin/world_markets.py --probe    try every source once and print which ones answer (ops: world-probe)
 Output: web_export/world.json
 """
-import csv
-import io
 import json
 import os
 import re
@@ -38,77 +37,75 @@ EVERY_S = 55 * 60
 UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 MAX_BODY = 3_000_000
 
-# (id, label, group, yahoo symbol, stooq symbol, unit)   unit: "" index points, "$" dollars, "%" yield, "fx"
+# (id, label, group, TradingView ticker, unit)   unit: "" index points, "$" price, "%" yield, "fx" exchange rate
 INSTRUMENTS = [
-    # United States
-    ("spx", "S&P 500", "Americas", "^GSPC", "^spx", ""),
-    ("ndx", "Nasdaq 100", "Americas", "^NDX", "^ndx", ""),
-    ("dji", "Dow Jones", "Americas", "^DJI", "^dji", ""),
-    ("rut", "Russell 2000", "Americas", "^RUT", "", ""),
-    ("vix", "VIX (fear gauge)", "Americas", "^VIX", "", ""),
-    ("tsx", "Canada TSX", "Americas", "^GSPTSE", "", ""),
-    ("bvsp", "Brazil Bovespa", "Americas", "^BVSP", "", ""),
-    # Europe
-    ("sx5e", "Euro Stoxx 50", "Europe", "^STOXX50E", "", ""),
-    ("dax", "Germany DAX", "Europe", "^GDAXI", "^dax", ""),
-    ("ftse", "UK FTSE 100", "Europe", "^FTSE", "^ukx", ""),
-    ("cac", "France CAC 40", "Europe", "^FCHI", "^cac", ""),
-    # Asia-Pacific, Middle East
-    ("n225", "Japan Nikkei 225", "Asia & Middle East", "^N225", "^nkx", ""),
-    ("hsi", "Hong Kong Hang Seng", "Asia & Middle East", "^HSI", "^hsi", ""),
-    ("shc", "China Shanghai", "Asia & Middle East", "000001.SS", "^shc", ""),
-    ("kospi", "Korea KOSPI", "Asia & Middle East", "^KS11", "", ""),
-    ("nifty", "India Nifty 50", "Asia & Middle East", "^NSEI", "", ""),
-    ("asx", "Australia ASX 200", "Asia & Middle East", "^AXJO", "", ""),
-    ("tasi", "Saudi Tadawul", "Asia & Middle East", "^TASI.SR", "", ""),
-    ("kse", "Pakistan KSE-100", "Asia & Middle East", "^KSE", "", ""),
-    # Commodities
-    ("gold", "Gold", "Commodities", "GC=F", "gc.f", "$"),
-    ("silver", "Silver", "Commodities", "SI=F", "si.f", "$"),
-    ("brent", "Brent crude", "Commodities", "BZ=F", "cb.f", "$"),
-    ("wti", "WTI crude", "Commodities", "CL=F", "cl.f", "$"),
-    ("natgas", "Natural gas (US)", "Commodities", "NG=F", "ng.f", "$"),
-    ("copper", "Copper", "Commodities", "HG=F", "hg.f", "$"),
-    ("platinum", "Platinum", "Commodities", "PL=F", "", "$"),
-    ("wheat", "Wheat", "Commodities", "ZW=F", "", "$"),
-    ("corn", "Corn", "Commodities", "ZC=F", "", "$"),
-    # Currencies
-    ("dxy", "US Dollar index", "Currencies", "DX-Y.NYB", "", ""),
-    ("eurusd", "EUR / USD", "Currencies", "EURUSD=X", "eurusd", "fx"),
-    ("usdjpy", "USD / JPY", "Currencies", "JPY=X", "usdjpy", "fx"),
-    ("gbpusd", "GBP / USD", "Currencies", "GBPUSD=X", "gbpusd", "fx"),
-    ("usdcny", "USD / CNY", "Currencies", "CNY=X", "usdcny", "fx"),
-    ("usdchf", "USD / CHF", "Currencies", "CHF=X", "usdchf", "fx"),
-    ("usdpkr", "USD / PKR", "Currencies", "PKR=X", "usdpkr", "fx"),
-    ("usdinr", "USD / INR", "Currencies", "INR=X", "usdinr", "fx"),
-    # US Treasury yields (Yahoo quotes them in percent)
-    ("us3m", "US 3-month yield", "Rates", "^IRX", "", "%"),
-    ("us5y", "US 5-year yield", "Rates", "^FVX", "", "%"),
-    ("us10y", "US 10-year yield", "Rates", "^TNX", "", "%"),
-    ("us30y", "US 30-year yield", "Rates", "^TYX", "", "%"),
-    # Crypto (the dashboard's own Binance prices are the main source; these are the fallback)
-    ("btc", "Bitcoin", "Crypto", "BTC-USD", "", "$"),
-    ("eth", "Ethereum", "Crypto", "ETH-USD", "", "$"),
+    ("spx", "S&P 500", "Americas", "SP:SPX", ""),
+    ("ndx", "Nasdaq 100", "Americas", "NASDAQ:NDX", ""),
+    ("dji", "Dow Jones", "Americas", "DJ:DJI", ""),
+    ("rut", "Russell 2000", "Americas", "TVC:RUT", ""),
+    ("vix", "VIX (fear gauge)", "Americas", "TVC:VIX", ""),
+    ("tsx", "Canada TSX", "Americas", "TSX:TSX", ""),
+    ("ibov", "Brazil Bovespa", "Americas", "BMFBOVESPA:IBOV", ""),
+    ("sx5e", "Euro Stoxx 50", "Europe", "TVC:SX5E", ""),
+    ("dax", "Germany DAX", "Europe", "XETR:DAX", ""),
+    ("ftse", "UK FTSE 100", "Europe", "TVC:UKX", ""),
+    ("cac", "France CAC 40", "Europe", "EURONEXT:PX1", ""),
+    ("n225", "Japan Nikkei 225", "Asia & Middle East", "TVC:NI225", ""),
+    ("hsi", "Hong Kong Hang Seng", "Asia & Middle East", "TVC:HSI", ""),
+    ("shc", "China Shanghai", "Asia & Middle East", "SSE:000001", ""),
+    ("kospi", "Korea KOSPI", "Asia & Middle East", "KRX:KOSPI", ""),
+    ("nifty", "India Nifty 50", "Asia & Middle East", "NSE:NIFTY", ""),
+    ("asx", "Australia ASX 200", "Asia & Middle East", "ASX:XJO", ""),
+    ("tasi", "Saudi Tadawul", "Asia & Middle East", "TADAWUL:TASI", ""),
+    ("kse", "Pakistan KSE-100", "Asia & Middle East", "PSX:KSE100", ""),
+    ("gold", "Gold", "Commodities", "TVC:GOLD", "$"),
+    ("silver", "Silver", "Commodities", "TVC:SILVER", "$"),
+    ("brent", "Brent crude", "Commodities", "TVC:UKOIL", "$"),
+    ("wti", "WTI crude", "Commodities", "TVC:USOIL", "$"),
+    ("natgas", "Natural gas (US)", "Commodities", "NYMEX:NG1!", "$"),
+    ("copper", "Copper", "Commodities", "COMEX:HG1!", "$"),
+    ("platinum", "Platinum", "Commodities", "TVC:PLATINUM", "$"),
+    ("wheat", "Wheat", "Commodities", "CBOT:ZW1!", "$"),
+    ("corn", "Corn", "Commodities", "CBOT:ZC1!", "$"),
+    ("dxy", "US Dollar index", "Currencies", "TVC:DXY", ""),
+    ("eurusd", "EUR / USD", "Currencies", "FX:EURUSD", "fx"),
+    ("usdjpy", "USD / JPY", "Currencies", "FX:USDJPY", "fx"),
+    ("gbpusd", "GBP / USD", "Currencies", "FX:GBPUSD", "fx"),
+    ("usdcny", "USD / CNY", "Currencies", "FX_IDC:USDCNY", "fx"),
+    ("usdchf", "USD / CHF", "Currencies", "FX:USDCHF", "fx"),
+    ("usdpkr", "USD / PKR", "Currencies", "FX_IDC:USDPKR", "fx"),
+    ("usdinr", "USD / INR", "Currencies", "FX_IDC:USDINR", "fx"),
+    ("us3m", "US 3-month", "Rates", "TVC:US03MY", "%"),
+    ("us2y", "US 2-year", "Rates", "TVC:US02Y", "%"),
+    ("us10y", "US 10-year", "Rates", "TVC:US10Y", "%"),
+    ("us30y", "US 30-year", "Rates", "TVC:US30Y", "%"),
+    ("de10y", "Germany 10-year", "Rates", "TVC:DE10Y", "%"),
+    ("gb10y", "UK 10-year", "Rates", "TVC:GB10Y", "%"),
+    ("jp10y", "Japan 10-year", "Rates", "TVC:JP10Y", "%"),
+    ("btc", "Bitcoin", "Crypto", "BINANCE:BTCUSDT", "$"),
+    ("eth", "Ethereum", "Crypto", "BINANCE:ETHUSDT", "$"),
 ]
-SECTORS = [("XLK", "Technology"), ("SMH", "Semiconductors"), ("XLC", "Communication"), ("XLY", "Consumer discretionary"),
-           ("XLF", "Financials"), ("XLV", "Health care"), ("XLI", "Industrials"), ("XLE", "Energy"), ("XLB", "Materials"),
-           ("XLP", "Consumer staples"), ("XLU", "Utilities"), ("XLRE", "Real estate")]
-MEGACAPS = [("NVDA", "Nvidia"), ("MSFT", "Microsoft"), ("AAPL", "Apple"), ("GOOGL", "Alphabet"), ("AMZN", "Amazon"),
-            ("META", "Meta"), ("AVGO", "Broadcom"), ("TSLA", "Tesla"), ("BRK-B", "Berkshire Hathaway"), ("JPM", "JPMorgan")]
+SECTORS = [("AMEX:XLK", "Technology"), ("NASDAQ:SMH", "Semiconductors"), ("AMEX:XLC", "Communication"),
+           ("AMEX:XLY", "Consumer discretionary"), ("AMEX:XLF", "Financials"), ("AMEX:XLV", "Health care"),
+           ("AMEX:XLI", "Industrials"), ("AMEX:XLE", "Energy"), ("AMEX:XLB", "Materials"), ("AMEX:XLP", "Consumer staples"),
+           ("AMEX:XLU", "Utilities"), ("AMEX:XLRE", "Real estate")]
+MEGACAPS = [("NASDAQ:NVDA", "Nvidia"), ("NASDAQ:MSFT", "Microsoft"), ("NASDAQ:AAPL", "Apple"), ("NASDAQ:GOOGL", "Alphabet"),
+            ("NASDAQ:AMZN", "Amazon"), ("NASDAQ:META", "Meta"), ("NASDAQ:AVGO", "Broadcom"), ("NASDAQ:TSLA", "Tesla"),
+            ("NYSE:BRK.B", "Berkshire Hathaway"), ("NYSE:JPM", "JPMorgan")]
+SCAN = "https://scanner.tradingview.com/global/scan"
+COLS = ["close", "change", "change_abs", "Perf.W", "Perf.1M", "Perf.3M", "Perf.YTD", "Perf.Y", "price_52_week_high",
+        "price_52_week_low", "update_mode", "currency"]
 
 FEEDS = [  # (name, url)
     ("Federal Reserve", "https://www.federalreserve.gov/feeds/press_all.xml"),
     ("ECB", "https://www.ecb.europa.eu/rss/press.html"),
-    ("CNBC", "https://www.cnbc.com/id/100003114/device/rss/rss.html"),
-    ("CNBC Economy", "https://www.cnbc.com/id/20910258/device/rss/rss.html"),
-    ("CNBC Markets", "https://www.cnbc.com/id/15839069/device/rss/rss.html"),
     ("MarketWatch", "https://feeds.content.dowjones.io/public/rss/mw_topstories"),
     ("BBC Business", "https://feeds.bbci.co.uk/news/business/rss.xml"),
-    ("Yahoo Finance", "https://finance.yahoo.com/news/rssindex"),
     ("OilPrice", "https://oilprice.com/rss/main"),
-    ("CoinDesk", "https://www.coindesk.com/arc/outboundfeeds/rss/"),
     ("Dawn Business", "https://www.dawn.com/feeds/business"),
     ("Business Recorder", "https://www.brecorder.com/feeds/latest-news"),
+    ("Google News: crypto", "https://news.google.com/rss/search?q=bitcoin+OR+crypto+market+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News: Asia & emerging", "https://news.google.com/rss/search?q=China+economy+OR+Japan+markets+OR+India+markets+OR+Pakistan+economy+when:2d&hl=en-US&gl=US&ceid=US:en"),
     ("Google News: markets", "https://news.google.com/rss/search?q=stock+market+OR+stocks+OR+wall+street+when:1d&hl=en-US&gl=US&ceid=US:en"),
     ("Google News: central banks", "https://news.google.com/rss/search?q=%22Federal+Reserve%22+OR+ECB+OR+%22Bank+of+Japan%22+OR+%22interest+rates%22+when:2d&hl=en-US&gl=US&ceid=US:en"),
     ("Google News: oil & commodities", "https://news.google.com/rss/search?q=oil+prices+OR+OPEC+OR+gold+prices+when:1d&hl=en-US&gl=US&ceid=US:en"),
@@ -116,7 +113,6 @@ FEEDS = [  # (name, url)
 ]
 CALENDAR = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
 FNG = "https://api.alternative.me/fng/?limit=8"
-PSX = "https://dps.psx.com.pk/timeseries/int/KSE100"
 
 # headline tags and how much each says about market impact (the highest tag wins, words add a little)
 TAGS = [
@@ -127,6 +123,7 @@ TAGS = [
     ("Metals", 2, r"\b(gold|silver|copper|platinum|lithium)\b"),
     ("Earnings & companies", 2, r"\b(earnings|guidance|revenue|profit|quarterly results|ipo|merger|acquisition|buyback|layoffs?)\b"),
     ("Crypto", 1, r"\b(bitcoin|crypto|ethereum|stablecoin|etf flows?)\b"),
+    ("Pakistan", 1, r"\b(pakistan|psx|kse|sbp|rupee|pkr|karachi|islamabad|imf programme|imf program)\b"),
     ("Markets", 1, r"\b(stocks?|shares|s&p|nasdaq|dow|equities|bonds?|yields?|treasur|dollar|yen|euro|selloff|rally|record high)\b"),
 ]
 HOT = r"\b(surge|plunge|crash|soar|slump|tumble|record|emergency|unexpected|shock|biggest|warns?|halt|collapse)\w*"
@@ -145,7 +142,11 @@ def fetch(url, timeout=15, data=None, jar=None):
         args += ["-b", jar, "-c", jar]
     if data is not None:
         args += ["--data-binary", "@" + _tmpbody(data)]
-    p = subprocess.run(args, input=cfg, capture_output=True, text=True, errors="replace")
+    try:
+        p = subprocess.run(args, input=cfg, capture_output=True, text=True, errors="replace")
+    finally:
+        if data is not None:
+            os.remove(args[args.index("--data-binary") + 1][1:])
     if p.returncode != 0:
         return 0, ""
     body, _, code = p.stdout.rpartition("\n")
@@ -160,58 +161,16 @@ def _tmpbody(data):
     return path
 
 
-def yahoo(sym, fetch=fetch):
-    """Daily closes for a year and the latest quote. Returns {"price", "prev", "time", "closes": [(date, close)], "tz",
-    "open"} or None."""
-    import urllib.parse
-    st, body = fetch(f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(sym)}?range=1y&interval=1d&includePrePost=false")
+def scan(tickers, fetch=fetch):
+    """TradingView's public screener: latest price and performance for many symbols in one request.
+    Returns {ticker: {column: value}}."""
+    st, body = fetch(SCAN, data={"symbols": {"tickers": tickers}, "columns": COLS}, timeout=25)
     if st != 200:
-        return None
+        return {}
     try:
-        r = json.loads(body)["chart"]["result"][0]
-        m = r["meta"]
-        ts, cl = r.get("timestamp") or [], r["indicators"]["quote"][0].get("close") or []
-        off = int(m.get("gmtoffset") or 0)
-        closes = [(datetime.fromtimestamp(t + off, timezone.utc).strftime("%Y-%m-%d"), float(c)) for t, c in zip(ts, cl) if c is not None]
-        price = m.get("regularMarketPrice")
-        if price is None and closes:
-            price = closes[-1][1]
-        rt = int(m.get("regularMarketTime") or (ts[-1] if ts else 0))
-        per = ((m.get("currentTradingPeriod") or {}).get("regular") or {})
-        now = time.time()
-        is_open = bool(per) and int(per.get("start", 0)) <= now < int(per.get("end", 0))
-        return {"price": float(price), "time": rt, "closes": closes, "tz": m.get("exchangeTimezoneName"), "open": is_open,
-                "currency": m.get("currency")}
-    except (ValueError, KeyError, IndexError, TypeError):
-        return None
-
-
-def stooq(sym, fetch=fetch):
-    st, body = fetch(f"https://stooq.com/q/d/l/?s={sym}&i=d")
-    if st != 200 or not body.startswith("Date"):
-        return None
-    try:
-        rows = [(r["Date"], float(r["Close"])) for r in csv.DictReader(io.StringIO(body)) if r.get("Close")]
-    except (ValueError, KeyError):
-        return None
-    if not rows:
-        return None
-    rows = rows[-260:]
-    return {"price": rows[-1][1], "time": int(datetime.strptime(rows[-1][0], "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp()),
-            "closes": rows, "tz": None, "open": None, "currency": None}
-
-
-def psx_kse(fetch=fetch):
-    """Pakistan KSE-100 intraday from the PSX data portal: [[unix, price, volume], ...] (newest first)."""
-    st, body = fetch(PSX)
-    if st != 200:
-        return None
-    try:
-        d = json.loads(body).get("data") or []
-        pts = sorted((int(x[0]), float(x[1])) for x in d if x and x[1])
-        return pts[-1] if pts else None
-    except (ValueError, TypeError, IndexError, AttributeError):
-        return None
+        return {x["s"]: dict(zip(COLS, x["d"])) for x in json.loads(body).get("data", [])}
+    except (ValueError, KeyError, TypeError):
+        return {}
 
 
 # ------------------------------------------------------------------ text hygiene
@@ -285,11 +244,11 @@ def norm_key(title):
 
 # ------------------------------------------------------------------ database
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS hourly(id TEXT, utc TEXT, price REAL, PRIMARY KEY(id, utc));
 CREATE TABLE IF NOT EXISTS daily(id TEXT, date TEXT, close REAL, PRIMARY KEY(id, date));
-CREATE TABLE IF NOT EXISTS last(id TEXT PRIMARY KEY, price REAL, time INTEGER, source TEXT, is_open INTEGER, fetched_utc TEXT);
+CREATE TABLE IF NOT EXISTS last(id TEXT PRIMARY KEY, label TEXT, grp TEXT, ticker TEXT, unit TEXT, data TEXT, fetched_utc TEXT);
 CREATE TABLE IF NOT EXISTS news(key TEXT PRIMARY KEY, t INTEGER, title TEXT, link TEXT, source TEXT, via TEXT, tags TEXT, score INTEGER, first_seen_utc TEXT);
 CREATE TABLE IF NOT EXISTS calendar(key TEXT PRIMARY KEY, t INTEGER, country TEXT, title TEXT, impact TEXT, forecast TEXT, previous TEXT, actual TEXT, updated_utc TEXT);
-CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT);
 """
 
 
@@ -297,38 +256,42 @@ def now_iso():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def store_quote(con, iid, q, source):
-    con.executemany("INSERT OR REPLACE INTO daily VALUES(?,?,?)", [(iid, d, c) for d, c in q["closes"]])
-    con.execute("INSERT OR REPLACE INTO last VALUES(?,?,?,?,?,?)", (iid, q["price"], q["time"], source,
-                                                                     None if q.get("open") is None else int(q["open"]), now_iso()))
+def catalogue():
+    """[(id, label, group, ticker, unit)] for every instrument, sector and company tracked."""
+    tid = lambda t: re.sub(r"[^a-z0-9]", "", t.split(":")[1].lower())          # noqa: E731
+    return INSTRUMENTS + [(tid(t), n, "Sectors", t, "$") for t, n in SECTORS] + [(tid(t), n, "Companies", t, "$") for t, n in MEGACAPS]
 
 
-def changes(con, iid, price, unit):
-    """1D / 1W / 1M / YTD / 1Y change, and the last 60 closes for a sparkline. For yields the change is in basis
-    points (percentage points x 100), otherwise in percent."""
-    rows = con.execute("SELECT date, close FROM daily WHERE id=? ORDER BY date", (iid,)).fetchall()
-    if not rows or price is None:
-        return {}
-    today = datetime.now(timezone.utc).date()
-    last_d = rows[-1][0]
+def _f(x, nd=2):
+    try:
+        return None if x is None else round(float(x), nd)
+    except (TypeError, ValueError):
+        return None
 
-    def before(days=None, date=None):
-        lim = date or (today - timedelta(days=days)).isoformat()
-        r = [c for d, c in rows if d <= lim]
-        return r[-1] if r else None
-    # the previous close: the last daily close before the latest trading day
-    prev = rows[-2][1] if len(rows) > 1 else None
-    if abs(rows[-1][1] - price) > 1e-12 and last_d < today.isoformat():
-        prev = rows[-1][1]                       # the latest price is newer than the last daily close
-    ref = {"d1": prev, "w1": before(7), "m1": before(30), "ytd": before(date=f"{today.year - 1}-12-31"), "y1": before(365)}
-    out = {}
-    for k, r in ref.items():
-        if r:
-            out[k] = round((price - r) * 100, 1) if unit == "%" else round(100 * (price / r - 1), 2)
-    spark = [c for _, c in rows[-60:]]
-    out["spark"] = [float(f"{x:.6g}") for x in spark]
-    out["hi52"], out["lo52"] = max(c for _, c in rows[-260:]), min(c for _, c in rows[-260:])
-    return out
+
+def row_from(iid, label, grp, ticker, unit, d):
+    """One instrument from the screener's columns. Yields move in basis points (the screener's change is a % of the
+    yield, which is not how rates are read)."""
+    px = d.get("close")
+    if px is None:
+        return None
+    r = {"id": iid, "label": label, "ticker": ticker, "unit": unit, "price": float(f"{float(px):.6g}"),
+         "d1": _f(d.get("change")), "w1": _f(d.get("Perf.W")), "m1": _f(d.get("Perf.1M")), "m3": _f(d.get("Perf.3M")),
+         "ytd": _f(d.get("Perf.YTD")), "y1": _f(d.get("Perf.Y")), "hi52": _f(d.get("price_52_week_high"), 6),
+         "lo52": _f(d.get("price_52_week_low"), 6), "delayed": "delayed" in str(d.get("update_mode") or "")}
+    if unit == "%":
+        r["d1_bp"] = _f(100 * float(d["change_abs"]), 1) if d.get("change_abs") is not None else None
+    return r
+
+
+def spark(con, iid):
+    """Up to 60 daily closes from our own history; while it is short, the last 7 days of hourly prices."""
+    d = [c for (c,) in con.execute("SELECT close FROM (SELECT date, close FROM daily WHERE id=? ORDER BY date DESC LIMIT 60) ORDER BY date", (iid,))]
+    if len(d) >= 10:
+        return [float(f"{x:.6g}") for x in d]
+    cut = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%dT%H")
+    h = [c for (c,) in con.execute("SELECT price FROM hourly WHERE id=? AND utc>=? ORDER BY utc", (iid, cut))]
+    return [float(f"{x:.6g}") for x in h]
 
 
 # ------------------------------------------------------------------ refresh
@@ -343,40 +306,31 @@ def refresh(force=False, log=print, fetch=fetch, out=OUT, db=DB):
     os.makedirs(os.path.dirname(out), exist_ok=True)
     con = sqlite3.connect(db, timeout=30)
     con.executescript(SCHEMA)
-    t0, ok, miss = time.time(), 0, []
-    items = [(i, l, g, y, s, u) for i, l, g, y, s, u in INSTRUMENTS] + \
-            [(t.lower().replace("-", ""), n, "Sectors", t, t.lower().replace("-", ".") + ".us", "$") for t, n in SECTORS] + \
-            [(t.lower().replace("-", ""), n, "Megacaps", t, t.lower().replace("-", ".") + ".us", "$") for t, n in MEGACAPS]
-    for iid, label, grp, ysym, ssym, unit in items:
-        q, src = yahoo(ysym, fetch), "Yahoo Finance"
-        if not q and ssym:
-            q, src = stooq(ssym, fetch), "Stooq"
-        if iid == "kse":
-            p = psx_kse(fetch)
-            if p:
-                q = q or {"closes": [], "open": None}
-                q.update(price=p[1], time=p[0])
-                src = "PSX" if not q["closes"] else src + " + PSX"
-        if q and q.get("price") is not None:
-            store_quote(con, iid, q, src)
-            ok += 1
-        else:
+    t0 = time.time()
+    cat = catalogue()
+    got = scan([x[3] for x in cat], fetch)
+    hour, day, ok, miss = now_iso()[:13], now_iso()[:10], 0, []
+    for iid, label, grp, ticker, unit in cat:
+        r = row_from(iid, label, grp, ticker, unit, got.get(ticker) or {})
+        if not r:
             miss.append(iid)
-        time.sleep(0.25)                          # gentle: one request at a time
+            continue
+        ok += 1
+        con.execute("INSERT OR REPLACE INTO last VALUES(?,?,?,?,?,?,?)", (iid, label, grp, ticker, unit, json.dumps(r), now_iso()))
+        con.execute("INSERT OR REPLACE INTO hourly VALUES(?,?,?)", (iid, hour, r["price"]))
+        con.execute("INSERT OR REPLACE INTO daily VALUES(?,?,?)", (iid, day, r["price"]))   # the day's latest price
     con.commit()
-    # news
     news_ok = []
     for name, url in FEEDS:
         st, body = fetch(url)
-        items_ = parse_feed(body, name) if st == 200 else []
-        if items_:
+        items = parse_feed(body, name) if st == 200 else []
+        if items:
             news_ok.append(name)
-        for n in items_:
+        for n in items:
             tags, sc = score(n["title"])
             con.execute("INSERT OR IGNORE INTO news VALUES(?,?,?,?,?,?,?,?,?)",
                         (norm_key(n["title"]), n["t"], n["title"], n["link"], n["source"], n["via"], json.dumps(tags), sc, now_iso()))
     con.commit()
-    # calendar
     cal_ok = False
     st, body = fetch(CALENDAR)
     if st == 200:
@@ -400,120 +354,100 @@ def refresh(force=False, log=print, fetch=fetch, out=OUT, db=DB):
                    "week_ago": int(d[min(7, len(d) - 1)]["value"])}
         except (ValueError, KeyError, IndexError, TypeError):
             fng = None
-    data = build(con, items, fng)
-    data["sources"] = {"prices_ok": ok, "prices_missing": miss, "news_feeds_ok": news_ok, "calendar": cal_ok,
-                       "fear_greed": fng is not None, "seconds": round(time.time() - t0)}
+    data = build(con, cat, fng)
+    data["sources"] = {"prices_ok": ok, "prices_total": len(cat), "prices_missing": miss, "news_feeds_ok": news_ok,
+                       "news_feeds_total": len(FEEDS), "calendar": cal_ok, "fear_greed": fng is not None, "seconds": round(time.time() - t0)}
     con.close()
+    if ok == 0 and not news_ok:
+        log("world markets: no source answered; world.json left as it was")
+        return False
     tmp = out + ".tmp"
     with open(tmp, "w") as f:
         json.dump(data, f, separators=(",", ":"))
     os.replace(tmp, out)
-    log(f"world markets: {ok}/{len(items)} prices, {len(news_ok)}/{len(FEEDS)} news feeds, calendar {'ok' if cal_ok else 'missing'}, "
+    log(f"world markets: {ok}/{len(cat)} prices, {len(news_ok)}/{len(FEEDS)} news feeds, calendar {'ok' if cal_ok else 'missing'}, "
         f"{data['news_count']} headlines (48 h), {round(time.time() - t0)} s" + (f"; missing {', '.join(miss)}" if miss else ""))
     return True
 
 
-def build(con, items, fng):
+def build(con, cat, fng):
     groups, by_id = {}, {}
-    for iid, label, grp, ysym, ssym, unit in items:
-        r = con.execute("SELECT price, time, source, is_open FROM last WHERE id=?", (iid,)).fetchone()
+    for iid, label, grp, ticker, unit in cat:
+        r = con.execute("SELECT data, fetched_utc FROM last WHERE id=?", (iid,)).fetchone()
         if not r:
             continue
-        ch = changes(con, iid, r[0], unit)
-        row = dict({"id": iid, "label": label, "symbol": ysym, "unit": unit, "price": float(f"{r[0]:.6g}"), "time": r[1],
-                    "source": r[2], "open": None if r[3] is None else bool(r[3])}, **ch)
+        row = dict(json.loads(r[0]), as_of=r[1], spark=spark(con, iid))
         groups.setdefault(grp, []).append(row)
         by_id[iid] = row
-    cut = int(time.time()) - 48 * 3600
-    news = [{"title": t, "link": lk, "source": s, "t": tt, "tags": json.loads(tg), "score": sc}
-            for t, lk, s, tt, tg, sc in con.execute(
-                "SELECT title, link, source, t, tags, score FROM news WHERE t>=? AND t<=? ORDER BY t DESC LIMIT 400", (cut, int(time.time()) + 3600))]
-    week0 = int(time.time()) - 2 * 86400
+    now = int(time.time())
+    seen, news = set(), []
+    for t, lk, s_, tt, tg, sc in con.execute("SELECT title, link, source, t, tags, score FROM news WHERE t>=? AND t<=? ORDER BY t DESC LIMIT 600",
+                                             (now - 48 * 3600, now + 3600)):
+        k = norm_key(t)[:45]
+        if k in seen:
+            continue
+        seen.add(k)
+        news.append({"title": t, "link": lk, "source": s_, "t": tt, "tags": json.loads(tg), "score": sc})
+    news = news[:300]
     cal = [{"t": t, "country": c, "title": ti, "impact": im, "forecast": f, "previous": p, "actual": a}
            for t, c, ti, im, f, p, a in con.execute(
                "SELECT t, country, title, impact, forecast, previous, actual FROM calendar WHERE t>=? AND t<=? AND impact IN ('High','Medium') ORDER BY t",
-               (week0, int(time.time()) + 8 * 86400))]
+               (now - 2 * 86400, now + 8 * 86400))]
     return {"generated_utc": now_iso(), "groups": groups, "summary": summary(by_id, groups.get("Sectors", [])),
-            "news": news, "news_count": len(news), "calendar": cal, "fear_greed": fng}
+            "news": news, "news_count": len(news), "calendar": cal, "fear_greed": fng,
+            "credits": "Prices: TradingView screener (some delayed up to 15 min). News: publishers' public RSS feeds and Google News. "
+                       "Calendar: Forex Factory. Crypto sentiment: alternative.me."}
 
 
 def summary(by, sectors):
-    """A plain reading of the last session, from the numbers only (no opinion): direction of each block, the
-    leading and lagging sectors, and a risk-on / risk-off score."""
+    """A plain reading of the latest session from the numbers only (no opinion): each block's direction, the leading
+    and lagging sectors, and a risk-on / risk-off tally."""
     g = lambda k, f="d1": (by.get(k) or {}).get(f)     # noqa: E731
-    lines, score_ = [], 0
-    def mv(k, name, bp=False):
-        v = g(k)
+
+    def mv(k, name):
+        v = g(k, "d1_bp") if (by.get(k) or {}).get("unit") == "%" else g(k)
         if v is None:
             return None
-        return f"{name} {('+' if v > 0 else '') + (f'{v:.0f} bp' if bp else f'{v:.2f}%')}"
-    us = [x for x in (mv("spx", "S&P 500"), mv("ndx", "Nasdaq 100"), mv("dji", "Dow")) if x]
-    if us:
-        lines.append("US stocks: " + ", ".join(us))
-    eu = [x for x in (mv("sx5e", "Euro Stoxx 50"), mv("dax", "DAX"), mv("ftse", "FTSE 100")) if x]
-    if eu:
-        lines.append("Europe: " + ", ".join(eu))
-    asia = [x for x in (mv("n225", "Nikkei"), mv("hsi", "Hang Seng"), mv("shc", "Shanghai"), mv("kse", "KSE-100")) if x]
-    if asia:
-        lines.append("Asia: " + ", ".join(asia))
-    m = [x for x in (mv("us10y", "US 10-year yield", True), mv("dxy", "Dollar index"), mv("gold", "Gold"), mv("brent", "Brent"), mv("btc", "Bitcoin")) if x]
-    if m:
-        lines.append("Rates, dollar, commodities: " + ", ".join(m))
+        return f"{name} {'+' if v > 0 else ''}{v:.0f} bp" if (by.get(k) or {}).get("unit") == "%" else f"{name} {'+' if v > 0 else ''}{v:.2f}%"
+    lines = []
+    for head, keys in (("US stocks", (("spx", "S&P 500"), ("ndx", "Nasdaq 100"), ("dji", "Dow"))),
+                       ("Europe", (("sx5e", "Euro Stoxx 50"), ("dax", "DAX"), ("ftse", "FTSE 100"))),
+                       ("Asia", (("n225", "Nikkei"), ("hsi", "Hang Seng"), ("shc", "Shanghai"), ("nifty", "Nifty"), ("kse", "KSE-100"))),
+                       ("Rates and dollar", (("us10y", "US 10-year"), ("us2y", "US 2-year"), ("dxy", "Dollar index"))),
+                       ("Commodities", (("gold", "Gold"), ("brent", "Brent"), ("copper", "Copper"))),
+                       ("Crypto", (("btc", "Bitcoin"), ("eth", "Ethereum")))):
+        parts = [x for x in (mv(k, n) for k, n in keys) if x]
+        if parts:
+            lines.append(f"{head}: " + ", ".join(parts))
+    sc = 0.0
     for k, w in (("spx", 1), ("ndx", 1), ("sx5e", 0.5), ("hsi", 0.5), ("btc", 0.5), ("copper", 0.5)):
         v = g(k)
         if v is not None:
-            score_ += w * (1 if v > 0.2 else -1 if v < -0.2 else 0)
-    for k, w in (("vix", 1), ("gold", 0.5), ("dxy", 0.5)):
+            sc += w * (1 if v > 0.2 else -1 if v < -0.2 else 0)
+    for k, w, th in (("vix", 1, 3), ("gold", 0.5, 0.3), ("dxy", 0.5, 0.3)):
         v = g(k)
         if v is not None:
-            score_ -= w * (1 if v > (3 if k == "vix" else 0.3) else -1 if v < (-3 if k == "vix" else -0.3) else 0)
-    tone = "risk-on" if score_ >= 2 else "risk-off" if score_ <= -2 else "mixed"
-    sec = sorted([s for s in sectors if s.get("d1") is not None], key=lambda s: -s["d1"])
-    lead = [f"{s['label']} {s['d1']:+.1f}%" for s in sec[:3]]
-    lag = [f"{s['label']} {s['d1']:+.1f}%" for s in sec[-3:][::-1]]
-    sec_m = sorted([s for s in sectors if s.get("m1") is not None], key=lambda s: -s["m1"])
-    return {"lines": lines, "tone": tone, "score": score_, "sector_leaders": lead, "sector_laggards": lag,
-            "sector_month_leaders": [f"{s['label']} {s['m1']:+.1f}%" for s in sec_m[:3]], "vix": g("vix", "price") if by.get("vix") else None}
-
-
-PROBE_URLS = [
-    "https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=5d&interval=1d",
-    "https://query2.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=5d&interval=1d",
-    "https://stooq.com/q/l/?s=%5Espx&f=sd2t2ohlcv&h&e=csv",
-    "https://stooq.com/q/d/l/?s=%5Espx&i=d",
-    "https://quote.cnbc.com/quote-html-webservice/restQuote/symbolType/symbol?symbols=.SPX%7C@GC.1%7CUS10Y%7CEUR%3D&requestMethod=itv&noform=1&partnerId=2&fund=1&exthrs=1&output=json",
-    "https://fred.stlouisfed.org/graph/fredgraph.csv?id=SP500",
-    "https://www.google.com/finance/quote/.INX:INDEXSP",
-    "https://api.nasdaq.com/api/quote/SPX/info?assetclass=index",
-    "https://www.marketwatch.com/investing/index/spx",
-    "https://scanner.tradingview.com/global/scan",
-]
+            sc -= w * (1 if v > th else -1 if v < -th else 0)
+    tone = "risk-on" if sc >= 2 else "risk-off" if sc <= -2 else "mixed"
+    sec = sorted([x for x in sectors if x.get("d1") is not None], key=lambda x: -x["d1"])
+    sec_m = sorted([x for x in sectors if x.get("m1") is not None], key=lambda x: -x["m1"])
+    return {"lines": lines, "tone": tone, "score": sc, "vix": g("vix", "price"),
+            "sector_leaders": [f"{x['label']} {x['d1']:+.1f}%" for x in sec[:3]],
+            "sector_laggards": [f"{x['label']} {x['d1']:+.1f}%" for x in sec[-3:][::-1]],
+            "sector_month_leaders": [f"{x['label']} {x['m1']:+.1f}%" for x in sec_m[:3]],
+            "sector_month_laggards": [f"{x['label']} {x['m1']:+.1f}%" for x in sec_m[-3:][::-1]]}
 
 
 def probe():
     print(f"== world sources probe {now_iso()} ==")
-    import tempfile
-    jar = os.path.join(tempfile.mkdtemp(), "jar")
-    st, _ = fetch("https://fc.yahoo.com", jar=jar)
-    st2, b2 = fetch("https://query2.finance.yahoo.com/v1/test/getcrumb", jar=jar)
-    st3, b3 = fetch(f"https://query2.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=5d&interval=1d&crumb={b2.strip()}", jar=jar)
-    print(f"  yahoo with cookie: fc {st}, crumb {st2} {b2[:20]!r}, chart {st3} {b3[:90]!r}")
-    body = {"symbols": {"tickers": ["SP:SPX", "TVC:DXY", "TVC:GOLD", "TVC:US10Y", "PSX:KSE100", "FX_IDC:USDPKR", "AMEX:XLK", "TADAWUL:TASI"]},
-            "columns": ["name", "description", "close", "change", "Perf.W", "Perf.1M", "Perf.YTD", "Perf.Y", "currency", "update_mode"]}
-    st, b = fetch("https://scanner.tradingview.com/global/scan", data=body)
-    print(f"  tradingview scan http {st}: {b[:600]}")
-    for u in PROBE_URLS:
-        st, body = fetch(u)
-        print(f"  raw http {st} {len(body):7d} B {u[:70]} | {re.sub(chr(10), ' ', body[:110])}")
-    for iid, label, grp, ysym, ssym, unit in INSTRUMENTS[:6] + [x for x in INSTRUMENTS if x[0] in ("kse", "tasi", "gold", "usdpkr", "us10y", "dxy")]:
-        q = yahoo(ysym)
-        s = stooq(ssym) if ssym else None
-        print(f"  {iid:8s} yahoo {'ok ' + str(q['price']) + ' (' + str(len(q['closes'])) + ' closes)' if q else 'FAIL':32s} stooq {('ok ' + str(s['price'])) if s else ('-' if not ssym else 'FAIL')}")
-    print(f"  kse      psx {psx_kse()}")
+    cat = catalogue()
+    got = scan([x[3] for x in cat])
+    miss = [x[3] for x in cat if x[3] not in got or (got[x[3]] or {}).get("close") is None]
+    print(f"  prices (TradingView screener): {len(cat) - len(miss)}/{len(cat)}" + (f"; missing {', '.join(miss)}" if miss else ""))
     for name, url in FEEDS:
         st, body = fetch(url)
         n = parse_feed(body, name) if st == 200 else []
-        print(f"  feed {name:34s} http {st} items {len(n)}" + (f" | {n[0]['source']}: {n[0]['title'][:70]}" if n else ""))
+        print(f"  feed {name:34s} http {st} items {len(n)}")
     for name, url in (("calendar", CALENDAR), ("fear&greed", FNG)):
         st, body = fetch(url)
         print(f"  {name:12s} http {st} bytes {len(body)}")

@@ -59,6 +59,7 @@ def main(out):
     live_view(con, E.OUT)
     con.close()
     paper_mm(E.OUT)
+    world(E.OUT)
     with open(os.path.join(HERE, "..", "web", "index.html"), encoding="utf-8") as f:
         page = P.wrap(f.read())
     with open(os.path.join(out, "index.html"), "w", encoding="utf-8") as f:
@@ -80,6 +81,15 @@ def live_view(con, out_data):
         for k in range(3):
             con.execute("INSERT INTO candles_1h VALUES(?,?,?,?,?,?,?)", (sym, d0 + k * 3_600_000, c, c * 1.01, c * 0.995, c * 1.004, d0 + (k + 1) * 3_600_000))
     bot_live.run(con, out_data, now_ms=d0 + 3 * 3_600_000 + 1)
+
+
+def world(out_data):
+    """The World tab's data from canned replies (the same ones the unit tests use)."""
+    import tempfile
+    sys.path.insert(0, os.path.join(HERE, ".."))
+    import world_markets as W
+    from tests.test_world_markets import fake
+    W.refresh(force=True, log=print, fetch=fake, out=os.path.join(out_data, "world.json"), db=os.path.join(tempfile.mkdtemp(), "world.db"))
 
 
 def paper_mm(out_data):

@@ -135,6 +135,37 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .hx-id { min-width: 0; flex: 1; } .hx-id b { font-size: 15.5px; font-weight: 650; } .hx-id small { color: var(--muted); margin-left: 2px; font-size: 11.5px; }
 .hx-id .hx-sub { color: var(--muted); font-size: 12px; line-height: 1.35; margin-top: 1px; }
 .mb-best td { font-weight: 600; }
+.wd-head { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 860px) { .wd-head { grid-template-columns: 1fr; } }
+.wd-lines { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 14px; }
+.wd-lines li b { color: var(--text); font-weight: 600; }
+.wd-side { display: grid; gap: 10px; align-content: start; }
+.wd-gauge { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.wd-gauge .label { font-size: 12px; color: var(--muted); }
+.wd-gauge .v { font-family: var(--font-num); font-size: 20px; font-weight: 600; margin-top: 2px; }
+.wd-gauge small { color: var(--muted); font-size: 12px; }
+.wd-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); gap: 12px; }
+.wd-kpi { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: rgba(255,255,255,0.02); min-width: 0; }
+.wd-kpi .label { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wd-kpi .v { font-family: var(--font-num); font-size: 18px; font-weight: 600; margin-top: 2px; }
+.wd-kpi svg { display: block; width: 100%; height: 26px; margin-top: 4px; }
+.wd-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin: 4px 0 14px; }
+.wd-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 20px; }
+.wd-tbl td, .wd-tbl th { padding: 7px 8px; }
+.wd-tbl td.nm { white-space: nowrap; max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
+.wd-tbl svg { width: 72px; height: 20px; display: block; }
+.wd-heat { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.wd-tile { border-radius: 10px; padding: 10px; border: 1px solid var(--line); min-height: 64px; }
+.wd-tile b { display: block; font-size: 13px; }
+.wd-tile span { font-family: var(--font-num); font-size: 16px; font-weight: 600; }
+.wd-cal td { padding: 6px 8px; } .wd-cal tr.past td { opacity: 0.55; } .wd-cal tr.next td { background: var(--accent-soft); }
+.wd-news { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 70vh; overflow: auto; }
+.wd-news li { padding: 9px 4px; border-bottom: 1px solid var(--line); display: grid; gap: 3px; }
+.wd-news a { color: var(--text); text-decoration: none; font-weight: 500; line-height: 1.35; }
+.wd-news a:hover { text-decoration: underline; }
+.wd-news .meta { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.wd-news .hot { color: var(--warn); font-weight: 600; }
+.wd-q { background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 13px; min-width: 0; }
 .hx-added { color: var(--muted); font-size: 11.5px; margin: -2px 0 6px; font-variant-numeric: tabular-nums; }
 .hx-added b { color: var(--text); font-weight: 600; }
 .hx-badges { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; max-width: 50%; }
@@ -333,6 +364,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
     <nav class="tabs" aria-label="Views">
       <a href="#me" data-view="me" id="navMe" hidden>★ My dashboard</a>
       <a href="#overview" data-view="overview">Overview</a>
+      <a href="#world" data-view="world">World</a>
       <a href="#highlights" data-view="highlights">Trade Ideas<span class="badge" id="hlBadge" hidden></span></a>
       <a href="#bot" data-view="bot">Trading bots</a>
       <a href="#mmbee" data-view="mmbee">MM-Bee</a>
@@ -401,6 +433,42 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
 
 
 
+
+  <section class="view" id="v-world" hidden>
+    <div class="card">
+      <div class="card-head"><h2>World markets</h2><span class="pill" id="wdPill"><span class="dot"></span><span id="wdPillText">Loading…</span></span></div>
+      <div class="wd-head">
+        <div><p class="note" style="margin:0">The latest session in one look: stocks by region, rates, the dollar, commodities and crypto. Every hour.</p><ul class="wd-lines" id="wdLines"></ul></div>
+        <div class="wd-side" id="wdSide"></div>
+      </div>
+    </div>
+    <div class="card"><div class="wd-kpis" id="wdKpis"></div></div>
+    <div class="wd-tools">
+      <div class="seg" id="wdPer"><button type="button" data-v="d1" aria-pressed="true">1D</button><button type="button" data-v="w1" aria-pressed="false">1W</button><button type="button" data-v="m1" aria-pressed="false">1M</button><button type="button" data-v="m3" aria-pressed="false">3M</button><button type="button" data-v="ytd" aria-pressed="false">YTD</button><button type="button" data-v="y1" aria-pressed="false">1Y</button></div>
+      <span class="note" id="wdPerNote">Change over the last trading day. Yields: change in basis points (1D) or % of the yield.</span>
+    </div>
+    <div class="wd-grid" id="wdTables"></div>
+    <div class="card" style="margin-top:20px">
+      <div class="card-head"><h2>Sectors in focus (US)</h2><span class="note" id="wdSecNote"></span></div>
+      <div class="wd-heat" id="wdHeat"></div>
+      <p class="note" style="margin:12px 0 0" id="wdSecLead"></p>
+    </div>
+    <div class="grid-2" style="margin-top:20px">
+      <div class="card">
+        <div class="card-head"><h2>Economic calendar</h2><span class="note">this week · high and medium impact · your local time</span></div>
+        <div class="tbl-wrap" style="max-height:70vh"><table class="wd-cal"><thead><tr><th>When</th><th>Country</th><th>Event</th><th>Actual</th><th>Forecast</th><th>Previous</th></tr></thead><tbody id="wdCal"></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Market-moving news</h2><span class="note" id="wdNewsNote"></span></div>
+        <div class="wd-tools" style="margin-top:0">
+          <select class="wd-q" id="wdNewsTag" aria-label="News topic"></select>
+          <input class="wd-q" id="wdNewsQ" type="search" placeholder="Search headlines" aria-label="Search headlines">
+        </div>
+        <ul class="wd-news" id="wdNews"></ul>
+      </div>
+    </div>
+    <p class="note" style="margin-top:14px" id="wdCredits"></p>
+  </section>
 
   <section class="view" id="v-bot" hidden>
     <div class="card sub-head">
@@ -2077,6 +2145,112 @@ function loadMM() {                   // the MM-Bee data (about half a megabyte)
   mmLoading = j("data/mmbee.json").then(d => { S.mm = d; }, () => { S.mm = null; }).then(() => { mmLoading = null; if (!$("#v-mmbee").hidden) setSub("mmbee", S.sub.mmbee); });
   return mmLoading;
 }
+// ---------- World markets (data/world.json, refreshed hourly; loaded when the tab opens)
+let wdLoading = null;
+function loadWorld() {
+  if (S.wd !== undefined || wdLoading) return wdLoading;
+  wdLoading = j("data/world.json").then(d => { S.wd = d; }, () => { S.wd = null; }).then(() => { wdLoading = null; if (!$("#v-world").hidden) renderWorld(); });
+  return wdLoading;
+}
+const WD_PER = { d1: "Change over the last trading day. Yields: change in basis points.", w1: "Change over one week.", m1: "Change over one month.",
+  m3: "Change over three months.", ytd: "Change since the start of the year.", y1: "Change over one year." };
+function wdSpark(vals, up) {
+  const NS = "http://www.w3.org/2000/svg", s = document.createElementNS(NS, "svg"); s.setAttribute("viewBox", "0 0 100 26"); s.setAttribute("preserveAspectRatio", "none");
+  if (!vals || vals.length < 2) return s;
+  const lo = Math.min(...vals), hi = Math.max(...vals), r = hi - lo || 1, n = vals.length;
+  const pts = vals.map((v, i) => (100 * i / (n - 1)).toFixed(1) + "," + (24 - 22 * (v - lo) / r).toFixed(1)).join(" ");
+  const pl = document.createElementNS(NS, "polyline"); pl.setAttribute("points", pts); pl.setAttribute("fill", "none");
+  pl.setAttribute("stroke", css(up ? "--up" : "--down")); pl.setAttribute("stroke-width", "1.6"); pl.setAttribute("vector-effect", "non-scaling-stroke"); s.append(pl); return s;
+}
+function wdPx(x) {
+  const v = x.price; if (!isNum(v)) return "—";
+  if (x.unit === "%") return v.toFixed(3) + "%";
+  if (x.unit === "fx") return v >= 20 ? v.toFixed(2) : v.toFixed(4);
+  return (x.unit === "$" ? "$" : "") + (v >= 1000 ? v.toLocaleString("en-US", { maximumFractionDigits: 2 }) : v >= 1 ? v.toFixed(2) : fPx(v));
+}
+function wdChg(x, per) {   // [text, numeric value used for colour]
+  if (x.unit === "%" && per === "d1" && isNum(x.d1_bp)) return [(x.d1_bp > 0 ? "+" : "") + x.d1_bp.toFixed(0) + " bp", x.d1_bp];
+  const v = x[per]; return isNum(v) ? [fPct(v, 2), v] : ["—", null];
+}
+const wdUpIsGood = x => !(x.id === "vix");          // a rising VIX is shown as stress
+function wdCls(x, v) { if (!isNum(v) || v === 0) return ""; return (v > 0) === wdUpIsGood(x) ? "pos" : "neg"; }
+function renderWorld() {
+  if (S.wd === undefined) { loadWorld(); return; }
+  const D = S.wd, pill = $("#wdPill"), pt = $("#wdPillText");
+  if (!D) { pill.className = "pill warn"; pt.textContent = "No data yet"; $("#wdLines").innerHTML = '<li>World data is published with the next hourly engine run.</li>'; return; }
+  const age = (Date.now() - Date.parse(D.generated_utc)) / 6e4;
+  pill.className = "pill " + (age < 90 ? "ok" : "warn"); pt.textContent = (age < 90 ? "Updated " : "Last update ") + fmtLocal(D.generated_utc);
+  const per = S.wdPer || "d1", G = D.groups || {}, SM = D.summary || {}, all = Object.values(G).flat(), by = Object.fromEntries(all.map(x => [x.id, x]));
+  $$("#wdPer button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === per))); $("#wdPerNote").textContent = WD_PER[per];
+  // summary
+  const L = $("#wdLines"); L.replaceChildren();
+  (SM.lines || []).forEach(t => { const li = document.createElement("li"), i = t.indexOf(":"), b = document.createElement("b"); b.textContent = t.slice(0, i + 1); li.append(b, document.createTextNode(t.slice(i + 1))); L.append(li); });
+  const side = $("#wdSide"); side.replaceChildren();
+  const gauge = (label, v, small, kind) => { const d = hxEl("div", "wd-gauge"); d.append(hxEl("div", "label", label)); const vv = hxEl("div", "v", v); if (kind) vv.className = "v " + kind; d.append(vv); if (small) d.append(hxEl("small", "", small)); side.append(d); };
+  gauge("Market tone (last session)", SM.tone === "risk-on" ? "Risk-on" : SM.tone === "risk-off" ? "Risk-off" : "Mixed", "from stocks, VIX, gold, the dollar, copper and bitcoin moves", SM.tone === "risk-on" ? "pos" : SM.tone === "risk-off" ? "neg" : "");
+  if (by.vix) gauge("VIX (US stock volatility)", fN(by.vix.price, 1), by.vix.price >= 30 ? "high stress" : by.vix.price >= 20 ? "elevated" : "calm (under 20)", by.vix.price >= 20 ? "neg" : "pos");
+  if (D.fear_greed) gauge("Crypto Fear & Greed", D.fear_greed.value + " · " + D.fear_greed.label, "a week ago " + D.fear_greed.week_ago);
+  // key numbers
+  const K = $("#wdKpis"); K.replaceChildren();
+  ["spx", "ndx", "sx5e", "n225", "kse", "us10y", "dxy", "gold", "brent", "btc"].forEach(id => { const x = by[id]; if (!x) return; const [t, v] = wdChg(x, per);
+    const c = hxEl("div", "wd-kpi"); c.title = x.label + (x.delayed ? " (delayed quote)" : ""); c.append(hxEl("div", "label", x.label), hxEl("div", "v", wdPx(x)));
+    const ch = hxEl("div", "num " + wdCls(x, v), t); ch.style.fontSize = "13px"; c.append(ch, wdSpark(x.spark, (x.spark || []).length > 1 ? x.spark[x.spark.length - 1] >= x.spark[0] : true)); K.append(c); });
+  // tables
+  const T = $("#wdTables"); T.replaceChildren();
+  [["Americas", "Americas"], ["Europe", "Europe"], ["Asia & Middle East", "Asia & Middle East"], ["Commodities", "Commodities"], ["Currencies", "Currencies"], ["Rates", "Government bond yields"], ["Crypto", "Crypto"], ["Companies", "Largest US companies"]].forEach(([g, title]) => {
+    const rows = G[g]; if (!rows || !rows.length) return;
+    const card = hxEl("div", "card"), head = hxEl("div", "card-head"); head.append(hxEl("h2", "", title)); card.append(head);
+    const wrap = hxEl("div", "tbl-wrap"), tb = document.createElement("table"); tb.className = "wd-tbl";
+    const th = document.createElement("thead"); th.innerHTML = '<tr><th>Market</th><th>Last</th><th>Change</th><th title="Where the price sits in its 52-week range: 0% = the low, 100% = the high">52w</th><th title="Our own hourly / daily history (grows from the first day)">Trend</th></tr>'; tb.append(th);
+    const body = document.createElement("tbody");
+    rows.forEach(x => { const tr = document.createElement("tr"), [t, v] = wdChg(x, per), nm = td(x.label, "nm"); nm.title = x.ticker + (x.delayed ? " · delayed" : "");
+      const pos = isNum(x.hi52) && isNum(x.lo52) && x.hi52 > x.lo52 ? Math.round(100 * (x.price - x.lo52) / (x.hi52 - x.lo52)) : null;
+      const rng = td(pos == null ? "—" : Math.max(0, Math.min(100, pos)) + "%", "num"); if (pos != null) rng.title = "52-week low " + x.lo52 + " · high " + x.hi52;
+      const sp = document.createElement("td"); sp.append(wdSpark(x.spark, (x.spark || []).length > 1 ? x.spark[x.spark.length - 1] >= x.spark[0] : true));
+      tr.append(nm, td(wdPx(x), "num"), td(t, "num " + wdCls(x, v)), rng, sp); body.append(tr); });
+    tb.append(body); wrap.append(tb); card.append(wrap); T.append(card); });
+  // sectors heat map
+  const H = $("#wdHeat"); H.replaceChildren(); const sec = (G.Sectors || []).slice().sort((a, b) => (b[per] ?? -1e9) - (a[per] ?? -1e9));
+  const mx = Math.max(1, ...sec.map(x => Math.abs(x[per] || 0)));
+  sec.forEach(x => { const v = x[per], t = hxEl("div", "wd-tile"); const a = isNum(v) ? Math.min(0.55, 0.12 + 0.43 * Math.abs(v) / mx) : 0;
+    t.style.background = isNum(v) ? (v >= 0 ? `rgba(0,206,182,${a})` : `rgba(255,107,107,${a})`) : ""; t.append(hxEl("b", "", x.label), hxEl("span", "", isNum(v) ? fPct(v, 2) : "—"));
+    t.title = x.ticker + " (sector ETF)"; H.append(t); });
+  $("#wdSecNote").textContent = "sector ETFs · " + (PER_LABEL[per] || per);
+  $("#wdSecLead").textContent = SM.sector_leaders && SM.sector_leaders.length ? `Last session leaders: ${SM.sector_leaders.join(", ")}. Laggards: ${SM.sector_laggards.join(", ")}. Over the month: ${(SM.sector_month_leaders || []).join(", ")} lead; ${(SM.sector_month_laggards || []).join(", ")} lag.` : "";
+  // calendar
+  const C = $("#wdCal"); C.replaceChildren(); const now = Date.now() / 1000; let nextMarked = false;
+  (D.calendar || []).forEach(e => { const tr = document.createElement("tr"); if (e.t < now - 3600) tr.className = "past"; else if (!nextMarked) { tr.className = "next"; nextMarked = true; }
+    const d = new Date(e.t * 1000), when = d.toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" });
+    tr.append(td(when, "num"), td(e.country, ""), tdNode(Object.assign(hxEl("span", ""), { textContent: e.title })), td(e.actual || "—", "num"), td(e.forecast || "—", "num"), td(e.previous || "—", "num"));
+    if (e.impact === "High") tr.children[2].prepend(chip("High", "down"), document.createTextNode(" "));
+    C.append(tr); });
+  if (!C.children.length) C.innerHTML = '<tr><td colspan="6" class="empty">No high or medium impact events published for this week yet.</td></tr>';
+  // news
+  renderWorldNews();
+  const so = D.sources || {};
+  $("#wdCredits").textContent = (D.credits || "") + ` Last refresh: ${so.prices_ok}/${so.prices_total} prices, ${(so.news_feeds_ok || []).length}/${so.news_feeds_total} news feeds. Information only, not advice.`;
+}
+const PER_LABEL = { d1: "last trading day", w1: "1 week", m1: "1 month", m3: "3 months", ytd: "year to date", y1: "1 year" };
+function renderWorldNews() {
+  const D = S.wd; if (!D) return;
+  const sel = $("#wdNewsTag"), tags = ["Central banks", "Inflation & data", "Geopolitics & trade", "Energy", "Metals", "Earnings & companies", "Crypto", "Pakistan", "Markets"];
+  if (!sel.options.length) { [["top", "Most market-moving"], ["all", "All headlines"]].concat(tags.map(t => [t, t])).forEach(([v, l]) => sel.add(new Option(l, v))); sel.value = S.wdTag || "top";
+    sel.onchange = () => { S.wdTag = sel.value; renderWorldNews(); }; $("#wdNewsQ").oninput = e => { S.wdQ = e.target.value.toLowerCase(); renderWorldNews(); }; }
+  const f = S.wdTag || "top", q = S.wdQ || "", now = Date.now() / 1000;
+  let rows = (D.news || []).filter(n => (f === "all" || f === "top" ? true : (n.tags || []).includes(f)) && (!q || n.title.toLowerCase().includes(q)));
+  if (f === "top") rows = rows.filter(n => n.score >= 2 && n.t > now - 24 * 3600).sort((a, b) => b.score - a.score || b.t - a.t);
+  rows = rows.slice(0, 120);
+  const U = $("#wdNews"); U.replaceChildren();
+  rows.forEach(n => { const li = document.createElement("li"), a = document.createElement("a");
+    if (/^https?:\/\//.test(n.link)) { a.href = n.link; a.target = "_blank"; a.rel = "noopener noreferrer nofollow"; } a.textContent = n.title;
+    const m = hxEl("div", "meta"); const mins = Math.max(0, Math.round((now - n.t) / 60));
+    m.append(hxEl("span", "", n.source), hxEl("span", "", "· " + (mins < 60 ? mins + " min ago" : mins < 1440 ? Math.round(mins / 60) + " h ago" : Math.round(mins / 1440) + " d ago")));
+    (n.tags || []).filter(t => t !== "Markets").slice(0, 2).forEach(t => m.append(chip(t, "neutral")));
+    if (n.score >= 3) m.append(hxEl("span", "hot", "High impact"));
+    li.append(a, m); U.append(li); });
+  if (!rows.length) U.innerHTML = '<li class="note">No headline matches.</li>';
+  $("#wdNewsNote").textContent = `${(D.news || []).length} headlines in 48 h · ${rows.length} shown`;
+}
 function renderMMHead() {
   if (S.mm === undefined) { loadMM(); $("#mbPillText").textContent = "Loading…"; return; }
   const D = S.mm, B = D && D.variants && D.variants.bee, pill = $("#mbPill"), pt = $("#mbPillText");
@@ -3311,7 +3485,7 @@ function renderBot() {
 const fUsd2 = v => isNum(v) ? (v < 0 ? "−$" : "$") + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
 
 // ---------- routing + controls
-const VIEWS = ["me", "overview", "bot", "mmbee", "lab", "highlights", "screener", "watchlist", "signals", "listings", "pair"];
+const VIEWS = ["me", "overview", "world", "bot", "mmbee", "lab", "highlights", "screener", "watchlist", "signals", "listings", "pair"];
 // sub-sections inside a tab (#bot/record, #signals/library ...); old tab names still open the right place
 const SUBS = { bot: ["portfolio", "each", "record", "fade"], signals: ["latest", "library"], mmbee: ["bots", "live", "backtest"] };
 const ALIAS = { top50: ["overview", "t50"], record: ["bot", "record"], library: ["signals", "library"] };
@@ -3339,7 +3513,7 @@ function show(v) {
   $$("nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.view === v ? "page" : "false"));
   ({ me: () => { if (!ME.user) { if (AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); return; } renderMe(); }, overview: () => { renderOverview(); renderTop50(); if (focus === "t50") setTimeout(() => $("#t50Card").scrollIntoView({ behavior: "smooth", block: "start" }), 150); },
     bot: () => { $("#botNavFade").hidden = !S.p4; subCounts(); setSub("bot", S.sub.bot); }, mmbee: () => { renderMMHead(); setSub("mmbee", S.sub.mmbee); }, lab: renderLab, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch,
-    signals: () => { subCounts(); setSub("signals", S.sub.signals); }, listings: renderListings, pair: renderPair })[v](); }
+    signals: () => { subCounts(); setSub("signals", S.sub.signals); }, listings: renderListings, pair: renderPair, world: renderWorld })[v](); }
 function subCounts() {
   const R = S.bot, PF = R && R.portfolio, fill = (view, sub, n, title) => { const b = $('.sub-nav[data-for="' + view + '"] button[data-s="' + sub + '"]'); if (!b) return; b.querySelector("i").textContent = n ? String(n) : ""; b.title = title || ""; };
   fill("bot", "portfolio", R && R.bots ? R.bots.length : 0, "bots");
@@ -3413,6 +3587,7 @@ $("#pairLink").onclick = async () => { const url = location.origin + location.pa
   try { await navigator.clipboard.writeText(url); b.textContent = "Link copied"; } catch (e) { b.textContent = "Copy failed"; } setTimeout(() => { b.textContent = "Copy link"; }, 1600); };
 $("#q").oninput = e => { S.q = e.target.value; renderScreener(); };
 $$("#v-screener .toggle").forEach(b => b.onclick = () => { const on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", String(on)); on ? S.f.add(b.dataset.f) : S.f.delete(b.dataset.f); renderScreener(); });
+$$("#wdPer button").forEach(b => b.onclick = () => { S.wdPer = b.dataset.v; renderWorld(); });
 $$("#v-pair .toggle").forEach(b => b.onclick = () => { const on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", String(on)); on ? S.ov_on.add(b.dataset.o) : S.ov_on.delete(b.dataset.o); renderPair(); });
 new MutationObserver(() => { if (!$("#v-pair").hidden) renderPair(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (!$("#v-pair").hidden) renderPair(); });

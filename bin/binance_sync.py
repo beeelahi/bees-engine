@@ -945,6 +945,12 @@ def main():
                 log.info("MM-Bee multi-coin study started in the background")
     except Exception as e:
         log.warning(f"MM-Bee multi-coin study not started: {e}")
+    try:                                       # World tab: indexes, commodities, FX, rates, sectors, news, calendar (hourly)
+        import world_markets
+        if world_markets.refresh(log=log.info):
+            light_publish = True
+    except Exception as e:
+        log.warning(f"World markets skipped: {e}")
     try:                                       # MM-Bee tab: paper market-making results (paper files only)
         import mm_site
         if mm_site.export(os.path.join(ROOT, "web_export")):
