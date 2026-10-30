@@ -135,6 +135,15 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .hx-id { min-width: 0; flex: 1; } .hx-id b { font-size: 15.5px; font-weight: 650; } .hx-id small { color: var(--muted); margin-left: 2px; font-size: 11.5px; }
 .hx-id .hx-sub { color: var(--muted); font-size: 12px; line-height: 1.35; margin-top: 1px; }
 .mb-best td { font-weight: 600; }
+.wl-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 12px; }
+.wl-tbl th:nth-child(2), .wl-tbl td:nth-child(2) { text-align: left; }
+@media (min-width: 760px) { .wl-bar { position: sticky; top: 0; z-index: 5; } }
+.wl-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px 14px; margin-bottom: 16px; }
+.wl-bar .note { margin-left: auto; }
+.wl-tbl th[data-k] { cursor: pointer; user-select: none; white-space: nowrap; }
+.wl-tbl th[data-k]::after { content: " ↕"; opacity: 0.35; font-size: 10px; }
+.wl-tbl th.sorted::after { content: " ↓"; opacity: 1; } .wl-tbl th.sorted.asc::after { content: " ↑"; }
+.wl-tbl tr.day td { background: var(--panel-2); color: var(--muted); font-size: 12px; font-weight: 600; padding: 6px 10px; }
 .wd-head { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; }
 @media (max-width: 860px) { .wd-head { grid-template-columns: 1fr; } }
 .wd-lines { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 14px; }
@@ -665,6 +674,9 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
         <div class="hx-more-in">
           <div class="card" id="ltCardH">
             <div class="card-head"><h2>Long-term channel breakouts</h2><span class="note" id="ltNoteH"></span></div>
+            <p class="note" style="margin:0 0 12px" id="ltIntroH"></p>
+            <div class="card-head" style="margin-top:4px"><h2 style="font-size:1rem">Track record</h2></div>
+            <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Grade</th><th>Cases 2022+</th><th>Price 90 days later (median)</th><th>Higher after 90 days</th><th title="Within 180 days">Gained 50%+</th><th title="Within 180 days">Doubled</th><th title="Median best gain within 180 days">Best gain (median)</th><th title="Median drawdown before the peak">Drawdown first</th><th>Up to 2021: median 90d · doubled</th></tr></thead><tbody id="ltStats"></tbody></table></div>
             <div class="tbl-wrap" style="max-height: 70vh"><table><thead><tr><th>Grade</th><th>Pair</th><th>Broke out</th><th>Long-term channel</th><th title="The three checks that separated winners from losers in testing">Graded checks</th><th title="The first weekly close after the breakout must stay above the line">Weekly close</th><th title="From the breakout close: now, and the best so far">Since breakout · best</th><th>Top line now</th><th title="Channel width projected above the top line">Width target</th><th title="Since 2022, breakouts with this grade: median 90-day result, share that gained 50%+ and that doubled within 180 days">History of this grade</th></tr></thead><tbody id="ltBodyH"></tbody></table></div>
           </div>
         </div>
@@ -680,6 +692,9 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
         <div class="hx-more-in">
           <div class="card" id="hsCardH">
             <div class="card-head"><h2>Head and shoulders: neckline action</h2><span class="note" id="hsNoteH"></span></div>
+            <p class="note" style="margin:0 0 12px" id="hsIntro"></p>
+            <div class="card-head" style="margin-top:4px"><h2 style="font-size:1rem">Track record</h2></div>
+            <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Pattern · entry</th><th>Cases 2022+ (≤2021)</th><th title="Median move over 30 days from the next open, in the pattern's direction">Move its way, 30d</th><th>Went its way</th><th title="The same move minus the average liquid coin's">vs the average coin</th><th title="Stop = the failure level, target = the measured move, first one hit within 60 days">Target hit / avg R</th><th>Up to 2021: move / avg R</th></tr></thead><tbody id="hsStats"></tbody></table></div>
             <div class="tbl-wrap" style="max-height: 45vh; margin-bottom:12px"><table><thead><tr><th>Pair</th><th title="The day this entry was first listed here (signal issued)">Added</th><th>Pattern</th><th>Status</th><th title="Neckline today (extended), and the distance from the close">Neckline</th><th title="Measured move: neckline −/+ the pattern height">Target</th><th title="Where the pattern fails: beyond the right shoulder before the break; after it, back through the neckline by 35% of the height">Invalid at</th><th title="Left shoulder → head → right shoulder → today">Pattern</th><th>Broke / retested</th><th title="Since 2022: median 30-day move in the pattern's direction, how often it went that way, and vs the average coin">History (2022+)</th><th>Liquidity</th></tr></thead><tbody id="hsBodyH"></tbody></table></div>
             <div class="card-head" style="margin-top:4px"><h2 style="font-size:1rem">Posted to highlights</h2><span class="note">each new near-neckline, break and retest, when it happened</span></div>
             <div class="hl-list" id="hlHs"></div>
@@ -1017,41 +1032,40 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
   </section>
 
   <section class="view" id="v-watchlist" hidden>
-    <div class="card" id="ltCardW">
-      <div class="card-head"><h2>Long-term channel breakouts</h2><span class="note" id="ltNoteW"></span></div>
-      <p class="note" style="margin:0 0 12px" id="ltIntroW"></p>
-      <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Grade</th><th>Cases 2022+</th><th>Price 90 days later (median)</th><th>Higher after 90 days</th><th title="Within 180 days">Gained 50%+</th><th title="Within 180 days">Doubled</th><th title="Median best gain within 180 days">Best gain (median)</th><th title="Median drawdown before the peak">Drawdown first</th><th>Up to 2021: median 90d · doubled</th></tr></thead><tbody id="ltStats"></tbody></table></div>
-      <div class="tbl-wrap" style="max-height: 70vh"><table><thead><tr><th>Grade</th><th>Pair</th><th>Broke out</th><th>Long-term channel</th><th title="The three checks that separated winners from losers in testing">Graded checks</th><th title="The first weekly close after the breakout must stay above the line">Weekly close</th><th title="From the breakout close: now, and the best so far">Since breakout · best</th><th>Top line now</th><th title="Channel width projected above the top line">Width target</th><th title="Since 2022, breakouts with this grade: median 90-day result, share that gained 50%+ and that doubled within 180 days">History of this grade</th></tr></thead><tbody id="ltBodyW"></tbody></table></div>
+    <div class="card">
+      <div class="card-head"><h2>Watchlist</h2><span class="pill" id="wlPill"><span class="dot"></span><span id="wlPillText">—</span></span></div>
+      <p class="note" style="margin:0 0 14px">Coins that woke up: a daily close with volume at least <b>3×</b> its 20-day average, a green candle above the 21-day EMA, MACD above its signal and RSI 50–75. A shortlist to look at, not a buy signal. Patterns and channel setups live in <a href="#highlights">Trade Ideas</a>.</p>
+      <div class="wl-kpis" id="wlKpis"></div>
     </div>
-    <div class="card" id="hsCardW">
-      <div class="card-head"><h2>Head and shoulders</h2>
-        <div class="seg" id="hsKind"><button type="button" data-v="" aria-pressed="true">Active</button><button type="button" data-v="retest" aria-pressed="false">Retesting</button><button type="button" data-v="broken" aria-pressed="false">Just broke</button><button type="button" data-v="near_neckline" aria-pressed="false">Near the neckline</button><button type="button" data-v="top" aria-pressed="false">Tops</button><button type="button" data-v="inverse" aria-pressed="false">Inverse</button><button type="button" data-v="all" aria-pressed="false">All</button></div>
+    <div class="card wl-bar" id="wlBar">
+      <div class="seg" id="wlPer"><button type="button" data-v="1" aria-pressed="false">Latest close</button><button type="button" data-v="7" aria-pressed="true">7 days</button><button type="button" data-v="30" aria-pressed="false">30 days</button><button type="button" data-v="90" aria-pressed="false">90 days</button><button type="button" data-v="365" aria-pressed="false">1 year</button></div>
+      <input class="wd-q" id="wlQ" type="search" placeholder="Find a coin" aria-label="Find a coin">
+      <select class="wd-q" id="wlSort" aria-label="Sort by"><option value="date">Newest first</option><option value="rvol">Biggest volume spike</option><option value="since">Best since the hit</option><option value="r30">Best 30 days after</option><option value="worst">Worst since the hit</option></select>
+      <div class="seg" id="wlView"><button type="button" data-v="cards" aria-pressed="true">Cards</button><button type="button" data-v="table" aria-pressed="false">Table</button></div>
+      <span class="note" id="wlCount"></span>
+    </div>
+    <div class="hx-grid" id="wlCards"></div>
+    <div class="card" id="wlTableCard" hidden>
+      <div class="tbl-wrap" style="max-height: 75vh"><table class="wl-tbl"><thead><tr>
+        <th data-k="date">Date</th><th>Pair</th><th data-k="close" title="Close on the day of the hit">Close</th><th data-k="since" title="From that close to the latest price">Since hit</th>
+        <th data-k="rvol" title="Volume vs its 20-day average">Volume spike</th><th data-k="rsi">RSI</th><th data-k="taker" title="Share of the day's volume bought at the ask">Buyers</th><th data-k="volume_usdt">Volume</th>
+        <th data-k="fwd_ret_7d">7 days after</th><th data-k="fwd_ret_30d">30 days after</th><th data-k="max_gain_30d" title="Best point within 30 days">Best 30d</th><th data-k="max_dd_30d" title="Worst point within 30 days">Worst 30d</th>
+      </tr></thead><tbody id="watchBody"></tbody></table></div>
+      <p class="note">Click a column to sort. Outcomes fill in as days pass: a dash until 7 or 30 days have closed.</p>
+    </div>
+    <details class="hx-more" style="margin-top:20px"><summary>Does the rule work? Track record since 2017</summary>
+      <div class="hx-more-in">
+        <div class="card">
+          <div class="card-head"><h2>Rule vs every liquid coin-day</h2><span class="note">what happened after each signal day</span></div>
+          <p class="note" style="margin:0 0 12px">The baseline is every liquid pair-day, including coins that were later delisted. A rule only has an edge if it beats the baseline consistently.</p>
+          <div class="tbl-wrap"><table><thead><tr><th>Horizon</th><th>Cohort</th><th>Cases</th><th>Win rate</th><th>Average</th><th>Median</th><th>Worst 10%</th><th>Best 10%</th></tr></thead><tbody id="statsBody"></tbody></table></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>By year</h2><span class="note">average 7-day and 30-day return after the hit</span></div>
+          <div class="tbl-wrap"><table><thead><tr><th>Year</th><th>Rule hits</th><th>Rule 7D avg</th><th>Base 7D avg</th><th>Rule 7D win</th><th>Base 7D win</th><th>Rule 30D avg</th><th>Base 30D avg</th></tr></thead><tbody id="yearBody"></tbody></table></div>
+        </div>
       </div>
-      <p class="note" style="margin:0 0 12px" id="hsIntro"></p>
-      <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Pattern · entry</th><th>Cases 2022+ (≤2021)</th><th title="Median move over 30 days from the next open, in the pattern's direction">Move its way, 30d</th><th>Went its way</th><th title="The same move minus the average liquid coin's">vs the average coin</th><th title="Stop = the failure level, target = the measured move, first one hit within 60 days">Target hit / avg R</th><th>Up to 2021: move / avg R</th></tr></thead><tbody id="hsStats"></tbody></table></div>
-      <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Pair</th><th title="The day this entry was first listed here (signal issued)">Added</th><th>Pattern</th><th>Status</th><th title="Neckline today (extended), and the distance from the close">Neckline</th><th title="Measured move: neckline −/+ the pattern height">Target</th><th title="Where the pattern fails: beyond the right shoulder before the break; after it, back through the neckline by 35% of the height">Invalid at</th><th title="Left shoulder → head → right shoulder → today">Pattern</th><th>Broke / retested</th><th title="Since 2022: median 30-day move in the pattern's direction, how often it went that way, and vs the average coin">History (2022+)</th><th>Liquidity</th></tr></thead><tbody id="hsBodyW"></tbody></table></div>
-    </div>
-    <div class="card" id="callsCardW">
-      <div class="card-head"><h2>Channel setups</h2>
-        <div class="seg" id="callSide"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="long" aria-pressed="false">Long</button><button type="button" data-v="short" aria-pressed="false">Short / caution</button></div>
-      </div>
-      <p class="note" style="margin:0 0 12px" id="callsIntroW"></p>
-      <div class="tbl-wrap" style="max-height: 60vh"><table><thead><tr><th>Grade</th><th>Pair</th><th title="The day this entry was first listed here (signal issued)">Added</th><th>Side</th><th>Channel status</th><th>Channel</th><th title="Proven signals in the same direction: daily in the last 3 days or the latest weekly candle">Agreeing signals</th><th title="0-10 confluence of trend and momentum (daily)">Bull score</th><th>Close</th><th title="Longs: 10% of the channel width under the bottom line. Shorts: back above the line that was lost, +10% of the width">Stop / invalid</th><th>Target 1</th><th>Target 2</th><th title="Reward to target 1 ÷ risk to the stop">R:R</th><th title="Since 2022: this channel status's median 30-day result vs the average coin, and how often it beat the market">History vs market</th><th>Liquidity</th></tr></thead><tbody id="callsBodyW"></tbody></table></div>
-    </div>
-    <div class="card">
-      <div class="card-head"><h2>Watchlist hits, last 365 days</h2><span class="note" id="watchCount"></span></div>
-      <div class="tbl-wrap" style="max-height: 72vh"><table><thead><tr><th>Date</th><th>Pair</th><th>Close</th><th>RVOL</th><th>Vol z</th><th>RSI</th><th>Taker buy</th><th>Volume</th><th>+7D</th><th>+30D</th><th>Max gain 30D</th><th>Max drawdown 30D</th></tr></thead><tbody id="watchBody"></tbody></table></div>
-      <p class="note">Outcomes fill in as days pass. Recent hits show a dash until 7 or 30 days have closed.</p>
-    </div>
-    <div class="card">
-      <div class="card-head"><h2>Key numbers: watchlist rule vs. every liquid day</h2><span class="note">What happened after each signal day</span></div>
-      <p class="note" style="margin:0 0 12px">Rule v0: RVOL ≥ 3×, green candle, close above EMA21, MACD above signal, RSI 50–75, day volume ≥ $100k, all indicators warm. The baseline is every liquid pair-day, including coins that were later delisted. A rule only has edge if it beats the baseline consistently.</p>
-      <div class="tbl-wrap"><table><thead><tr><th>Horizon</th><th>Cohort</th><th>Cases</th><th>Win rate</th><th>Average</th><th>Median</th><th>Worst 10%</th><th>Best 10%</th></tr></thead><tbody id="statsBody"></tbody></table></div>
-    </div>
-    <div class="card">
-      <div class="card-head"><h2>Rule vs. baseline by year</h2><span class="note">Average 7-day and 30-day forward return</span></div>
-      <div class="tbl-wrap"><table><thead><tr><th>Year</th><th>Rule hits</th><th>Rule 7D avg</th><th>Base 7D avg</th><th>Rule 7D win</th><th>Base 7D win</th><th>Rule 30D avg</th><th>Base 30D avg</th></tr></thead><tbody id="yearBody"></tbody></table></div>
-    </div>
+    </details>
   </section>
 
   <section class="view" id="v-signals" hidden>
@@ -1588,9 +1602,9 @@ function renderCalls(bodyId, side) {
 }
 function renderCallsAll() {
   const C = callData(), n = (C.rows || []).length, a = (C.rows || []).filter(x => x.grade === "A").length;
-  $("#callsIntroW").textContent = CALL_INTRO; $("#callsIntroH").textContent = CALL_INTRO;
+  $("#callsIntroH").textContent = CALL_INTRO;
   $("#callsNoteH").textContent = n ? `${n} now · ${a} grade A` : "";
-  renderCalls("callsBodyW", S.callSide || ""); renderCalls("callsBodyH", "");
+  renderCalls("callsBodyH", "");
   const list = $("#hlCalls"); if (!list) return; list.replaceChildren();
   const posted = S.hl.filter(h => h.kind === "chan_call");
   posted.slice(0, 60).forEach(h => list.append(hlRow(h, true)));
@@ -1612,7 +1626,7 @@ function hsRows(body, f) {
   if (!rows.length) el.innerHTML = '<tr><td colspan="11" class="empty">No pattern matches this filter right now.</td></tr>';
 }
 function renderHs() {
-  const D = hsData(), ST = D.stats || {}, card = $("#hsCardW"); if (!card) return;
+  const D = hsData(), ST = D.stats || {}, card = $("#hsCardH"); if (!card) return;
   const act = (D.rows || []).filter(x => x.status !== "after_break");
   $("#hsIntro").textContent = `Head-and-shoulders tops (bearish) and inverse patterns (bullish) on the daily chart of the ${(D.rules || {}).top || 300} most liquid pairs, scanned with two swing sizes so compact and large patterns are both found. Statuses: near the neckline (pattern complete, no break yet), neckline broken (first close through it, last 5 days), retesting the neckline (after the break, price came back to it and is holding), broken earlier (context). The neckline is drawn through the deepest points between the shoulders and the head and extended; target = the measured move. Click a row to see the pattern on the chart. Honest record since 2022 (table): tops kept working as shorts because most coins fell, inverse patterns mostly failed, and neither beat the average coin: the retest is not a better entry than the break. Use them with the market trend and other signals, not alone.`;
   const sb = $("#hsStats"); sb.replaceChildren();
@@ -1620,7 +1634,7 @@ function renderHs() {
     const z = ST[k + ":" + e] || {}, L = z.late, E = z.early; if (!L) return; const t = document.createElement("tr");
     t.append(tdNode(chip((k === "top" ? "Top · " : "Inverse · ") + (HS_ST[e] || e).toLowerCase(), k === "top" ? "down" : "up")), td(L.n + (E ? " (" + E.n + ")" : ""), "num"), td(fPct(L.med30, 1), "num " + cls(L.med30)), td(L.win30 + "%", "num"),
       td(fPct(L.rel30, 1), "num " + cls(L.rel30)), td(isNum(L.target) ? L.target + "% · " + (L.avg_r >= 0 ? "+" : "") + L.avg_r.toFixed(2) + "R" : "—", "num"), td(E ? fPct(E.med30, 1) + " · " + (isNum(E.avg_r) ? (E.avg_r >= 0 ? "+" : "") + E.avg_r.toFixed(2) + "R" : "—") : "—", "num")); sb.append(t); });
-  hsRows("hsBodyW", S.hsKind || ""); hsRows("hsBodyH", "");
+  hsRows("hsBodyH", "");
   $("#hsNoteH").textContent = act.length ? `${act.length} active · ${act.filter(x => x.status === "retest").length} retesting` : "";
   const list = $("#hlHs"); if (list) { list.replaceChildren(); const posted = S.hl.filter(h => h.kind === "hs_event"); posted.slice(0, 60).forEach(h => list.append(hlRow(h, true)));
     if (!posted.length) list.innerHTML = '<div class="empty">Nothing posted yet. New near-neckline setups, breaks and retests appear here the day they happen.</div>'; }
@@ -1652,15 +1666,15 @@ function ltRows(body) {
 function renderLtbo() {
   const D = ltData(), ST = D.stats || {}, L = ST.late || {}, E = ST.early || {}, rows = D.rows || [];
   const intro = "Daily closes above the top line of a channel that has held for 250+ days: the moves that can turn parabolic. Each breakout gets a dossier. It is GRADED only on the three checks that separated winners from losers when every breakout since 2018 was tested with the data known at the time: RSI between 55 and 75 at the breakout (strong, not overheated), a flat or falling channel (breaking out of a range or downtrend, not accelerating an uptrend), and a close within 10% of the line (not already extended). Then the first weekly close must hold above the line: when it failed, the median result 90 days later was −36%. Everything else (volume, 200-day, BTC, strength vs BTC, signals, funding) is shown for context: in testing it did not change the odds. Up to 2021 almost every long-term breakout ran; since 2022 only the grade-A ones did, and even they round-trip often, so take profits or trail.";
-  ["W"].forEach(k => { const e = $("#ltIntro" + k); if (e) e.textContent = intro; });
+  ["H"].forEach(k => { const e = $("#ltIntro" + k); if (e) e.textContent = intro; });
   const a = rows.filter(x => x.grade === "A" && x.days_since <= 10).length, note = rows.length ? `${rows.length} in the last 180 days · ${a} grade A in the last 10 days` : "";
-  ["#ltNoteW", "#ltNoteH"].forEach(id => { const e = $(id); if (e) e.textContent = note; });
+  ["#ltNoteH"].forEach(id => { const e = $(id); if (e) e.textContent = note; });
   const sb = $("#ltStats"); if (sb) { sb.replaceChildren();
     ["A", "B", "C", "all"].forEach(g => { const x = L[g], y = E[g]; if (!x) return; const t = document.createElement("tr");
       t.append(tdNode(chip(g === "all" ? "All breakouts" : "Grade " + g, g === "A" ? "up" : g === "C" ? "down" : "neutral")), td(String(x.n), "num"), td(fPct(x.med90, 1), "num " + cls(x.med90)), td(x.win90 + "%", "num"), td(x.p50 + "%", "num"), td(x.x2 + "%", "num"),
         td(fPct(x.max180, 0), "num pos"), td(fPct(x.dd, 0), "num neg"), td(y ? fPct(y.med90, 0) + " · " + y.x2 + "%" : "—", "num")); sb.append(t); });
     const wf = L.weekly_fail; if (wf) { const t = document.createElement("tr"); t.append(tdNode(chip("Weekly close failed", "down")), td(String(wf.n), "num"), td(fPct(wf.med90, 1), "num " + cls(wf.med90)), td(wf.win90 + "%", "num"), td(wf.p50 + "%", "num"), td(wf.x2 + "%", "num"), td(fPct(wf.max180, 0), "num pos"), td(fPct(wf.dd, 0), "num neg"), td("—", "num")); sb.append(t); } }
-  ltRows("ltBodyW"); ltRows("ltBodyH");
+  ltRows("ltBodyH");
 }
 function renderMoves() {
   const M = S.mv, card = $("#movesCard"); if (!card) return; if (!M) { card.hidden = true; return; } card.hidden = false;
@@ -2740,15 +2754,67 @@ function renderWatchStats() {
     yb.append(tr); });
   if (!yb.children.length) yb.innerHTML = '<tr><td colspan="8" class="empty">No rule hits yet.</td></tr>';
 }
+function wlRows() {
+  const last = S.ov && S.ov.last_date, per = +(S.wlPer || 7), q = (S.wlQ || "").toUpperCase();
+  const from = last ? daysAgo(last, per - 1) : "";
+  return S.watch.filter(h => h.date >= from && (!q || h.symbol.includes(q))).map(h => {
+    const lp = livePx(h.symbol), scr = S.scrMap && S.scrMap[h.symbol], now = lp ? lp[0] : scr ? scr.last_close : null;
+    return Object.assign({}, h, { now, since: isNum(now) && h.close ? 100 * (now / h.close - 1) : null, taker: h.taker_buy_ratio }); });
+}
+function wlSorted(rows) {
+  const k = S.wlSortKey || ({ date: "date", rvol: "rvol", since: "since", r30: "fwd_ret_30d", worst: "since" })[S.wlSort || "date"];
+  const asc = S.wlSortKey ? !!S.wlAsc : S.wlSort === "worst";
+  return rows.slice().sort((a, b) => { const x = a[k], y = b[k]; if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1;
+    const c = typeof x === "string" ? x.localeCompare(y) : x - y; return (asc ? c : -c) || b.date.localeCompare(a.date); });
+}
 function renderWatch() {
-  renderWatchStats(); renderLtbo(); renderCallsAll(); renderHs();
-  const b = $("#watchBody"); b.replaceChildren(); $("#watchCount").textContent = S.watch.length + " hits"; const frag = document.createDocumentFragment();
-  S.watch.forEach(h => { const t = document.createElement("tr"); t.className = "clickable"; t.onclick = () => openPair(h.symbol);
-    t.append(td(h.date, "num"), tdNode(symNode(h.symbol)), td(fPx(h.close), "num"), td(fX(h.rvol), "num pos"), td(fN(h.vol_z), "num"), td(fN(h.rsi), "num"),
-      td(isNum(h.taker_buy_ratio) ? (h.taker_buy_ratio * 100).toFixed(0) + "%" : "—", "num"), td(fUsd(h.volume_usdt), "num"),
-      td(fPct(h.fwd_ret_7d), "num " + cls(h.fwd_ret_7d)), td(fPct(h.fwd_ret_30d), "num " + cls(h.fwd_ret_30d)), td(fPct(h.max_gain_30d), "num " + cls(h.max_gain_30d)), td(fPct(h.max_dd_30d), "num " + cls(h.max_dd_30d)));
-    frag.append(t); });
-  b.append(frag); if (!S.watch.length) b.innerHTML = '<tr><td colspan="12" class="empty">No hits in the last 365 days.</td></tr>';
+  renderWatchStats();
+  S.scrMap = Object.fromEntries(S.scr.map(r => [r.symbol, r]));
+  const last = S.ov && S.ov.last_date;
+  // KPIs
+  const today = S.watch.filter(h => h.date === last), wk = S.watch.filter(h => last && h.date >= daysAgo(last, 6)), mo = S.watch.filter(h => last && h.date >= daysAgo(last, 29));
+  const st = toObjs((S.ov || {}).watch_stats), g = (h, c) => st.find(r => r.horizon === h && (c ? r.cohort.startsWith("watch") : !r.cohort.startsWith("watch"))) || {};
+  const r30 = g("fwd_ret_30d", 1), b30 = g("fwd_ret_30d", 0);
+  const K = $("#wlKpis"); K.replaceChildren();
+  [["Latest close", String(today.length), last ? "hits on " + last : ""], ["Last 7 days", String(wk.length), new Set(wk.map(h => h.symbol)).size + " coins"],
+   ["Last 30 days", String(mo.length), new Set(mo.map(h => h.symbol)).size + " coins"],
+   ["30 days after a hit", isNum(r30.median_pct) ? fPct(r30.median_pct, 1) : "—", isNum(b30.median_pct) ? "median · every coin-day " + fPct(b30.median_pct, 1) : "median since 2017"],
+   ["Higher after 30 days", isNum(r30.win_rate_pct) ? fN(r30.win_rate_pct) + "%" : "—", isNum(b30.win_rate_pct) ? "every coin-day " + fN(b30.win_rate_pct) + "%" : ""]].forEach(([l, v, n]) => {
+    const d = hxEl("div", "wd-kpi"); d.append(hxEl("div", "label", l), hxEl("div", "v", v), hxEl("small", "note", n)); K.append(d); });
+  $("#wlPillText").textContent = last ? "Daily close " + last : "—"; $("#wlPill").className = "pill " + (today.length ? "ok" : "");
+  // controls (wired once)
+  if (!$("#wlBar").dataset.wired) { $("#wlBar").dataset.wired = "1";
+    segment("wlPer", "v", v => { S.wlPer = v; renderWatch(); }); segment("wlView", "v", v => { S.wlView = v; renderWatch(); });
+    $("#wlQ").oninput = e => { S.wlQ = e.target.value; renderWatch(); };
+    $("#wlSort").onchange = e => { S.wlSort = e.target.value; S.wlSortKey = null; renderWatch(); };
+    $$(".wl-tbl th[data-k]").forEach(th => th.onclick = () => { const k = th.dataset.k; S.wlAsc = S.wlSortKey === k ? !S.wlAsc : false; S.wlSortKey = k; renderWatch(); }); }
+  const rows = wlSorted(wlRows()), view = S.wlView || "cards";
+  $("#wlCount").textContent = `${rows.length} hit${rows.length === 1 ? "" : "s"} · ${new Set(rows.map(h => h.symbol)).size} coins`;
+  $("#wlCards").hidden = view !== "cards"; $("#wlTableCard").hidden = view !== "table";
+  if (view === "cards") {
+    const cards = rows.slice(0, 120).map(h => hxCard({ sym: h.symbol, dir: isNum(h.since) ? (h.since >= 0 ? "up" : "down") : "neutral", added: h.date,
+      sub: "RSI " + fN(h.rsi, 0) + " · day volume " + fUsd(h.volume_usdt),
+      badges: [Object.assign(chip(fX(h.rvol) + " volume", h.rvol >= 6 ? "warn" : "up"), { title: "Volume vs its 20-day average" })],
+      metrics: [["Close that day", fPx(h.close)], ["Since the hit", isNum(h.since) ? fPct(h.since, 1) : "—", isNum(h.since) ? cls(h.since) : "", isNum(h.now) ? "now " + fPx(h.now) : ""],
+        ["7 days after", isNum(h.fwd_ret_7d) ? fPct(h.fwd_ret_7d, 1) : "pending", isNum(h.fwd_ret_7d) ? cls(h.fwd_ret_7d) : "cold"],
+        ["30 days after", isNum(h.fwd_ret_30d) ? fPct(h.fwd_ret_30d, 1) : "pending", isNum(h.fwd_ret_30d) ? cls(h.fwd_ret_30d) : "cold"]],
+      tags: [isNum(h.taker_buy_ratio) ? ["Buyers " + (h.taker_buy_ratio * 100).toFixed(0) + "% of volume", h.taker_buy_ratio >= 0.55 ? "ok" : ""] : null].filter(Boolean),
+      foot: isNum(h.max_gain_30d) ? `Best ${fPct(h.max_gain_30d, 0)} · worst ${fPct(h.max_dd_30d, 0)} within 30 days` :
+        isNum(h.fwd_ret_7d) ? "30-day result on " + daysAgo(h.date, -30) : "7-day result on " + daysAgo(h.date, -7) }));
+    const g2 = $("#wlCards"); g2.replaceChildren(); if (cards.length) cards.forEach(c => g2.append(c)); else g2.append(hxEl("div", "hx-empty", "No watchlist hit in this period. Try a longer one."));
+  } else {
+    $$(".wl-tbl th[data-k]").forEach(th => { th.classList.toggle("sorted", th.dataset.k === S.wlSortKey); th.classList.toggle("asc", th.dataset.k === S.wlSortKey && !!S.wlAsc); });
+    const b = $("#watchBody"); b.replaceChildren(); const frag = document.createDocumentFragment(); let day = null;
+    const byDate = !S.wlSortKey || S.wlSortKey === "date";
+    rows.forEach(h => {
+      if (byDate && h.date !== day) { day = h.date; const tr = document.createElement("tr"); tr.className = "day"; const c = td("Daily close " + day + " · " + rows.filter(x => x.date === day).length + " hit(s)"); c.colSpan = 12; tr.append(c); frag.append(tr); }
+      const t = document.createElement("tr"); t.className = "clickable"; t.onclick = () => openPair(h.symbol);
+      t.append(td(h.date.slice(5), "num"), tdNode(symNode(h.symbol)), td(fPx(h.close), "num"), td(isNum(h.since) ? fPct(h.since, 1) : "—", "num " + (isNum(h.since) ? cls(h.since) : "cold")),
+        td(fX(h.rvol), "num pos"), td(fN(h.rsi, 0), "num"), td(isNum(h.taker_buy_ratio) ? (h.taker_buy_ratio * 100).toFixed(0) + "%" : "—", "num"), td(fUsd(h.volume_usdt), "num"),
+        td(fPct(h.fwd_ret_7d), "num " + cls(h.fwd_ret_7d)), td(fPct(h.fwd_ret_30d), "num " + cls(h.fwd_ret_30d)), td(fPct(h.max_gain_30d), "num " + cls(h.max_gain_30d)), td(fPct(h.max_dd_30d), "num " + cls(h.max_dd_30d)));
+      frag.append(t); });
+    b.append(frag); if (!rows.length) b.innerHTML = '<tr><td colspan="12" class="empty">No watchlist hit in this period.</td></tr>';
+  }
 }
 const SIGN = { ema9_x_ema21: "EMA9 × EMA21", ema12_x_ema26: "EMA12 × EMA26", ema20_x_ema50: "EMA20 × EMA50", ema50_x_ema200: "EMA50 × EMA200 (golden / death)", sma7_x_sma25: "MA7 × MA25",
   price_x_ema21: "Price × EMA21", price_x_ema50: "Price × EMA50", price_x_ema200: "Price × EMA200", macd_x_signal: "MACD × signal", macd_x_zero: "MACD × zero", macdf_x_signal: "MACD 8/21 × signal",
@@ -3568,14 +3634,12 @@ segment("ideaSide", "v", v => { S.ideaSide = v; renderHighlights(); });
 segment("setupKind", "v", v => { S.setupKind = v; renderSetups(); });
 segment("chanKind", "v", v => { S.chanKind = v; renderChannels(); });
 segment("chanTf", "v", v => { S.chanTf = v; renderChannels(); });
-segment("callSide", "v", v => { S.callSide = v; renderCalls("callsBodyW", v); });
 segment("mvKind", "v", v => { S.mvKind = v; renderMoves(); });
 segment("btSeg", "v", v => { S.btRun = v; renderMBBacktest(); });
 segment("btStratSeg", "v", v => { S.btStrat = v; renderMBBacktest(); });
 segment("mbVarSeg", "v", v => { S.mbVar = v; renderMMBee(); });
 segment("mbxPSeg", "v", v => { S.mbxP = v; renderMMBots(); });
 segment("mbxMSeg", "v", v => { S.mbxM = v; renderMMBots(); });
-segment("hsKind", "v", v => { S.hsKind = v; hsRows("hsBodyW", v); });
 $("#sigType").onchange = e => { S.sigType = e.target.value; renderSignals(); };
 $("#sigProven").onclick = e => { S.sigProvenOnly = !S.sigProvenOnly; e.currentTarget.setAttribute("aria-pressed", String(S.sigProvenOnly)); renderSignals(); };
 $("#sigConf").onclick = e => { S.sigConf = !S.sigConf; e.currentTarget.setAttribute("aria-pressed", String(S.sigConf)); renderSignals(); };
