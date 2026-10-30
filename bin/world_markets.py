@@ -133,16 +133,31 @@ HOT = r"\b(surge|plunge|crash|soar|slump|tumble|record|emergency|unexpected|shoc
 
 
 # ------------------------------------------------------------------ fetching
-def fetch(url, timeout=15):
-    """GET a public URL with curl (no credentials ever). Returns (status, body text)."""
+def fetch(url, timeout=15, data=None, jar=None):
+    """GET (or POST `data` as JSON) a public URL with curl (no credentials ever). Returns (status, body text)."""
     cfg = f'url = "{url}"\nheader = "User-Agent: {UA}"\nheader = "Accept: */*"\n'
-    p = subprocess.run(["curl", "-sS", "-L", "--max-redirs", "3", "--compressed", "--max-time", str(timeout),
-                        "--max-filesize", str(MAX_BODY), "-w", "\n%{http_code}", "--config", "-"],
-                       input=cfg, capture_output=True, text=True, errors="replace")
+    if data is not None:
+        cfg += 'header = "Content-Type: application/json"\nheader = "Origin: https://www.tradingview.com"\n' \
+               'header = "Referer: https://www.tradingview.com/"\n'
+    args = ["curl", "-sS", "-L", "--max-redirs", "3", "--compressed", "--max-time", str(timeout),
+            "--max-filesize", str(MAX_BODY), "-w", "\n%{http_code}", "--config", "-"]
+    if jar:
+        args += ["-b", jar, "-c", jar]
+    if data is not None:
+        args += ["--data-binary", "@" + _tmpbody(data)]
+    p = subprocess.run(args, input=cfg, capture_output=True, text=True, errors="replace")
     if p.returncode != 0:
         return 0, ""
     body, _, code = p.stdout.rpartition("\n")
     return int(code or 0), body
+
+
+def _tmpbody(data):
+    import tempfile
+    fd, path = tempfile.mkstemp(prefix="wm_", suffix=".json")
+    with os.fdopen(fd, "w") as f:
+        f.write(json.dumps(data))
+    return path
 
 
 def yahoo(sym, fetch=fetch):
@@ -477,6 +492,16 @@ PROBE_URLS = [
 
 def probe():
     print(f"== world sources probe {now_iso()} ==")
+    import tempfile
+    jar = os.path.join(tempfile.mkdtemp(), "jar")
+    st, _ = fetch("https://fc.yahoo.com", jar=jar)
+    st2, b2 = fetch("https://query2.finance.yahoo.com/v1/test/getcrumb", jar=jar)
+    st3, b3 = fetch(f"https://query2.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=5d&interval=1d&crumb={b2.strip()}", jar=jar)
+    print(f"  yahoo with cookie: fc {st}, crumb {st2} {b2[:20]!r}, chart {st3} {b3[:90]!r}")
+    body = {"symbols": {"tickers": ["SP:SPX", "TVC:DXY", "TVC:GOLD", "TVC:US10Y", "PSX:KSE100", "FX_IDC:USDPKR", "AMEX:XLK", "TADAWUL:TASI"]},
+            "columns": ["name", "description", "close", "change", "Perf.W", "Perf.1M", "Perf.YTD", "Perf.Y", "currency", "update_mode"]}
+    st, b = fetch("https://scanner.tradingview.com/global/scan", data=body)
+    print(f"  tradingview scan http {st}: {b[:600]}")
     for u in PROBE_URLS:
         st, body = fetch(u)
         print(f"  raw http {st} {len(body):7d} B {u[:70]} | {re.sub(chr(10), ' ', body[:110])}")
