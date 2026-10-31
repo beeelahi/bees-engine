@@ -77,7 +77,7 @@ def csp_for(page, extra_connect=None):
     return ("default-src 'none'; script-src https://unpkg.com " + " ".join(hashes) + "; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; "
             "img-src 'self' data:; connect-src 'self'" + (" " + extra_connect if extra_connect else "") +
-            "; base-uri 'none'; form-action 'none'; manifest-src 'none'")
+            "; worker-src 'self'; base-uri 'none'; form-action 'none'; manifest-src 'none'")
 
 
 def wrap(page, ask_url=None, ask_org=None, auth=(None, None)):
@@ -243,7 +243,8 @@ def _write_static(cfg, domain):
         ask_url, ask_org = ask_origin(cfg)
         html = wrap(f.read(), ask_url, ask_org, auth_config())
     legal = tuple((n, legal_page(*v, contact=(cfg or {}).get("contact_email") or CONTACT)) for n, v in LEGAL.items())
-    for name, text in (("index.html", html), (".nojekyll", ""), ("robots.txt", "User-agent: *\nDisallow: /\n")) + legal + \
+    sw = open(os.path.join(os.path.dirname(PAGE), "sw.js"), encoding="utf-8").read() if os.path.exists(os.path.join(os.path.dirname(PAGE), "sw.js")) else None
+    for name, text in (("index.html", html), (".nojekyll", "")) + ((("sw.js", sw),) if sw else ()) + ( ("robots.txt", "User-agent: *\nDisallow: /\n"),) + legal + \
             ((("CNAME", domain.strip() + "\n"),) if domain else ()):
         path = os.path.join(BUILD, name)
         if not os.path.exists(path) or open(path, encoding="utf-8").read() != text:

@@ -1428,8 +1428,25 @@ function cell(r, k) {
 }
 
 // ---------- data
-async function j(p) { const r = await fetch(p, { cache: "no-store" }); if (!r.ok) throw new Error(p + " → " + r.status); return r.json(); }
+// Every data file: up to three tries; each good copy is kept in the browser (Cache Storage), and when the network
+// fails the last good copy is shown instead of an empty page (the header then says how old it is).
+const DATA_CACHE = "bee-data-v1";
+async function cachePut(p, text) { try { const c = await caches.open(DATA_CACHE); await c.put(p, new Response(text, { headers: { "Content-Type": "application/json", "X-Saved": new Date().toISOString() } })); } catch (e) {} }
+async function cacheGet(p) { try { const c = await caches.open(DATA_CACHE), r = await c.match(p); return r ? { data: await r.json(), saved: r.headers.get("X-Saved") } : null; } catch (e) { return null; } }
+async function j(p) {
+  let err;
+  for (let i = 0, n = S.netDown ? 1 : 3; i < n; i++) {     // once the network has failed this load, one try each
+    try { const r = await fetch(p, { cache: "no-store" }); if (!r.ok) throw new Error(p + " → " + r.status);
+      const t = await r.text(), d = JSON.parse(t); if (/^data\//.test(p) && t.length < 8e6) cachePut(p, t); return d; }
+    catch (e) { err = e; if (/→ 404$/.test(String(e.message))) break; if (i < n - 1) await new Promise(res => setTimeout(res, 700 * (i + 1) ** 2)); }
+  }
+  if (!/→ 404$/.test(String(err && err.message))) S.netDown = true;
+  const c = /^data\//.test(p) ? await cacheGet(p) : null;
+  if (c) { if (!S.staleSince || (c.saved || "") < S.staleSince) S.staleSince = c.saved || "earlier"; return c.data; }
+  throw err;
+}
 async function loadAll() {
+  S.staleSince = null; S.netDown = false;
   try {
     const [ov, scr, w, sig, idx, hl, lst, wk] = await Promise.all(["overview", "screener", "watch", "signals", "pairs/index", "highlights", "listings", "weekly"].map(n => j("data/" + n + ".json")));
     S.ov = ov; S.scr = toObjs(scr); S.watch = toObjs(w); S.sig = toObjs(sig); S.index = idx; S.hl = toObjs(hl); S.hlMeta = hl; S.lst = lst; S.wk = toObjs(wk);
@@ -1442,8 +1459,9 @@ async function loadAll() {
     try { S.botLive = await j("data/bot_live.json"); } catch (e) { S.botLive = null; }
     toObjs(ov.dictionary).forEach(d => { S.dict[d.col] = d; });
   } catch (e) {
-    $("#freshText").textContent = "Data not published yet"; $("#freshPill").className = "pill warn";
-    $$("section.view").forEach(s => { s.innerHTML = '<div class="card empty"><h2>Your data is on its way</h2><p class="note">The engine on your Mac builds the data package after its next sync; the daily refresh publishes it here. Nothing on this page is simulated.</p></div>'; });
+    $("#freshText").textContent = "Connecting…"; $("#freshPill").className = "pill warn";
+    let m = $("#bootMsg"); if (!m) { m = document.createElement("div"); m.id = "bootMsg"; m.className = "card empty"; $("main.wrap").prepend(m); }
+    m.innerHTML = '<h2>Couldn\'t reach the data just now</h2><p class="note">Your connection or its DNS is having a moment. Retrying automatically every 15 seconds; the page fills in as soon as it gets through.</p>';
     return false;
   }
   return true;
@@ -4071,6 +4089,17 @@ async function authInit() {
   const { data } = await ME.sb.auth.getSession(); await setUser(data && data.session ? data.session.user : null);
   if (!ME.user && store.get("guest") !== "1" && $("#authDlg").hidden) openWelcome();
 }
-(async () => { if (!(await loadAll())) return; renderFresh(); initScreenerControls(); if (S.pubSL) $("#hlNavSL").hidden = false; initShortlist(); show(location.hash.slice(1)); authInit(); })();
+(async () => {
+  while (!(await loadAll())) await new Promise(res => setTimeout(res, 15000));   // no data and no saved copy: keep trying
+  const bm = $("#bootMsg"); if (bm) bm.remove();
+  renderFresh();
+  if (S.staleSince) {                     // the network failed and a saved copy is on screen: say so, and reload when it is back
+    $("#freshPill").className = "pill warn";
+    $("#freshText").textContent = "Saved copy" + (S.staleSince !== "earlier" ? " from " + fmtLocal(S.staleSince) : "") + " · reconnecting";
+    $("#freshPill").title = "The connection failed, so the last copy saved on this device is shown. It refreshes by itself when the connection is back; tap to retry now.";
+    $("#freshPill").style.cursor = "pointer"; $("#freshPill").onclick = () => location.reload();
+    const probe = setInterval(async () => { try { const r = await fetch("data/overview.json", { cache: "no-store" }); if (r.ok) { clearInterval(probe); $("#freshText").textContent = "Connection back · tap to refresh"; $("#freshPill").className = "pill ok"; } } catch (e) {} }, 20000);
+  }
+  if ("serviceWorker" in navigator && isSecureContext) navigator.serviceWorker.register("sw.js").catch(() => {}); initScreenerControls(); if (S.pubSL) $("#hlNavSL").hidden = false; initShortlist(); show(location.hash.slice(1)); authInit(); })();
 })();
 </script>

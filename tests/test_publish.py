@@ -91,6 +91,14 @@ class AuthConfigTest(unittest.TestCase):
         self.assertIn("connect-src 'self' https://abcdefghijklmnop.supabase.co;", html)
         self.assertIn("&quot;url&quot;", html)
 
+    def test_service_worker_is_same_origin_only(self):
+        html = P.wrap("<title>t</title><header></header><script>1</script>")
+        self.assertIn("worker-src 'self';", html)
+        self.assertIn("default-src 'none'", html)
+        sw = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "web", "sw.js")).read()
+        self.assertIn('r.method !== "GET" || r.mode !== "navigate"', sw)       # pages only, never data or sign-in calls
+        self.assertIn("u.origin !== self.location.origin", sw)                  # never anything cross-origin
+
     def test_anon_jwt_ok_service_role_refused(self):
         self.assertIsNotNone(P.auth_config(self.cfg({"url": "https://abcdefghijklmnop.supabase.co", "key": self.jwt("anon")}))[0])
         with self.assertRaises(RuntimeError):
