@@ -177,7 +177,7 @@ def fade4h(con, P, live_px, now_ms):
         else:
             px = live_px.get(p["symbol"]) or bars[-1][4]
             row.update(status="entered", last=px)
-        row["pnl_pct"] = 100 * (entry / px - 1)
+        row["pnl_pct"] = 100 * (1 - px / entry)        # a short: gain as a share of the entry
         row["r"] = (entry - px) / (p["stop"] - entry)
         ents.append(row)
     for q in P.get("open", []):
@@ -192,7 +192,7 @@ def fade4h(con, P, live_px, now_ms):
             px = live_px.get(q["symbol"]) or (bars[-1][4] if bars else q.get("price"))
             row.update(status="holding", last=px)
         if px:
-            row["pnl_pct"] = 100 * (q["entry"] / px - 1)
+            row["pnl_pct"] = 100 * (1 - px / q["entry"])
             row["r"] = (q["entry"] - px) / (q["stop"] - q["entry"]) if q["stop"] != q["entry"] else None
         poss.append(row)
     return {"entries": ents, "positions": poss}

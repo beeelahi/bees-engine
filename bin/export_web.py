@@ -572,7 +572,10 @@ def run(con=None):
         "universe_log": table(con, "SELECT * FROM universe_log WHERE date >= ? ORDER BY date DESC", (ago(180),)),
     })
     write(os.path.join(OUT, "weekly.json"), table(con, "SELECT * FROM weekly_report"))
-    write(os.path.join(OUT, "watch.json"), table(con, "SELECT * FROM watch_hits WHERE date >= ? ORDER BY date DESC, rvol DESC", (ago(365),)))
+    from binance_sync import STABLE_BASES          # stablecoins (EUR, EURI, RLUSD ...) are never watchlist ideas
+    stables = ",".join("'" + b + "'" for b in sorted(STABLE_BASES))
+    write(os.path.join(OUT, "watch.json"), table(con, f"""SELECT * FROM watch_hits WHERE date >= ?
+        AND symbol NOT IN (SELECT symbol FROM pairs WHERE token IN ({stables})) ORDER BY date DESC, rvol DESC""", (ago(365),)))
     write(os.path.join(OUT, "signals.json"), table(con, """
         SELECT tf, period_start, symbol, signal, direction, provisional, close, confirmed, rvol FROM signals
         WHERE warm=1 AND symbol IN (SELECT symbol FROM v_universe)

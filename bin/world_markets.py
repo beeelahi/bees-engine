@@ -37,7 +37,7 @@ EVERY_S = 55 * 60
 UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 MAX_BODY = 3_000_000
 
-# (id, label, group, TradingView ticker(s), unit). "A|B|C": the first ticker that answers is used.   unit: "" index points, "$" price, "%" yield, "fx" exchange rate
+# (id, label, group, TradingView ticker(s), unit). "A|B|C": the first ticker that answers is used.   unit: "" index points, "$" price, "c$" quoted in US cents (shown in dollars), "%" yield, "fx" exchange rate
 INSTRUMENTS = [
     ("spx", "S&P 500", "Americas", "SP:SPX", ""),
     ("ndx", "Nasdaq 100", "Americas", "NASDAQ:NDX", ""),
@@ -65,8 +65,8 @@ INSTRUMENTS = [
     ("natgas", "Natural gas (US)", "Commodities", "NYMEX:NG1!", "$"),
     ("copper", "Copper", "Commodities", "COMEX:HG1!", "$"),
     ("platinum", "Platinum", "Commodities", "TVC:PLATINUM", "$"),
-    ("wheat", "Wheat", "Commodities", "CBOT:ZW1!", "$"),
-    ("corn", "Corn", "Commodities", "CBOT:ZC1!", "$"),
+    ("wheat", "Wheat", "Commodities", "CBOT:ZW1!", "c$"),
+    ("corn", "Corn", "Commodities", "CBOT:ZC1!", "c$"),
     ("dxy", "US Dollar index", "Currencies", "TVC:DXY", ""),
     ("eurusd", "EUR / USD", "Currencies", "FX:EURUSD", "fx"),
     ("usdjpy", "USD / JPY", "Currencies", "FX:USDJPY", "fx"),
@@ -281,6 +281,12 @@ def row_from(iid, label, grp, ticker, unit, d):
     px = d.get("close")
     if px is None:
         return None
+    k = 0.01 if unit == "c$" else 1.0          # CBOT grains are quoted in cents a bushel
+    unit = "$" if unit == "c$" else unit
+    px = float(px) * k
+    if k != 1.0:
+        d = dict(d, price_52_week_high=None if d.get("price_52_week_high") is None else float(d["price_52_week_high"]) * k,
+                 price_52_week_low=None if d.get("price_52_week_low") is None else float(d["price_52_week_low"]) * k)
     r = {"id": iid, "label": label, "ticker": ticker, "unit": unit, "price": float(f"{float(px):.6g}"),
          "d1": _f(d.get("change")), "w1": _f(d.get("Perf.W")), "m1": _f(d.get("Perf.1M")), "m3": _f(d.get("Perf.3M")),
          "ytd": _f(d.get("Perf.YTD")), "y1": _f(d.get("Perf.Y")), "hi52": _f(d.get("price_52_week_high"), 6),
@@ -312,6 +318,9 @@ def refresh(force=False, log=print, fetch=fetch, out=OUT, db=DB):
     os.makedirs(os.path.dirname(out), exist_ok=True)
     con = sqlite3.connect(db, timeout=30)
     con.executescript(SCHEMA)
+    for t in ("hourly", "daily"):                # grains stored in cents before 31 Oct 2026: now dollars (no grain trades at $50+ a bushel)
+        con.execute(f"UPDATE {t} SET {'price' if t == 'hourly' else 'close'} = {'price' if t == 'hourly' else 'close'} / 100 "
+                    f"WHERE id IN ('wheat', 'corn') AND {'price' if t == 'hourly' else 'close'} > 50")
     t0 = time.time()
     cat = catalogue()
     got = scan(sorted({t for x in cat for t in x[3].split("|")}), fetch)

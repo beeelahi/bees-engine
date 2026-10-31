@@ -181,7 +181,9 @@ def state(p, h, l, c, i, cfg):
     if sg * (line - c[i]) / H < -FAIL:
         return None
     st = "after_break"
-    if i - brk < cfg["fresh"] and touched is None:
+    if dist < 0:
+        st = "back_inside"                                        # closed back through the line (not yet by 35%): failing
+    elif i - brk < cfg["fresh"] and touched is None:
         st = "broken"
     elif touched is not None and i - touched <= 1 and dist >= -RETEST:
         st = "retest"
@@ -264,7 +266,7 @@ def scan(h, l, c, cfg):
 # ---------------------------------------------------------------- website export
 MIN_ADV = 2e5
 LABEL = {"near_neckline": "Near the neckline", "handle": "Handle: near the breakout", "broken": "Broken out",
-         "retest": "Retesting the line", "after_break": "Broken earlier"}
+         "retest": "Retesting the line", "after_break": "Broken earlier", "back_inside": "Back through the line: failing"}
 NAME = {"top": "Double top", "bottom": "Double bottom", "cup": "Cup & handle"}
 
 
@@ -339,7 +341,7 @@ def run(con, stats_path=None):
         wd, wo, wh, wl, wc, _ = weekly(dates, o, h, l, c)
         if len(wc) >= 30:
             rows += rows_for(sym, "1w", wd, wh, wl, wc, c[-1], rank, stats, TF["1w"])
-    order = {"retest": 0, "broken": 1, "handle": 2, "near_neckline": 2, "after_break": 3}
+    order = {"retest": 0, "broken": 1, "handle": 2, "near_neckline": 2, "after_break": 3, "back_inside": 4}
     rows.sort(key=lambda x: (order[x["status"]], x["tf"] != "1w", x["liq_rank"]))
     return {"rows": rows, "labels": LABEL, "names": NAME, "stats": stats, "scanned": scanned,
             "rules": {"min_adv": MIN_ADV, "near": NEAR, "retest": RETEST, "fail": FAIL,

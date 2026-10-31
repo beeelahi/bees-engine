@@ -62,6 +62,9 @@ def run(con, out_dir, now_ms, state_path=STATE, ledger=LEDGER, log=print):
     if os.path.exists(state_path):
         with open(state_path) as f:
             st = json.load(f)
+    for t in st["closed"]:                      # % for a short is the gain on the entry (closed before 31 Oct 2026: entry / exit - 1)
+        if t.get("exit"):
+            t["pnl_pct"] = 100 * (1 - t["exit"] / t["entry"])
     head, _ = verify(ledger)
     if head != st.get("head", ""):
         raise ValueError("paper4h ledger does not match the saved state")
@@ -108,7 +111,7 @@ def run(con, out_dir, now_ms, state_path=STATE, ledger=LEDGER, log=print):
                     st["equity"] += pnl
                     st["open"].remove(pos)
                     done = dict(pos, exit=out, exit_ms=t, reason=why, pnl=pnl,
-                                r=(pos["entry"] - out) / (pos["stop"] - pos["entry"]), pnl_pct=100 * (pos["entry"] / out - 1))
+                                r=(pos["entry"] - out) / (pos["stop"] - pos["entry"]), pnl_pct=100 * (1 - out / pos["entry"]))   # a short: gain as a share of the entry
                     st["closed"].append(done)
                     head = _append(ledger, head, {"event": "close", "symbol": s, "exit": out, "exit_ms": t, "reason": why,
                                                   "pnl": pnl, "equity": st["equity"]})

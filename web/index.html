@@ -259,6 +259,8 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
   .hx-av { width: 30px; height: 30px; font-size: 9.5px; } .hx-badges { max-width: 60%; } .hx-sec h2 { font-size: 17px; } }
 
 .hl-nav { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px 0; }
+@media (min-width: 900px) { .hl-nav { flex-wrap: wrap; overflow: visible; } }      /* desktop: every section visible */
+.hl-nav.more-r { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
 .hl-nav::-webkit-scrollbar { display: none; }
 .hl-nav button { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); background: rgba(255,255,255,0.03); color: var(--muted); border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
 .hl-nav button:hover { color: var(--fg); border-color: rgba(255,255,255,0.22); }
@@ -1902,8 +1904,8 @@ function hlCounts() {
   set("calls", (callData().rows || []).length);
   set("breakouts", (ltData().rows || []).filter(x => x.days_since <= 30).length);
   set("patterns", (hsData().rows || []).filter(x => x.status !== "after_break").length);
-  set("cups", (ptData().rows || []).filter(x => x.family === "cup" && x.status !== "after_break").length);
-  set("doubles", (ptData().rows || []).filter(x => x.family === "double" && x.status !== "after_break").length);
+  set("cups", (ptData().rows || []).filter(x => x.family === "cup" && !ptOld(x.status)).length);
+  set("doubles", (ptData().rows || []).filter(x => x.family === "double" && !ptOld(x.status)).length);
   set("moves", ((S.mv && S.mv.rows) || []).filter(x => !/_30d$/.test(x.kind) && x.t * 1000 > Date.now() - 864e5).length);
   const ld = latestIdeaDay(); set("ideas", ideas().filter(x => x.date === ld).length);
   set("bots", S.hl.filter(isBotHl).filter(h => S.ov && h.period_start >= S.ov.last_date).length);
@@ -2135,17 +2137,18 @@ function ptCard(x) { const bear = ptBear(x), P = x.points || {}, L = (ptData().l
     foot: (x.break_date ? "Broke " + x.break_date + (x.retest_date ? " · retest " + x.retest_date : "") : "Not broken yet") + (ptRec(x) ? " · " + ptRec(x) : "") }); }
 function hxPt(name) {
   if (name === "cups") hxSeg("hxCupTf", "hxCupTf", () => hxPt("cups")); else { hxSeg("hxDblTf", "hxDblTf", () => hxPt("doubles")); hxSeg("hxDblKind", "hxDblKind", () => hxPt("doubles")); }
-  const all = ptRows(name), act = all.filter(x => x.status !== "after_break");
+  const all = ptRows(name), act = all.filter(x => !ptOld(x.status));
   const w = act.filter(x => x.tf === "1w").length;
   hxFill(name, act.map(ptCard), name === "cups" ? "No cup and handle near or through its rim in this selection." : "No double top or bottom near or through its neckline in this selection.",
     act.length ? `${act.length} in play · ${w} weekly · ${act.filter(x => x.status === "retest").length} retesting` : "");
   renderPtTable(name, all);
 }
+const ptOld = st => st === "after_break" || st === "back_inside";   // context only: broken earlier, or back through the line
 function renderPtTable(name, rows) {
   const D = ptData(), L = D.labels || {}, body = $("#ptBody-" + name); if (!body) return; body.replaceChildren(); const frag = document.createDocumentFragment();
   rows.forEach(x => { const t = document.createElement("tr"), bear = ptBear(x), P = x.points || {}, h = x.hist; t.className = "clickable"; t.onclick = () => openPair(x.symbol, x.tf);
     t.append(tdNode(symNode(x.symbol)), addedTd(x), td(x.tf === "1w" ? "Weekly" : "Daily", ""), tdNode(chip(x.name, bear ? "down" : "up")),
-      tdNode(chip(L[x.status] || x.status, x.status === "after_break" ? "neutral" : bear ? "down" : "up")),
+      tdNode(chip(L[x.status] || x.status, ptOld(x.status) ? "neutral" : bear ? "down" : "up")),
       td(fPx(x.line) + " (" + fPct(x.to_line_pct, 1) + ")", "num"), td(fPx(x.target) + " (" + fPct(x.to_target_pct, 1) + ")", "num " + cls(x.to_target_pct)), td(fPx(x.stop), "num"),
       td((P.a ? P.a[0].slice(2) + " → " + P.z[0].slice(2) : "") + " · " + fN(x.height_pct, 0) + "%", ""),
       td((x.break_date ? x.break_date.slice(2) : "—") + (x.retest_date ? " / " + x.retest_date.slice(2) : ""), "num"),
@@ -2411,7 +2414,7 @@ function mbRules(c, base, baseFrom, ladders) {
     [`Budget: ${fQ(c.units * c.size)} ZIG per ladder; buys are paid from what the sells raised, with at most `, [fQ(c.max_usdt) + " USDT"], " of the wallet's own USDT on top. Every order is post-only (maker; MEXC maker fee 0%)."],
   ].concat(c.rebase_hours ? [
     [`The base follows every `, [`${c.rebase_hours === 24 ? "daily" : c.rebase_hours + "-hour"} close`], `: the ${c.stagger_first} sells nearest the price move right after it, the rest ${Math.round((c.stagger_delay_s || 0) / 60 * 10) / 10} minutes later, one order at a time (${c.drip_min}–${c.drip_max} s apart), and an order whose price would change by less than ${(100 * c.min_move).toFixed(1)}% stays put. Units already sold keep their buy-back.`],
-    ...(c.btc_guard ? [[`BTC guard: if BTC rises `, [`${(100 * c.btc_guard).toFixed(0)}%+ in about two hours`], ` while ZIG is up less than ${(100 * c.btc_zig_max).toFixed(0)}%, every sell is pulled for ${c.btc_pause_h} hours (buys stay).`]] : []),
+    ...(c.btc_guard ? [[`BTC guard: if BTC rises `, [`${(100 * c.btc_guard).toFixed(0)}%+ in about two hours`], ` while ZIG is up less than ${(100 * (isNum(c.btc_zig_max) ? c.btc_zig_max : 0.01)).toFixed(0)}%, every sell is pulled for ${c.btc_pause_h} hours (buys stay).`]] : []),
     ...(c.vol_fast ? [[`Fast mode: while ZIG has moved `, [`${(100 * c.vol_fast).toFixed(0)}%+`], ` in the running 4-hour or day candle, the base follows every 1-hour close, until both are back under ${(100 * c.vol_calm).toFixed(0)}%.`]] : []),
     ...(c.recycle && c.recycle !== "off" ? [[`Recycling: units bought back on the way down `, ["rejoin the sell ladder"], c.recycle === "breakeven" ? " (never under their buy price), so they are not left stuck far above a falling price." : " where the ladder puts them, so they are not left stuck far above a falling price (such a sale can be under that unit's buy price)."]] : []),
     ...(c.acc_units ? [[`Accumulation: after ${c.acc_after} sells, ${c.acc_units} buys rest from ${(100 * c.acc_first).toFixed(0)}% under the base, paid from the wallet's USDT.`]] : []),
@@ -3392,7 +3395,7 @@ function chartMarkers(times) {
     [["ls", "LS"], ["head", "H"], ["rs", "RS"]].forEach(([k, t]) => add(P[k][0], { position: top ? "aboveBar" : "belowBar", shape: "circle", color: top ? dn : up, text: t }));
     if (x.break_date) add(x.break_date, { position: top ? "belowBar" : "aboveBar", shape: top ? "arrowDown" : "arrowUp", color: top ? dn : up, text: "Neck break" });
     if (x.retest_date) add(x.retest_date, { position: top ? "aboveBar" : "belowBar", shape: "square", color: warn, text: "Retest" }); });
-  if (on("mk") && (tf === "1d" || tf === "1w")) (ptData().rows || []).filter(x => x.symbol === sym && x.tf === tf && x.status !== "after_break").forEach(x => { const P = x.points, bear = x.kind === "top", cup = x.family === "cup", col = bear ? dn : up;
+  if (on("mk") && (tf === "1d" || tf === "1w")) (ptData().rows || []).filter(x => x.symbol === sym && x.tf === tf && !ptOld(x.status)).forEach(x => { const P = x.points, bear = x.kind === "top", cup = x.family === "cup", col = bear ? dn : up;
     if (cup) { add(P.a[0], { position: "aboveBar", shape: "circle", color: col, text: "Rim" }); add(P.z[0], { position: "aboveBar", shape: "circle", color: col, text: "Rim" }); add(P.t[0], { position: "belowBar", shape: "circle", color: col, text: "Cup" }); }
     else [P.a, P.z].forEach((q, k) => add(q[0], { position: bear ? "aboveBar" : "belowBar", shape: "circle", color: col, text: (bear ? "Top " : "Bottom ") + (k + 1) }));
     if (x.break_date) add(x.break_date, { position: bear ? "aboveBar" : "belowBar", shape: bear ? "arrowDown" : "arrowUp", color: col, text: cup ? "Breakout" : "Break" });
@@ -3465,7 +3468,7 @@ async function renderPair() {
   if (!chL && S.ov_on.has("ch") && (S.pairTf === "1d" || S.pairTf === "4h")) { const other = chanFor(S.pair, S.pairTf === "1d" ? "4h" : "1d"); if (other) { const s0 = document.createElement("span"); s0.textContent = "Channel on the " + (other.tf === "4h" ? "4h" : "daily") + " chart"; lg.append(s0); } }
   if (S.ov_on.has("mk")) { (hsData().rows || []).filter(x => x.symbol === S.pair && S.pairTf === "1d").forEach(x => leg(x.kind === "top" ? "var(--down)" : "var(--up)", (x.kind === "top" ? "H&S top" : "Inverse H&S") + " · neckline " + fPx(x.neck) + " · target " + fPx(x.target)));
     (ptData().rows || []).filter(x => x.symbol === S.pair && x.tf === S.pairTf).forEach(x => leg(x.kind === "top" ? "var(--down)" : "var(--up)", x.name + " (" + ((ptData().labels || {})[x.status] || x.status).toLowerCase() + ") · " + (x.family === "cup" ? "rim " : "neckline ") + fPx(x.line) + " · target " + fPx(x.target)));
-    const other = (ptData().rows || []).filter(x => x.symbol === S.pair && x.tf !== S.pairTf && x.status !== "after_break");
+    const other = (ptData().rows || []).filter(x => x.symbol === S.pair && x.tf !== S.pairTf && !ptOld(x.status));
     if (other.length && (S.pairTf === "1d" || S.pairTf === "1w")) { const s0 = document.createElement("span"); s0.textContent = other.map(x => x.name).join(", ") + " on the " + (other[0].tf === "1w" ? "weekly" : "daily") + " chart"; lg.append(s0); } }
   if (chAll.length > 2) { const s0 = document.createElement("span"); s0.textContent = "+" + (chAll.length - 2) + " more channel" + (chAll.length > 3 ? "s" : "") + " in Trade Ideas › Channels"; lg.append(s0); }
   const n = document.createElement("span"); n.textContent = "Lines appear once each indicator is warmed up"; lg.append(n);
@@ -3519,7 +3522,7 @@ async function renderPair() {
     const P = x.points, bear = x.kind === "top", col = css(bear ? "--down" : "--up"), t0 = P.a[0], lastT = rows[rows.length - 1][0]; if (t0 < rows[0][0]) return;
     const step = S.pairTf === "1w" ? 7 : 1, ext = Math.max(S.pairTf === "1w" ? 4 : 10, Math.round(x.bars / 5)), tEnd = new Date(Date.parse(lastT) + ext * step * 864e5).toISOString().slice(0, 10);
     const o = { priceLineVisible: false, crosshairMarkerVisible: false, priceFormat: pf };
-    const old = x.status === "after_break";                 // broken earlier: context only, a thin dashed line and no target
+    const old = ptOld(x.status);                 // broken earlier: context only, a thin dashed line and no target
     main.addLineSeries({ color: col, lineWidth: old ? 1 : 2, lineStyle: old ? 2 : 0, lastValueVisible: false, ...o }).setData([{ time: t0, value: x.line }, { time: tEnd, value: x.line }]);
     if (old) return;
     const tb = x.break_date ? (S.pairTf === "1w" ? new Date(Date.parse(x.break_date) - (new Date(x.break_date).getUTCDay() + 6) % 7 * 864e5).toISOString().slice(0, 10) : x.break_date) : P.z[0];
@@ -3555,7 +3558,7 @@ async function renderPair() {
   charts.forEach(c => c.timeScale().subscribeVisibleLogicalRangeChange(rg => { if (syncing || !rg) return; syncing = true; charts.forEach(o => o !== c && o.timeScale().setVisibleLogicalRange(rg)); syncing = false; }));
   // a pattern in play on this chart: open zoomed on it (from a little before its first peak / rim to today), so it is readable
   if (S.ov_on.has("mk") && (S.pairTf === "1d" || S.pairTf === "1w") && rows.length > 30) {
-    const starts = (ptData().rows || []).filter(x => x.symbol === S.pair && x.tf === S.pairTf && x.status !== "after_break").map(x => x.points.a[0])
+    const starts = (ptData().rows || []).filter(x => x.symbol === S.pair && x.tf === S.pairTf && !ptOld(x.status)).map(x => x.points.a[0])
       .concat(S.pairTf === "1d" ? (hsData().rows || []).filter(x => x.symbol === S.pair && x.status !== "after_break").map(x => x.points.ls[0]) : []).filter(d => d >= rows[0][0]);
     if (starts.length) { const t0 = starts.sort()[0], i0 = rows.findIndex(x => x[0] >= t0), n = rows.length, span = n - 1 - i0;
       if (i0 > 0) { const from = Math.max(0, i0 - Math.round(0.15 * span) - 3); if (from > 0) try { main.timeScale().setVisibleLogicalRange({ from, to: n + Math.max(3, Math.round(0.08 * (n - from))) }); } catch (e) {} } } }
@@ -3641,7 +3644,7 @@ function renderPaper4h() {
   [...(P.pending || []).map(x => ({ ...x, _st: "pending", _lv: lvE[x.symbol] })), ...(P.open || []).map(x => ({ ...x, _st: "open", _lv: lvP[x.symbol] })), ...cl.slice().reverse().map(x => ({ ...x, _st: "closed" }))].forEach(x => {
     const t = document.createElement("tr"); t.className = "clickable"; t.onclick = () => openPair(x.symbol, "4h");
     const lv = x._lv && x._lv.status !== "waiting for the first hourly candle" ? x._lv : null;
-    let res = x._st === "closed" ? x.pnl_pct : x._st === "open" && isNum(x.price) ? (x.entry / x.price - 1) * 100 : null, r_ = x.r;
+    let res = x._st === "closed" ? x.pnl_pct : x._st === "open" && isNum(x.price) ? (1 - x.price / x.entry) * 100 : null, r_ = x.r;
     let lab = x._st === "pending" ? "Entering at the open" : x._st === "open" ? "Short open" : x.reason === "stop" ? "Stopped" : "Closed (3 days)", kind = x._st === "closed" ? (x.pnl > 0 ? "up" : "down") : "neutral";
     let entry = x.entry, outPx = x._st === "closed" ? x.exit : x.price;
     if (lv) { res = lv.pnl_pct; r_ = lv.r; entry = isNum(lv.entry) ? lv.entry : entry; outPx = isNum(lv.exit) ? lv.exit : lv.last;
@@ -4136,7 +4139,14 @@ function coinNews(sym) {
   return out;
 }
 function renderMe() {
-  if (!ME.user) { $("#meCoins").innerHTML = ""; return; }
+  const guest = !ME.user;                // signed out: only an invitation, never account controls
+  $$("#v-me > .card").forEach((c, k) => { c.hidden = guest && k > 0; });
+  if (guest) {
+    $("#meHello").textContent = "Your dashboard"; $("#meAvatar").textContent = "";
+    $("#meSince").replaceChildren(document.createTextNode("Sign in to follow your coins and see today's signals on them. "));
+    if (AUTH) { const b = document.createElement("button"); b.type = "button"; b.className = "btn primary"; b.textContent = "Sign in"; b.onclick = () => openAuth("signin"); $("#meSince").append(b); }
+    $("#meCoins").innerHTML = ""; return;
+  }
   const n = meName(); $("#meAvatar").textContent = initials(n); $("#meHello").textContent = "Hi, " + n;
   const since = (ME.profile && ME.profile.created_at) || ME.user.created_at; $("#meSince").textContent = since ? "Member since " + new Date(since).toLocaleDateString(undefined, { month: "long", year: "numeric" }) : "";
   const dl = $("#meAddList"); if (!dl.children.length && S.index) Object.keys(S.index).sort().forEach(k => { const o = document.createElement("option"); o.value = k.replace(/USDT$/, ""); dl.append(o); });
@@ -4202,6 +4212,10 @@ async function authInit() {
   const { data } = await ME.sb.auth.getSession(); await setUser(data && data.session ? data.session.user : null);
   if (!ME.user && store.get("guest") !== "1" && $("#authDlg").hidden) openWelcome();
 }
+function navFade() {                   // phone: fade the right edge of a section row that scrolls, until its end is reached
+  $$(".hl-nav").forEach(n => { n.classList.toggle("more-r", n.scrollWidth - n.clientWidth - n.scrollLeft > 4); if (!n.dataset.fade) { n.dataset.fade = 1; n.addEventListener("scroll", navFade, { passive: true }); } });
+}
+addEventListener("resize", navFade);
 (async () => {
   while (!(await loadAll())) await new Promise(res => setTimeout(res, 15000));   // no data and no saved copy: keep trying
   const bm = $("#bootMsg"); if (bm) bm.remove();
@@ -4213,6 +4227,7 @@ async function authInit() {
     $("#freshPill").style.cursor = "pointer"; $("#freshPill").onclick = () => location.reload();
     const probe = setInterval(async () => { try { const r = await fetch("data/overview.json", { cache: "no-store" }); if (r.ok) { clearInterval(probe); $("#freshText").textContent = "Connection back · tap to refresh"; $("#freshPill").className = "pill ok"; } } catch (e) {} }, 20000);
   }
+  navFade(); setTimeout(navFade, 500);
   if ("serviceWorker" in navigator && isSecureContext) navigator.serviceWorker.register("sw.js").catch(() => {}); initScreenerControls(); if (S.pubSL) $("#hlNavSL").hidden = false; initShortlist(); show(location.hash.slice(1)); authInit(); })();
 })();
 </script>

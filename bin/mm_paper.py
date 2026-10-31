@@ -447,7 +447,7 @@ class Variant:
                                        "settings": {k: self.coin.get(k) for k in ("mode", "step", "spread_bps", "levels", "size", "floor", "band", "buy_rungs",
                                                                                "units", "first", "gap", "gap_from", "rebuy", "resell", "idle_hours", "max_usdt", "extra_ladders",
                                                                                "rebase_hours", "stagger_first", "stagger_delay_s", "min_move", "recycle", "acc_units",
-                                                                               "btc_guard", "btc_pause_h", "vol_fast", "vol_calm", "drip_min", "drip_max",
+                                                                               "btc_guard", "btc_pause_h", "btc_zig_max", "vol_fast", "vol_calm", "drip_min", "drip_max",
                                                                                "chase", "max_chases_day", "regimes")
                                                     if self.coin.get(k) is not None}})
         if mid:

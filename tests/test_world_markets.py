@@ -79,6 +79,9 @@ class WorldTest(unittest.TestCase):
         self.assertIn("S&P 500 -1.80%", d["summary"]["lines"][0])
         self.assertEqual(len(d["summary"]["sector_leaders"]), 3)
         self.assertEqual(d["fear_greed"]["value"], 28)
+        wheat = next(r for r in g["Commodities"] if r["id"] == "wheat")
+        self.assertEqual(wheat["unit"], "$")
+        self.assertLess(wheat["price"], 5)                          # quoted in cents (100+), shown in dollars
         self.assertEqual([c["title"] for c in d["calendar"]], ["CPI m/m"])   # holidays and low impact left out
 
     def test_news_hygiene_scoring_and_dedupe(self):

@@ -45,6 +45,8 @@ class Paper4hTest(unittest.TestCase):
         self.assertEqual((x["symbol"], x["reason"], x["bars"]), ("ABCUSDT", "time", 18))
         self.assertGreater(x["pnl"], 0)
         self.assertAlmostEqual(st["equity"], 10_000 + x["pnl"])
+        self.assertAlmostEqual(x["pnl_pct"], 100 * (1 - x["exit"] / x["entry"]))   # a short's % is the gain on its entry
+        self.assertAlmostEqual(x["pnl"], x["qty"] * x["entry"] * x["pnl_pct"] / 100)   # and agrees with the dollar result
         self.assertEqual(B.verify(self.paths["ledger"])[1], 2)
         out = json.load(open(os.path.join(self.d, "paper4h.json")))
         self.assertEqual(out["n_closed"], 1)
