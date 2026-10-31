@@ -457,7 +457,7 @@ def run_sync(con, force):
 
 
 # ---------------------------------------------------------------- circulating supply (for estimated market cap)
-ENGINE_VERSION = "19"     # bump when engine/bot/export code changes so the next hourly run rebuilds once
+ENGINE_VERSION = "20"     # bump when engine/bot/export code changes so the next hourly run rebuilds once
 SUPPLY_URL = "https://www.binance.com/bapi/asset/v2/public/asset-service/product/get-products?includeEtf=false"
 
 
