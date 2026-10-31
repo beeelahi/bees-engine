@@ -592,7 +592,8 @@ def run(con=None):
               (SELECT quote_volume_24h FROM ticker_snapshots t WHERE t.symbol=p.symbol ORDER BY snap_date DESC LIMIT 1) AS vol_24h_usdt
               FROM pairs p WHERE NOT {__import__("binance_sync").STOCK_SQL}) WHERE first_candle >= ? OR delisted_on >= ?
               ORDER BY COALESCE(delisted_on, first_candle) DESC""", (ago(180), ago(180))),     # bStocks: on the Stocks view
-        "universe_log": table(con, "SELECT * FROM universe_log WHERE date >= ? ORDER BY date DESC", (ago(180),)),
+        "universe_log": table(con, f"""SELECT * FROM universe_log WHERE date >= ?
+              AND symbol NOT IN (SELECT p.symbol FROM pairs p WHERE {__import__("binance_sync").STOCK_SQL}) ORDER BY date DESC""", (ago(180),)),
     })
     write(os.path.join(OUT, "weekly.json"), table(con, "SELECT * FROM weekly_report"))
     try:                                         # bStocks: tokenized US stocks and ETFs, their own view (not crypto)
