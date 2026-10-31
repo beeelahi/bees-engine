@@ -20,7 +20,7 @@ def _variant(path):
     con = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=10)
     try:
         has = lambda t: con.execute("SELECT 1 FROM sqlite_master WHERE name=?", (t,)).fetchone() is not None  # noqa: E731
-        meta = {k: json.loads(v) for k, v in con.execute("SELECT k, v FROM p_meta") if k in ("start", "last_mid")}
+        meta = {k: json.loads(v) for k, v in con.execute("SELECT k, v FROM p_meta") if k in ("start", "last_mid", "u_setting")}
         st = meta.get("start")
         if not st:
             return None
@@ -39,7 +39,8 @@ def _variant(path):
                "start_coins": st["coins"], "start_usdt": st["usdt"], "coins": round(coins, 2), "usdt": round(usdt, 2),
                "value_usdt": round(value, 2), "hold_usdt": round(hold, 2), "vs_hold_usdt": round(value - hold, 2),
                "rounds": rounds, "profit_usdt": round(profit, 2), "fills": fills[0], "traded_usdt": round(fills[1], 2),
-               "fees_usdt": round(fills[2], 4),
+               "fees_usdt": round(fills[2], 4), "setup": meta.get("u_setting"),
+               "taker_fills": con.execute("SELECT COUNT(*) FROM p_fills WHERE liquidity='taker'").fetchone()[0],
                "open_orders": con.execute("SELECT COUNT(*) FROM p_orders WHERE status IN ('NEW','PARTIALLY_FILLED')").fetchone()[0]}
         out["snaps"] = [[t, round(m, 8), round(v, 2), round(h, 2)] for t, m, v, h in
                         con.execute(f"SELECT utc, mid, value, hold_value FROM (SELECT * FROM p_snap ORDER BY utc DESC LIMIT {MAX_ROWS}) ORDER BY utc")]
@@ -69,7 +70,7 @@ def build(data=DATA):
             return None
         if v:
             name = os.path.basename(p)[9:-3]
-            if name.startswith("np_"):       # new-position runs: the summary, the hourly curve and the last events only
+            if name.startswith(("np_", "u_")):   # new-position and Live Paper U runs: the summary, the hourly curve and the last events only
                 v["events"] = (v.get("events") or [])[:40]
                 for k in ("fill_list", "orders", "units"):
                     v.pop(k, None)
@@ -84,9 +85,10 @@ def build(data=DATA):
         with open(os.path.join(data, "mm_bee_tune.json")) as f:
             t = json.load(f)
         keep = ("pro+chase8", "pro+chase15", "pro", "plus", "v2")
+        running = {n[2:]: v.get("setup") for n, v in out["variants"].items() if n.startswith("u_")}   # Live Paper U settings
         out["tune"] = {k: t[k] for k in ("generated_utc", "position_usd", "share", "units", "taker_fee", "totals") if k in t}
         out["tune"]["coins"] = {s: {"best": c["best"], "start_utc": c["start_utc"],
-                                    "results": {n: c["results"][n] for n in set(keep) | {c["best"]} if n in c["results"]}}
+                                    "results": {n: c["results"][n] for n in set(keep) | {c["best"], running.get(s.lower())} if n in c["results"]}}
                                 for s, c in t.get("coins", {}).items()}
     except (OSError, ValueError, KeyError):
         pass

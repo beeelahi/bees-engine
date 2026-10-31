@@ -135,6 +135,9 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .hx-id { min-width: 0; flex: 1; } .hx-id b { font-size: 15.5px; font-weight: 650; } .hx-id small { color: var(--muted); margin-left: 2px; font-size: 11.5px; }
 .hx-id .hx-sub { color: var(--muted); font-size: 12px; line-height: 1.35; margin-top: 1px; }
 .mb-best td { font-weight: 600; }
+.lu-row { cursor: pointer; } .lu-row:hover td { background: var(--hover, rgba(127,127,127,.06)); }
+.lu-row.sel td { background: var(--accent-soft); } .lu-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.lu-coin { font-weight: 700; } .lu-tbl th:nth-child(-n+2) { text-align: left; } .lu-set { min-width: 15rem; }
 .wl-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 12px; }
 .wl-tbl th:nth-child(2), .wl-tbl td:nth-child(2) { text-align: left; }
 @media (min-width: 760px) { .wl-bar { position: sticky; top: 0; z-index: 5; } }
@@ -863,11 +866,12 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
 
   <section class="view" id="v-mmbee" hidden>
     <div class="card sub-head">
-      <div class="card-head"><h2>MM-Bee · ZIG market making</h2><span class="pill" id="mbPill"><span class="dot"></span><span id="mbPillText">Loading…</span></span></div>
+      <div class="card-head"><h2>MM-Bee · market making</h2><span class="pill" id="mbPill"><span class="dot"></span><span id="mbPillText">Loading…</span></span></div>
       <p class="note sub-lead">Paper trading on live MEXC prices: every order is simulated against MEXC's real trades and order book, and no order reaches the exchange. <b id="mbLead">&nbsp;</b></p>
       <div class="hl-nav sub-nav" data-for="mmbee" role="tablist" aria-label="MM-Bee sections">
         <button type="button" role="tab" data-s="bots">MM Bots<i></i></button>
-        <button type="button" role="tab" data-s="live">Live paper<i></i></button>
+        <button type="button" role="tab" data-s="live" title="ZIG, paper trading on live MEXC prices">Live Paper Z<i></i></button>
+        <button type="button" role="tab" data-s="livu" title="Every shortlisted coin, each on its own best setting, paper trading on live MEXC prices">Live Paper U<i></i></button>
         <button type="button" role="tab" data-s="backtest">Backtest<i></i></button>
       </div>
     </div>
@@ -950,7 +954,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       </div>
 
       <div class="card mb-row mbx-risk">
-        <b>Read this first.</b> The 15-day and 1-year figures are simulations: the bot's exact code run on real exchange prices, with conservative fills (an order counts as filled only when a later hour trades through its price). They are not results of a live account. Our live record is the paper trading shown under "Live paper", running since 28 Oct 2026; no real money is traded yet. Past or simulated results do not guarantee future results. Crypto is volatile: you can lose money, and a market maker can leave you with fewer coins after a rally. Not financial advice.
+        <b>Read this first.</b> The 15-day and 1-year figures are simulations: the bot's exact code run on real exchange prices, with conservative fills (an order counts as filled only when a later hour trades through its price). They are not results of a live account. Our live record is the paper trading shown under "Live Paper Z" (ZIG, since 28 Oct 2026) and "Live Paper U" (every shortlisted coin on its own best setting, since 31 Oct 2026); no real money is traded yet. Past or simulated results do not guarantee future results. Crypto is volatile: you can lose money, and a market maker can leave you with fewer coins after a rally. Not financial advice.
       </div>
     </div>
     <div class="sub-panel" data-s="live" hidden>
@@ -998,6 +1002,38 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <div class="card-head"><h3>Every MM-Bee fill</h3><span class="note" id="mbFillNote"></span></div>
       <div class="tbl-wrap mb-tall"><table><thead><tr><th>Time (UTC)</th><th>Side</th><th>Price</th><th>ZIG</th><th>USDT</th><th>Type</th></tr></thead><tbody id="mbFills"></tbody></table></div>
     </div>
+    </div>
+    <div class="sub-panel" data-s="livu" hidden>
+      <div class="card mb-row">
+        <div class="card-head"><h3>Live Paper U · every shortlisted coin on its own best setting</h3><span class="mbx-badge">Paper trading · simulated money</span></div>
+        <p class="note" id="luLead">&nbsp;</p>
+        <div class="grid-kpi mbx-kpis">
+          <div class="card kpi"><div class="label">Ahead of just holding</div><div class="v" id="luEdge">—</div><div class="note" id="luEdgeN">&nbsp;</div></div>
+          <div class="card kpi"><div class="label">USDT banked by rounds</div><div class="v" id="luLock">—</div><div class="note" id="luLockN">&nbsp;</div></div>
+          <div class="card kpi"><div class="label">Completed rounds</div><div class="v" id="luRounds">—</div><div class="note" id="luRoundsN">&nbsp;</div></div>
+          <div class="card kpi"><div class="label">Coins running</div><div class="v" id="luN">—</div><div class="note" id="luNN">&nbsp;</div></div>
+        </div>
+        <div class="legend" id="luLegend"></div>
+        <div class="chart-eq" id="luCurve"></div>
+      </div>
+      <div class="card mb-row">
+        <div class="card-head"><h3>Coin by coin</h3><span class="note" id="luTblN"></span></div>
+        <div class="tbl-wrap"><table class="lu-tbl"><thead><tr><th>Coin</th><th>Setting it runs</th><th>Running</th><th title="Price change since this coin's paper run started">Price</th><th>Rounds</th><th title="USDT banked by completed rounds">Banked</th><th title="Wallet value minus the untouched starting wallet, USDT">Ahead of holding</th><th title="The study's result for this setting over the past year: the real (mostly falling) year / the same year reversed (a strong rally), USDT ahead of holding">Backtest fall / rise</th><th>Orders</th></tr></thead><tbody id="luRows"></tbody></table></div>
+        <p class="note">Tap a coin for its chart and what it did.</p>
+      </div>
+      <div class="grid-2 mb-row">
+        <div class="card">
+          <div class="card-head"><h3 id="luCoinT">—</h3><span class="note" id="luCoinN"></span></div>
+          <div class="legend" id="luCLegend"></div>
+          <div class="chart-eq" id="luCCurve"></div>
+          <p class="note" id="luRule"></p>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>What happened</h3><span class="note" id="luFeedN"></span></div>
+          <ul class="mb-feed" id="luFeed"></ul>
+        </div>
+      </div>
+      <div class="card mb-row mbx-risk"><b>How to read this.</b> Each coin trades 40% of a $25,000 position (20 orders) on simulated money, filled only by MEXC's real trades and order book; no order reaches the exchange and real-money trading has not started. Each coin's setting is the one the year study ranked best for that coin out of 18, picked after the fact, so live results are expected to come in below the backtest; that gap is what this test measures. A coin's setting is fixed when its run starts, so a rerun of the study does not change a running test. Not financial advice.</div>
     </div>
     <div class="sub-panel" data-s="backtest" hidden>
       <div class="card mb-row">
@@ -2424,6 +2460,85 @@ const mbSec = t => typeof t === "number" ? t : Math.floor(Date.parse(t) / 1000);
 function mbPts(snaps, f) { const by = new Map(); (snaps || []).forEach(x => by.set(mbSec(x[0]), f(x))); return [...by].sort((a, b) => a[0] - b[0]).map(([time, value]) => ({ time, value })); }
 function mbLegend(id, items) { const lg = $("#" + id); lg.replaceChildren(); items.forEach(([col, t]) => { const sp = document.createElement("span"), i = document.createElement("i"); i.style.background = col; sp.append(i, document.createTextNode(t)); lg.append(sp); }); }
 const usdFmt = { type: "custom", formatter: v => (v >= 0 ? "+" : "") + v.toFixed(2), minMove: 0.01 }, zigFmt = { type: "custom", formatter: v => v.toFixed(5), minMove: 0.000001 };
+function mbSetupName(k) {             // a study setting, e.g. "pro+chase15+trend", in words
+  if (!k) return "—";
+  const fam = { pro: "MM-Bee Pro", plus: "MM-Bee+", v2: "MM-Bee v2" }[k.split("+")[0]] || k.split("+")[0], ch = /chase(\d+)/.exec(k);
+  return fam + (ch ? " + buy back at +" + ch[1] + "%" : "") + (/\+trend/.test(k) ? " + sells less in uptrends" : "");
+}
+function mbSetupRule(s) {             // the rules a run actually trades, from its recorded settings
+  if (!s || !isNum(s.first)) return "";
+  const p = v => (100 * v).toFixed(1).replace(/\.0$/, "") + "%", up = s.regimes && s.regimes.up;
+  return `Sells start ${p(s.first)} above the base, one every ${p(s.gap)}; each sold slice is bought back ${p(s.rebuy)} lower and resold ${p(s.resell)} higher` +
+    (s.recycle === "ladder" ? "; coins bought back on the way down go back into the sell ladder" : "") +
+    (s.chase ? `; if the price runs ${p(s.chase)} above a sale, the slice is bought back at the market (at most ${s.max_chases_day || 6} a day)` : "") +
+    (up ? `; in an uptrend (4h price over 3% above its 30-candle average) sells start ${p(up.first)} up, every ${p(up.gap)}` : "") + ".";
+}
+function luHours(h) { return h < 48 ? h.toFixed(1) + " h" : (h / 24).toFixed(1) + " days"; }
+let luChart = null, luCChart = null;
+function renderLiveU() {
+  renderMMHead();
+  if (S.mm === undefined) return;
+  const D = S.mm || {}, V = D.variants || {}, TU = (D.tune && D.tune.coins) || {};
+  const U = Object.entries(V).filter(([k]) => k.startsWith("u_")).map(([k, v]) => ({ k, sym: k.slice(2).toUpperCase(), coin: k.slice(2).replace(/usdt$/, "").toUpperCase(), v }));
+  const order = Object.keys(TU); U.sort((a, b) => ((order.indexOf(a.sym) + 1) || 99) - ((order.indexOf(b.sym) + 1) || 99));
+  const tot = U.reduce((a, x) => ({ edge: a.edge + x.v.vs_hold_usdt, lock: a.lock + x.v.profit_usdt, rounds: a.rounds + x.v.rounds, ahead: a.ahead + (x.v.vs_hold_usdt > 0 ? 1 : 0) }), { edge: 0, lock: 0, rounds: 0, ahead: 0 });
+  const nb = $('.sub-nav[data-for="mmbee"] button[data-s="livu"] i'); if (nb) nb.textContent = U.length ? String(U.length) : "";
+  if (!U.length) {
+    $("#luLead").textContent = "Live Paper U is starting on the server: every shortlisted coin, each on its own best setting. The first numbers appear here within the hour.";
+    ["luEdge", "luLock", "luRounds", "luN"].forEach(id => mbSet(id, "—")); ["luRows", "luFeed"].forEach(id => $("#" + id).replaceChildren());
+    $("#luCurve").innerHTML = '<div class="empty">Waiting for the first hourly snapshot.</div>'; return;
+  }
+  const first = U.map(x => x.v.started_utc).sort()[0], hrs = mbHrs(first, D.generated_utc);
+  $("#luLead").textContent = `${U.length} coins have run on paper since ${mbT(first)} UTC (${luHours(hrs)}). Each trades 40% of a $25,000 position ($10,000 at its starting price) with the setting the year study ranked best for that coin. Same live MEXC trades and order books as a real account; simulated money.`;
+  mbSet("luEdge", fUs(tot.edge), cls(tot.edge)); $("#luEdgeN").textContent = `${tot.ahead} of ${U.length} coins ahead · all coins together, USDT`;
+  mbSet("luLock", fUs(tot.lock), cls(tot.lock)); $("#luLockN").textContent = "kept whatever the price does next";
+  mbSet("luRounds", fQ(tot.rounds)); $("#luRoundsN").textContent = "sold, then bought back lower";
+  mbSet("luN", String(U.length)); $("#luNN").textContent = `of ${order.length || U.length} shortlisted · $10,000 slice each`;
+  // all coins together, hourly: each coin's last known value carried forward
+  if (luChart) { luChart.remove(); luChart = null; }
+  const hours = new Map(); U.forEach((x, i) => (x.v.snaps || []).forEach(sn => { const h = sn[0].slice(0, 13); if (!hours.has(h)) hours.set(h, {}); hours.get(h)[i] = sn[2] - sn[3]; }));
+  const keys = [...hours.keys()].sort(), last = {}, pts = keys.map(h => { Object.assign(last, hours.get(h)); return { time: mbSec(h + ":00:00Z"), value: Object.values(last).reduce((a, b) => a + b, 0) }; });
+  const box = $("#luCurve");
+  if (typeof LightweightCharts !== "undefined" && pts.length >= 2) {
+    box.replaceChildren(); luChart = mbChartMake(box);
+    luChart.addAreaSeries({ lineColor: css("--accent"), topColor: css("--accent-soft"), bottomColor: "transparent", lineWidth: 3, priceLineVisible: false, priceFormat: usdFmt }).setData(pts);
+    luChart.timeScale().fitContent(); mbLegend("luLegend", [[css("--accent"), "All coins together: USDT ahead of just holding, hourly"]]);
+  } else { mbLegend("luLegend", []); box.innerHTML = '<div class="empty">The chart starts after the second hourly snapshot.</div>'; }
+  // the table
+  if (!S.luSel || !U.some(x => x.k === S.luSel)) S.luSel = U[0].k;
+  const body = $("#luRows"); body.replaceChildren();
+  const f0 = v => isNum(v) ? (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(Math.round(v)).toLocaleString("en-US") : "—";
+  U.forEach(x => { const v = x.v, bt = TU[x.sym] && TU[x.sym].results && TU[x.sym].results[v.setup], mv = 100 * (v.price / v.start_price - 1), tr = document.createElement("tr");
+    tr.className = "lu-row" + (x.k === S.luSel ? " sel" : ""); tr.tabIndex = 0; tr.setAttribute("role", "button"); tr.setAttribute("aria-pressed", x.k === S.luSel ? "true" : "false");
+    tr.append(td(x.coin, "lu-coin"), td(mbSetupName(v.setup), "lu-set", mbSetupRule(v.settings)), td(luHours(mbHrs(v.started_utc, D.generated_utc)), "num"), td(fPct(mv), "num " + cls(mv)),
+      td(String(v.rounds), "num"), td(fUs(v.profit_usdt), "num " + cls(v.profit_usdt)), td(fUs(v.vs_hold_usdt), "num " + cls(v.vs_hold_usdt)),
+      td(bt && bt.real ? f0(bt.real.vs_hold) + " / " + f0(bt.mirror.vs_hold) : "—", "num"), td(String(v.open_orders), "num"));
+    const pick = () => { S.luSel = x.k; renderLiveU(); }; tr.onclick = pick; tr.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } };
+    body.append(tr); });
+  $("#luTblN").textContent = "updated " + mbAgo(D.generated_utc);
+  // the selected coin
+  const x = U.find(z => z.k === S.luSel), v = x.v;
+  $("#luCoinT").textContent = `${x.coin} · ${mbSetupName(v.setup)}`; $("#luCoinN").textContent = `since ${mbT(v.started_utc)} UTC`;
+  $("#luRule").textContent = mbSetupRule(v.settings);
+  if (luCChart) { luCChart.remove(); luCChart = null; }
+  const cb = $("#luCCurve");
+  if (typeof LightweightCharts !== "undefined" && (v.snaps || []).length >= 2) {
+    cb.replaceChildren(); luCChart = mbChartMake(cb);
+    luCChart.addAreaSeries({ lineColor: css("--accent"), topColor: css("--accent-soft"), bottomColor: "transparent", lineWidth: 2, priceLineVisible: false, priceFormat: usdFmt, priceScaleId: "right" }).setData(mbPts(v.snaps, s => s[2] - s[3]));
+    luCChart.addLineSeries({ color: css("--muted"), lineWidth: 1, lineStyle: 2, priceLineVisible: false, priceFormat: { type: "custom", formatter: fPx, minMove: 1e-8 }, priceScaleId: "left" }).setData(mbPts(v.snaps, s => s[1]));
+    luCChart.applyOptions({ leftPriceScale: { visible: true } }); luCChart.timeScale().fitContent();
+    mbLegend("luCLegend", [[css("--accent"), "USDT ahead of just holding (right)"], [css("--muted"), x.coin + " price (left)"]]);
+  } else { mbLegend("luCLegend", []); cb.innerHTML = '<div class="empty">The chart starts after the second hourly snapshot.</div>'; }
+  const feed = $("#luFeed"); feed.replaceChildren(); const ev = v.events || [];
+  const say = { sold: e => ["S", "down", `Sold ${fQ(e[5])} ${x.coin} at ${fPx(e[4])}`], bought: e => ["B", "up", `Bought back ${fQ(e[5])} ${x.coin} at ${fPx(e[4])} · ${fUs(e[6])} USDT`],
+    chase: e => ["↑", "down", `Bought back at the market at ${fPx(e[4])}: the price ran up`], regime: e => ["~", "info", "Market state: " + e[7]], ladder: e => ["L", "info", `Sell ladder opened from ${fPx(e[4])}`],
+    rebase: e => ["R", "info", `Base moved to ${fPx(e[4])}`], revise: e => ["R", "info", `Base revised to ${fPx(e[4])}`], "btc guard": e => ["!", "down", "BTC guard: sells pulled"] };
+  ev.slice(0, 40).forEach(e => { const f = say[e[1]], [ic, kind, t] = f ? f(e) : ["i", "info", e[1]], li = document.createElement("li"), i = document.createElement("span"), b = document.createElement("div"), sm = document.createElement("small");
+    i.className = "ic " + kind; i.textContent = ic; b.textContent = t;
+    const note = e[1] === "regime" || /^(cycle|ladder)$/.test(e[7] || "") ? "" : e[7] || ""; sm.textContent = mbT(e[0]) + " UTC" + (note ? " · " + note : ""); b.append(sm); li.append(i, b); feed.append(li); });
+  if (!ev.length) { const li = document.createElement("li"); li.className = "empty"; li.textContent = "No activity yet: the sell orders are resting above the price."; feed.append(li); }
+  $("#luFeedN").textContent = ev.length ? `newest ${Math.min(40, ev.length)}` : "";
+}
 function renderMMBee() {
   renderMMHead();
   if (S.mm === undefined) return;
@@ -2459,7 +2574,7 @@ function renderMMBee() {
   mbFeed("mbFeed", B.events, c); $("#mbFeedNote").textContent = `${(B.events || []).length} events`;
   const cb = $("#mbCompare"); cb.replaceChildren();
   const ORD = ["bee_pro", "bee", "bee_plus", "base", "tight", "wide"], oi = n => (ORD.indexOf(n) + 1) || 99;
-  Object.entries(V).sort((a, b) => oi(a[0]) - oi(b[0])).forEach(([nm, v]) => { const s = v.settings || {};
+  Object.entries(V).filter(([nm]) => ORD.includes(nm)).sort((a, b) => oi(a[0]) - oi(b[0])).forEach(([nm, v]) => { const s = v.settings || {};
     const rule = s.mode === "bee" || nm === "bee" ? `Sell first +${(100 * s.first).toFixed(0)}%, then every ${(100 * s.gap).toFixed(0)}%; buy −${(100 * s.rebuy).toFixed(1)}%, sell +${(100 * s.resell).toFixed(0)}%` : `Grid every ${(100 * (s.step || 0)).toFixed(1)}%, ${s.levels} levels × ${fQ(s.size)}`;
     const tr = document.createElement("tr"); tr.append(td(MB_NAME[nm] || nm), td(rule, ""), td(mbHrs(v.started_utc, D.generated_utc).toFixed(1) + " h", "num"), td(String(v.rounds), "num"), td(fUs(v.profit_usdt), "num " + cls(v.profit_usdt)), td(fUs(v.vs_hold_usdt), "num " + cls(v.vs_hold_usdt)), td(String(v.fills), "num"), td(String(v.open_orders), "num")); cb.append(tr); });
   mbFills("mbFills", B.fill_list, `No fills yet. The nearest sell rests ${fPct(100 * (Math.min(...units.filter(u => u[2] === "selling").map(u => u[4]).concat([Infinity])) / px - 1))} above the price.`);
@@ -2469,7 +2584,7 @@ function renderMMBee() {
   if (typeof LightweightCharts !== "undefined" && (B.snaps || []).length >= 2) {
     box.replaceChildren(); mbChart = mbChartMake(box);
     const cols = { bee_pro: css("--accent"), bee: css("--up"), bee_plus: css("--warn"), base: css("--muted"), tight: css("--cold"), wide: css("--line") }, leg = [];
-    Object.entries(V).forEach(([nm, v]) => { const pts = mbPts(v.snaps, x => x[2] - x[3]); if (pts.length < 2) return; const col = cols[nm] || css("--cold");
+    Object.entries(V).filter(([nm]) => cols[nm]).forEach(([nm, v]) => { const pts = mbPts(v.snaps, x => x[2] - x[3]); if (pts.length < 2) return; const col = cols[nm] || css("--cold");
       mbChart.addLineSeries({ color: col, lineWidth: nm.startsWith("bee") ? 2 : 1, priceLineVisible: false, lastValueVisible: nm === vk, priceFormat: usdFmt }).setData(pts); leg.push([col, MB_NAME[nm] || nm]); });
     mbLegend("mbLegend", leg); mbChart.timeScale().fitContent();
   } else { mbLegend("mbLegend", []); box.innerHTML = '<div class="empty">The chart starts after the second hourly snapshot.</div>'; }
@@ -2610,9 +2725,7 @@ function renderMMBots() {
   // new positions: the tuning study and the paper runs
   const TU = D.tune, npCard = $("#mbxNpCard"), f0 = v => isNum(v) ? (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(Math.round(v)).toLocaleString("en-US") : "—";
   if (TU && TU.totals && npCard) { npCard.hidden = false;
-    const NAMES = { "pro+chase8": "MM-Bee Pro + buy back at +8%", "pro+chase15": "MM-Bee Pro + buy back at +15%", "v2+chase8": "MM-Bee v2 + buy back at +8%", pro: "MM-Bee Pro", plus: "MM-Bee+", v2: "MM-Bee v2" };
-    const nm = k => { if (NAMES[k]) return NAMES[k]; const fam = { pro: "MM-Bee Pro", plus: "MM-Bee+", v2: "MM-Bee v2" }[k.split("+")[0]] || k.split("+")[0], ch = /chase(\d+)/.exec(k);
-      return fam + (ch ? " + buy back at +" + ch[1] + "%" : "") + (/\+trend/.test(k) ? " + sells less in uptrends" : ""); };
+    const nm = mbSetupName;
     const nc = Object.keys(TU.coins || {}).length;
     $("#mbxNpLead").textContent = `For new long positions ($${fQ(TU.position_usd)} a coin, ${Math.round(100 * TU.share)}% market-made): the bots were run over the past year on ${nc} coins, and on the same year reversed (a strong rally). Plain market making falls far behind holding in a rally, because it sells into it. The fix is the buy-back: when the price runs 8% above a coin we sold, the bot buys it back at once (a small, capped loss, 0.1% fee) instead of missing the move.`;
     const tb = $("#mbxNpTot"); tb.replaceChildren();
@@ -3638,7 +3751,7 @@ const fUsd2 = v => isNum(v) ? (v < 0 ? "−$" : "$") + Math.abs(v).toLocaleStrin
 // ---------- routing + controls
 const VIEWS = ["me", "overview", "world", "bot", "mmbee", "lab", "highlights", "screener", "watchlist", "signals", "listings", "pair"];
 // sub-sections inside a tab (#bot/record, #signals/library ...); old tab names still open the right place
-const SUBS = { bot: ["portfolio", "each", "record", "fade"], signals: ["latest", "library"], mmbee: ["bots", "live", "backtest"] };
+const SUBS = { bot: ["portfolio", "each", "record", "fade"], signals: ["latest", "library"], mmbee: ["bots", "live", "livu", "backtest"] };
 const ALIAS = { top50: ["overview", "t50"], record: ["bot", "record"], library: ["signals", "library"] };
 S.sub = { bot: "portfolio", signals: "latest", mmbee: "bots" };
 function setSub(view, sub) {
@@ -3647,7 +3760,7 @@ function setSub(view, sub) {
   S.sub[view] = sub;
   $$('.sub-nav[data-for="' + view + '"] button').forEach(b => { const on = b.dataset.s === sub; b.setAttribute("aria-selected", String(on)); if (on && !$("#v-" + view).hidden) b.scrollIntoView({ block: "nearest", inline: "nearest" }); });
   $$("#v-" + view + " > .sub-panel").forEach(x => { x.hidden = x.dataset.s !== sub; });
-  ({ bot: { portfolio: renderBot, each: renderBot, record: renderRecord, fade: renderBot }, signals: { latest: renderSignals, library: renderLibrary }, mmbee: { bots: renderMMBots, live: renderMMBee, backtest: renderMBBacktest } })[view][sub]();
+  ({ bot: { portfolio: renderBot, each: renderBot, record: renderRecord, fade: renderBot }, signals: { latest: renderSignals, library: renderLibrary }, mmbee: { bots: renderMMBots, live: renderMMBee, livu: renderLiveU, backtest: renderMBBacktest } })[view][sub]();
 }
 $$(".sub-nav button").forEach(b => b.onclick = () => { location.hash = b.closest(".sub-nav").dataset.for + "/" + b.dataset.s; });
 function show(v) {

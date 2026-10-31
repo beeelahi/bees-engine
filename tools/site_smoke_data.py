@@ -132,13 +132,20 @@ def paper_mm(out_data):
         runs.append(MP.Variant(vn, bc, feed, None, log=lambda *a: None))
     np_c = dict(MP.np_coin("ZIGUSDT", feed, data=tmp), btc_guard=0, drip_max=0)       # a new-position run (Pro + buy-back)
     runs.append(MP.Variant("np_aaausdt", np_c, feed, None, log=lambda *a: None))
+    for sym, best in (("AAAUSDT", "pro+chase8"), ("BBBUSDT", "v2+chase15")):     # Live Paper U runs
+        feed.refresh(sym)
+        un, uc = MP.u_coin(sym, best, feed, data=tmp)
+        uv = MP.Variant("u_" + sym.lower(), dict(uc, btc_guard=0, vol_fast=0, drip_max=0), feed, None, log=lambda *a: None)
+        uv.ex.set_meta("u_setting", un)
+        runs.append(uv)
     rnd, px = random.Random(11), 0.0420
     for i in range(72 * 4):
         clock[0] += 900_000
         px = max(0.03, px * (1 + rnd.gauss(0.0004, 0.012)))
         pub.bk = ([(px * 0.9995, 1e7)], [(px * 1.0005, 1e7)])
         pub.tr = [(clock[0] - 1000, px * (1 + rnd.choice((-1, 1)) * 0.004), 1e6, rnd.choice(("BUY", "SELL")))]
-        feed.refresh("ZIGUSDT")
+        for sym in ("ZIGUSDT", "AAAUSDT", "BBBUSDT"):
+            feed.refresh(sym)
         for v in runs:
             v.step()
             if i % 4 == 0:

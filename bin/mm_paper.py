@@ -310,7 +310,27 @@ NP_SETTINGS = {"recycle": "ladder", "vol_fast": 0, "first": 0.04, "gap": 0.01, "
 def np_coin(sym, feed, data=DATA):
     """MM-Bee settings for a new-position paper run: 20 units that together are 40% of a $25K position at the price
     when the run first started (kept from its database on restarts)."""
-    path, coins = os.path.join(data, f"mm_paper_np_{sym.lower()}.db"), None
+    coins = _np_size(os.path.join(data, f"mm_paper_np_{sym.lower()}.db"), sym, feed, data)
+    return dict(mm_bee.DEFAULTS, **NP_SETTINGS, symbol=sym, size=coins / NP_UNITS, paper_coins=coins, paper_usdt=0.0)
+
+
+def _meta(path, k):
+    """One p_meta value of a paper database, or None."""
+    if not os.path.exists(path):
+        return None
+    con = sqlite3.connect(path)
+    try:
+        if not con.execute("SELECT 1 FROM sqlite_master WHERE name='p_meta'").fetchone():
+            return None
+        r = con.execute("SELECT v FROM p_meta WHERE k=?", (k,)).fetchone()
+        return json.loads(r[0]) if r else None
+    finally:
+        con.close()
+
+
+def _np_size(path, sym, feed, data=DATA):
+    """Coins in the traded slice: 40% of $25K at the run's first price (kept from its database on restarts)."""
+    coins = None
     if os.path.exists(path):
         con = sqlite3.connect(path)
         try:
@@ -323,7 +343,7 @@ def np_coin(sym, feed, data=DATA):
         if coins is not None and coins * st["mid"] < 0.9 * NP_POSITION * NP_SHARE:
             arch = os.path.join(data, "archive")              # sized for an older share (25%): kept, and started afresh
             os.makedirs(arch, exist_ok=True)
-            os.replace(path, os.path.join(arch, f"mm_paper_np_{sym.lower()}_{int(round(100 * coins * st['mid'] / NP_POSITION))}pct.db"))
+            os.replace(path, os.path.join(arch, os.path.basename(path)[:-3] + f"_{int(round(100 * coins * st['mid'] / NP_POSITION))}pct.db"))
             coins = None
     if coins is None:
         feed.refresh(sym)
@@ -332,7 +352,53 @@ def np_coin(sym, feed, data=DATA):
             raise RuntimeError("no order book")
         mid = (b[0][0] + a[0][0]) / 2
         coins = NP_POSITION * NP_SHARE / mid
-    return dict(mm_bee.DEFAULTS, **NP_SETTINGS, symbol=sym, size=coins / NP_UNITS, paper_coins=coins, paper_usdt=0.0)
+    return coins
+
+
+# Live Paper U (Bilal, 31 Oct 2026): every coin of the new-position study (research/mm_bee_tune.py, 15 coins), each on
+# the setting that study ranked best FOR IT (by the worse of the falling and the rising year), with the same position
+# (40% of $25K in 20 units). A coin's setting is fixed when its run starts and kept in its database, so a later rerun
+# of the study cannot change a test that is running. Paper only, public MEXC prices, no key.
+TUNE = os.path.join(DATA, "mm_bee_tune.json")
+U_FAMILIES = {"v2": {"vol_fast": 0}, "plus": {"recycle": "ladder", "vol_fast": 0},
+              "pro": {"recycle": "ladder", "vol_fast": 0, "first": 0.04, "gap": 0.01, "rebuy": 0.045, "resell": 0.045}}   # = mm_bee_tune.FAMILIES
+
+
+def u_settings(name):
+    """The study's setting from its name, e.g. "pro+chase15+trend" (same rules as mm_bee_tune.settings)."""
+    fam, *rest = name.split("+")
+    s = dict(U_FAMILIES[fam], chase=0.0)
+    for p in rest:
+        if p.startswith("chase") and p[5:].isdigit():
+            s["chase"] = int(p[5:]) / 100
+        elif p == "trend":
+            f, g = s.get("first", mm_bee.DEFAULTS["first"]), s.get("gap", mm_bee.DEFAULTS["gap"])
+            s["regimes"] = {"up": {"first": 2 * f, "gap": 2 * g}}
+        else:
+            raise ValueError(f"unknown part {p!r} in setting {name!r}")
+    return s
+
+
+def u_plan(path=None):
+    """{coin: best setting} from the study, in its order; {} when the study has not run."""
+    try:
+        with open(path or TUNE) as f:
+            t = json.load(f)
+        return {s: c["best"] for s, c in t.get("coins", {}).items() if c.get("best")}
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+def u_coin(sym, best, feed, data=DATA):
+    """(setting name, MM-Bee settings) for a Live Paper U run; a running coin keeps the setting it started with."""
+    path = os.path.join(data, f"mm_paper_u_{sym.lower()}.db")
+    name = _meta(path, "u_setting") or best
+    coins = _np_size(path, sym, feed, data)
+    c = dict(mm_bee.DEFAULTS, **u_settings(name), units=NP_UNITS, extra_ladders=0, max_usdt=0, drip_min=0.5, drip_max=1.5,
+             symbol=sym, size=coins / NP_UNITS, paper_coins=coins, paper_usdt=0.0)
+    if sym == "BTCUSDT":
+        c["btc_guard"] = 0                       # the BTC guard watches BTC itself (as in the study)
+    return name, c
 
 
 def bee_coin(c, cfg, extra=None):
@@ -381,7 +447,8 @@ class Variant:
                                        "settings": {k: self.coin.get(k) for k in ("mode", "step", "spread_bps", "levels", "size", "floor", "band", "buy_rungs",
                                                                                "units", "first", "gap", "gap_from", "rebuy", "resell", "idle_hours", "max_usdt", "extra_ladders",
                                                                                "rebase_hours", "stagger_first", "stagger_delay_s", "min_move", "recycle", "acc_units",
-                                                                               "btc_guard", "btc_pause_h", "vol_fast", "vol_calm", "drip_min", "drip_max")
+                                                                               "btc_guard", "btc_pause_h", "vol_fast", "vol_calm", "drip_min", "drip_max",
+                                                                               "chase", "max_chases_day", "regimes")
                                                     if self.coin.get(k) is not None}})
         if mid:
             self.ex.set_meta("last_mid", mid)
@@ -518,10 +585,22 @@ def main():
             np_syms.append(sym)
         except Exception as e:
             print(f"mm_paper: new position {sym} skipped: {str(e)[:160]}")
+    u_syms = []
+    for sym, best in u_plan().items():           # Live Paper U: each shortlisted coin on its own best setting
+        try:
+            nm, uc = u_coin(sym, best, feed)
+            v = Variant(f"u_{sym.lower()}", uc, feed, cfg.get("paper_fees"))
+            if v.ex.meta("u_setting") is None:
+                v.ex.set_meta("u_setting", nm)
+                v.con.commit()
+            runs.append(v)
+            u_syms.append(sym)
+        except Exception as e:
+            print(f"mm_paper: Live Paper U {sym} skipped: {str(e)[:160]}")
     print(f"mm_paper: started, {len(runs)} variant(s), loop {LOOP_S}s, no API key in use")
     while True:
         try:
-            for sym in [c["symbol"] for c in good] + np_syms:
+            for sym in dict.fromkeys([c["symbol"] for c in good] + np_syms + u_syms):
                 feed.refresh(sym)
         except Exception as e:
             print(f"mm_paper: market data error: {str(e)[:160]}")
