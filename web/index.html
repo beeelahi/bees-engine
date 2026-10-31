@@ -235,6 +235,7 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .hx-tags { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--muted); }
 .hx-tags span::before { content: "•"; margin-right: 5px; color: var(--cold); }
 .hx-tags span.ok::before { content: "✓"; color: var(--up); } .hx-tags span.no::before { content: "✗"; color: var(--down); }
+.hx-tags span.dup::before { content: "▲"; color: var(--up); font-size: 10px; } .hx-tags span.ddn::before { content: "▼"; color: var(--down); font-size: 10px; }
 .hx-foot { display: flex; justify-content: space-between; gap: 10px; font-size: 11.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8px; margin-top: auto; }
 .hx-foot .hx-go { color: var(--accent); white-space: nowrap; }
 .hx-bar { position: relative; height: 6px; border-radius: 999px; background: linear-gradient(90deg, var(--up-soft), rgba(93,107,152,.25), var(--down-soft)); }
@@ -271,6 +272,8 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .hl-nav::-webkit-scrollbar { display: none; }
 .hl-nav button { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); background: rgba(255,255,255,0.03); color: var(--muted); border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
 .hl-nav button:hover { color: var(--fg); border-color: rgba(255,255,255,0.22); }
+.hl-top button { font-size: 14px; font-weight: 600; padding: 8px 16px; }
+.hl-subnav { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); } .hl-subnav button { font-size: 12.5px; padding: 5px 12px; }
 .hl-nav button[aria-selected="true"] { background: rgba(4,183,248,0.16); border-color: rgba(4,183,248,0.55); color: var(--fg); }
 .hl-nav button i { font-style: normal; font-size: 11px; font-weight: 600; min-width: 18px; text-align: center; padding: 1px 6px; border-radius: 999px; background: rgba(255,255,255,0.10); color: var(--fg); }
 .hl-nav button i:empty { display: none; }
@@ -651,20 +654,31 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
   <section class="view" id="v-highlights" hidden>
     <div class="card hl-head">
       <div class="card-head"><h2>Trade Ideas</h2><span class="note" id="hlHeadNote"></span></div>
-      <p class="note hl-lead">Everything the dashboard flagged, newest first. Tap a card to open its chart. Information only, not financial advice.</p>
-      <div class="hl-nav" id="hlNav" role="tablist" aria-label="Trade Ideas sections">
-        <button type="button" role="tab" data-p="latest">Latest<i></i></button>
+      <p class="note hl-lead">Every setup the dashboard found, one card per coin. Tap a card to open its chart. Information only, not financial advice.</p>
+      <div class="hl-nav hl-top" id="hlNav" role="tablist" aria-label="Trade Ideas sections">
+        <button type="button" role="tab" data-p="setups">Setups<i></i></button>
         <button type="button" role="tab" data-p="shortlist" id="hlNavSL" hidden>Bee's Shortlist<i></i></button>
-        <button type="button" role="tab" data-p="calls">Channel calls<i></i></button>
-        <button type="button" role="tab" data-p="breakouts">Long-term breakouts<i></i></button>
-        <button type="button" role="tab" data-p="patterns">H&amp;S and setups<i></i></button>
-        <button type="button" role="tab" data-p="cups">Cup &amp; handle<i></i></button>
-        <button type="button" role="tab" data-p="doubles">Double tops &amp; bottoms<i></i></button>
         <button type="button" role="tab" data-p="moves">Big 4h moves<i></i></button>
         <button type="button" role="tab" data-p="ideas">Signal confluence<i></i></button>
-        <button type="button" role="tab" data-p="channels">Channels<i></i></button>
-        <button type="button" role="tab" data-p="bots">Bots<i></i></button>
       </div>
+      <div class="hl-nav hl-subnav" id="hlSub" role="tablist" aria-label="Setup types">
+        <button type="button" role="tab" data-p="board">By coin<i></i></button>
+        <button type="button" role="tab" data-p="calls">Channel calls<i></i></button>
+        <button type="button" role="tab" data-p="breakouts">Long-term breakouts<i></i></button>
+        <button type="button" role="tab" data-p="patterns">Head &amp; shoulders<i></i></button>
+        <button type="button" role="tab" data-p="cups">Cup &amp; handle<i></i></button>
+        <button type="button" role="tab" data-p="doubles">Double tops &amp; bottoms<i></i></button>
+        <button type="button" role="tab" data-p="channels">All channels<i></i></button>
+        <button type="button" role="tab" data-p="latest">Everything, newest first<i></i></button>
+        <button type="button" role="tab" data-p="bots">Bot activity<i></i></button>
+      </div>
+    </div>
+    <div class="hl-panel" data-panel="board" hidden>
+      <div class="hx-sec">
+        <div><h2>Setups by coin</h2><p>Every live setup (channel calls, long-term breakouts, head &amp; shoulders, cups, double tops and bottoms, early tops and bottoms, the Shortlist), grouped per coin. When setups disagree, the card says so.</p></div>
+        <div class="hx-sec-r"><div class="seg" id="hxBoardDir"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="up" aria-pressed="false">Bullish</button><button type="button" data-v="down" aria-pressed="false">Bearish</button><button type="button" data-v="mixed" aria-pressed="false">Mixed</button></div></div>
+      </div>
+      <div class="hx-grid" id="hxGrid-board"></div>
     </div>
     <div class="hl-panel" data-panel="latest" hidden>
       <div class="hx-sec">
@@ -1877,7 +1891,9 @@ function renderChannels() {
   renderCallsAll(); renderMoves(); renderHs(); renderLtbo();
 }
 // ---------- Highlights: one feed + sections (#highlights/<section>)
-const HL_PANELS = ["latest", "shortlist", "calls", "breakouts", "patterns", "cups", "doubles", "moves", "ideas", "channels", "bots"];
+const HL_TOP = ["setups", "shortlist", "moves", "ideas"];
+const HL_SUBS = ["board", "calls", "breakouts", "patterns", "cups", "doubles", "channels", "latest", "bots"];     // the views inside "Setups"
+const HL_PANELS = HL_TOP.concat(HL_SUBS);
 const slRows = () => (S.pubSL && S.pubSL.rows) || (SL.owner ? SL.docs : []) || [];
 function hlFeedItems() {
   const cat = h => isBotHl(h) ? "bot" : ["chan_call", "ltbo", "hs_event"].includes(h.kind) ? h.kind : "sig";
@@ -1956,18 +1972,24 @@ function hlCounts() {
   set("moves", ((S.mv && S.mv.rows) || []).filter(x => !/_30d$/.test(x.kind) && x.t * 1000 > Date.now() - 864e5).length);
   const ld = latestIdeaDay(); set("ideas", ideas().filter(x => x.date === ld).length);
   set("bots", S.hl.filter(isBotHl).filter(h => S.ov && h.period_start >= S.ov.last_date).length);
-  $$("#hlNav button").forEach(b => { const v = n[b.dataset.p]; b.querySelector("i").textContent = v ? String(v) : "";
+  set("board", boardCoins().length); set("setups", n.board);
+  $$("#hlNav button, #hlSub button").forEach(b => { const v = n[b.dataset.p]; b.querySelector("i").textContent = v ? String(v) : "";
     b.title = { latest: "new since your last visit", shortlist: "active picks", calls: "current channel calls", breakouts: "in the last 30 days", patterns: "active head-and-shoulders patterns", cups: "cups near or through the rim (daily and weekly)", doubles: "double tops and bottoms near or through the neckline (daily and weekly)",
-      moves: "in the last 24 hours", ideas: "from the latest daily close", bots: "bot actions at the latest daily close" }[b.dataset.p] || ""; });
+      moves: "in the last 24 hours", ideas: "from the latest daily close", bots: "bot actions at the latest daily close", board: "coins with a live setup", setups: "coins with a live setup" }[b.dataset.p] || ""; });
 }
 function setHlPanel(p) {
-  if (!HL_PANELS.includes(p) || (p === "shortlist" && $("#hlNavSL").hidden)) p = "latest";
+  if (!HL_PANELS.includes(p) || (p === "shortlist" && $("#hlNavSL").hidden)) p = "setups";
+  if (p === "setups") p = S.hlSub || "board";
+  const top = HL_SUBS.includes(p) ? "setups" : p;
+  if (top === "setups") S.hlSub = p;
   S.hlPanel = p;
-  $$("#hlNav button").forEach(b => { const on = b.dataset.p === p; b.setAttribute("aria-selected", String(on)); if (on && b.scrollIntoView && !$("#v-highlights").hidden) b.scrollIntoView({ block: "nearest", inline: "nearest" }); });
+  $("#hlSub").hidden = top !== "setups";
+  $$("#hlSub button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.p === p)));
+  $$("#hlNav button").forEach(b => { const on = b.dataset.p === top; b.setAttribute("aria-selected", String(on)); if (on && b.scrollIntoView && !$("#v-highlights").hidden) b.scrollIntoView({ block: "nearest", inline: "nearest" }); });
   $$("#v-highlights .hl-panel").forEach(x => { x.hidden = x.dataset.panel !== p; });
   if (p === "shortlist") renderShortlist();
 }
-$$("#hlNav button").forEach(b => b.onclick = () => { location.hash = "highlights/" + b.dataset.p; });
+$$("#hlNav button, #hlSub button").forEach(b => b.onclick = () => { location.hash = "highlights/" + b.dataset.p; });
 segment("hlFeedDir", "v", v => { S.feedDir = v; S.feedLim = 36; renderFeed(); });
 $("#hlFeedKind").onchange = e => { S.feedKind = e.target.value; S.feedLim = 36; renderFeed(); };
 $("#hlFeedQ").oninput = e => { S.feedQ = e.target.value; S.feedLim = 36; renderFeed(); };
@@ -2216,7 +2238,34 @@ function renderPtTable(name, rows) {
       td(isNum(Lt.target) ? Lt.target + "% · " + (Lt.avg_r >= 0 ? "+" : "") + Lt.avg_r.toFixed(2) + "R" : "—", "num " + (isNum(Lt.avg_r) ? cls(Lt.avg_r) : ""))); sb.append(t); });
   if (!sb.children.length) sb.innerHTML = '<tr><td colspan="9" class="empty">Track record not available yet.</td></tr>';
 }
-function renderHx() { hxShortlist(); hxCalls(); hxBreakouts(); hxPatterns(); hxPt("cups"); hxPt("doubles"); hxMoves(); hxIdeas(); hxChannels(); }
+// one card per coin: every live setup on it, with conflicts called out
+function boardCoins() {
+  const by = {}, add = (sym, dir, text, when, go) => { if (!sym) return; (by[sym] = by[sym] || []).push({ dir, text, when: when || "", go }); };
+  const CL = chanData().labels || {}, PL = ptData().labels || {}, PN = ptData().names || {};
+  (callData().rows || []).forEach(x => add(x.symbol, x.side === "long" ? "up" : "down", `Channel call ${x.grade} · ${(CL[x.status] || x.status).toLowerCase()}`, x.added || x.date, "calls"));
+  (ltData().rows || []).filter(x => x.days_since <= 30 && x.grade !== "C" && x.weekly !== "failed").forEach(x => add(x.symbol, "up", `Long-term breakout ${x.grade} · ${x.days_since}d ago`, x.added || x.event_date, "breakouts"));
+  (hsData().rows || []).filter(x => x.status !== "after_break").forEach(x => add(x.symbol, x.kind === "top" ? "down" : "up", (x.kind === "top" ? "H&S top · " : "Inverse H&S · ") + (HS_ST[x.status] || x.status).toLowerCase(), x.added, "patterns"));
+  (ptData().rows || []).filter(x => !ptOld(x.status)).forEach(x => add(x.symbol, x.kind === "top" ? "down" : "up", `${PN[x.kind] || x.kind}${x.tf === "1w" ? " (weekly)" : ""} · ${(PL[x.status] || x.status).toLowerCase()}`, x.added || x.first_date, x.family === "cup" ? "cups" : "doubles"));
+  const wk = S.ov ? new Date(Date.parse(S.ov.last_date) - 7 * 864e5).toISOString().slice(0, 10) : "";
+  const hsSyms = new Set((hsData().rows || []).filter(x => x.status !== "after_break").map(x => x.symbol));
+  (setupData().rows || []).filter(x => x.date >= wk && !(x.kind === "hs_top" && hsSyms.has(x.symbol))).forEach(x => add(x.symbol, x.side === "long" ? "up" : "down", setupLabel(x.kind), x.date, "patterns"));
+  slRows().filter(d => d.status === "active").forEach(d => add(d.symbol, d.side === "short" ? "down" : "up", "Bee's Shortlist " + (d.side === "short" ? "short" : "long"), d.entry_date, "shortlist"));
+  return Object.entries(by).map(([sym, L]) => { const up = L.filter(x => x.dir === "up").length, dn = L.length - up;
+    return { sym, L: L.sort((a, b) => b.when.localeCompare(a.when)), up, dn, dir: up && dn ? "mixed" : up ? "up" : "down", last: L.reduce((m, x) => x.when > m ? x.when : m, "") }; })
+    .sort((a, b) => (b.L.length - a.L.length) || b.last.localeCompare(a.last));
+}
+function hxBoard() {
+  hxSeg("hxBoardDir", "hxBoardDir", hxBoard);
+  const f = S.hxBoardDir || "", all = boardCoins(), rows = all.filter(x => !f || x.dir === f);
+  hxFill("board", rows.map(x => { const mixed = x.dir === "mixed", net = mixed ? null : x.dir;
+    return hxCard({ sym: x.sym, dir: mixed ? "warn" : x.dir, sub: `${x.L.length} setup${x.L.length > 1 ? "s" : ""}`,
+      badges: [chip(mixed ? "Mixed" : x.dir === "up" ? "Bullish" : "Bearish", mixed ? "warn" : x.dir)],
+      head: mixed ? `Setups disagree: ${x.up} bullish, ${x.dn} bearish` : `${x.L.length} ${x.dir === "up" ? "bullish" : "bearish"} setup${x.L.length > 1 ? "s" : ""} agree`,
+      tags: x.L.map(e => [e.text + (e.when ? " · " + e.when.slice(5) : ""), e.dir === "up" ? "dup" : "ddn"]), maxTags: 5,
+      foot: x.last ? "newest " + x.last : "" }); }),
+    "No live setup right now.", all.length ? `${all.length} coins · ${all.filter(x => x.dir === "mixed").length} with setups that disagree` : "");
+}
+function renderHx() { hxBoard(); hxShortlist(); hxCalls(); hxBreakouts(); hxPatterns(); hxPt("cups"); hxPt("doubles"); hxMoves(); hxIdeas(); hxChannels(); }
 function renderHighlights() {
   renderFeed(); hlCounts(); renderHx();
   $("#hlHeadNote").textContent = S.ov ? "Daily close " + S.ov.last_date + " · 4h and live data every 15 minutes" : "";
@@ -2244,7 +2293,7 @@ function renderHighlights() {
     frag.append(t); });
   body.append(frag);
   if (!rows.length) body.innerHTML = `<tr><td colspan="11" class="empty">No ${side === "short" ? "short ideas" : side === "long" ? "long ideas" : "ideas"} in the last ${ru.days || 30} days.</td></tr>`;
-  setHlPanel(S.hlPanel || "latest");
+  setHlPanel(S.hlPanel || "setups");
   $("#hlRules").textContent = `Bot trades: every action the bots take, plus the BTC 200-day filter switching the breakout bots on or off. Trade ideas: a signal counts only if it has a proven record (${ru.min_cases || 100}+ past cases, ${ru.min_cases_per_period || 30}+ both before and after 2022, the same direction of edge in both periods, average 30-day edge of at least ${ru.min_edge_30d_pct || 2}% vs the average pair; the volume-confirmed record is used when the day had a volume surge), on one of the ${ru.top_liquid || 50} most liquid pairs with ${ru.min_history_days || 365}+ days of history. Stablecoins and pegged assets are excluded. Per day: at most ${ru.max_long_per_day || 6} long and ${ru.max_short_per_day || 6} short ideas, ranked by how many proven signals agree, then by strength. Possible tops and bottoms: RSI(14) divergences confirmed 5 days after a daily swing (2 weeks after a weekly one), only at a 90-day (or 26-week) extreme, with the earlier swing overbought (above 70) or oversold (below 30), and skipped once price is already more than 3 ATR away from the swing; accumulation breakouts need the first close above a 90-day range no wider than 2x, on at least 2x normal volume. Everything else stays in the database and the Signals tab.`;
 }
 
@@ -3881,7 +3930,7 @@ $$(".sub-nav button").forEach(b => b.onclick = () => { location.hash = b.closest
 function show(v) {
   let parts = String(v || "").split("/");
   if (parts[0] === "shortlist") { parts = ["highlights", "shortlist"]; try { history.replaceState(null, "", "#highlights/shortlist"); } catch (e) {} }   // the Shortlist now lives in Highlights
-  if (parts[0] === "highlights") { S.hlPanel = HL_PANELS.includes(parts[1]) ? parts[1] : "latest"; v = "highlights"; }
+  if (parts[0] === "highlights") { S.hlPanel = HL_PANELS.includes(parts[1]) ? parts[1] : "setups"; v = "highlights"; }
   let focus = null;
   if (ALIAS[parts[0]]) { const [to, sub] = ALIAS[parts[0]]; if (to === "overview") focus = sub; parts = [to].concat(to === "overview" ? [] : [sub]); v = to;
     try { history.replaceState(null, "", "#" + parts.join("/")); } catch (e) {} }
