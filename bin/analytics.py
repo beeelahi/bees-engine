@@ -581,6 +581,8 @@ def log_highlights(con, stamp):
     current = {s: v for s, v in con.execute("""SELECT u.symbol, t.quote_volume_24h FROM v_universe u
         LEFT JOIN ticker_snapshots t ON t.symbol=u.symbol AND t.snap_date=(SELECT MAX(snap_date) FROM ticker_snapshots)""")}
     prev = {s for (s,) in con.execute("SELECT symbol FROM universe_state")}
+    from binance_sync import stock_symbols            # bStocks moved to their own view (31 Oct 2026): not "left the universe"
+    prev -= stock_symbols(con)
     if prev:  # first run only seeds the state
         for s in set(current) - prev:
             con.execute("INSERT INTO universe_log VALUES(?,?,?,?,?)", (s, "entered", today, stamp, current[s]))

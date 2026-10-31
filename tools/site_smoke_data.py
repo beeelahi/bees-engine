@@ -46,6 +46,18 @@ def main(out):
                         (sym, d.isoformat(), o, max(o, p) * 1.02, min(o, p) * 0.98, p, vq / p, vq, None if ext else 1000,
                          None if ext else vq / p / 2, None if ext else vq / 2, ms, ms + 86_399_999, "smoke"))
         con.execute("INSERT INTO ticker_snapshots VALUES(?,?,?,?,?)", ((d0 + timedelta(days=n - 1)).isoformat(), sym, p, 5e6, "smoke"))
+    for k, (sym, p) in enumerate((("NVDABUSDT", 180.0), ("SPYBUSDT", 600.0))):   # two bStocks (tokenized US stock / ETF): their own view
+        s0 = date(2026, 6, 11) + timedelta(days=7 * k)
+        con.execute("INSERT INTO pairs(symbol, token, status, first_seen, backfilled, first_candle) VALUES(?,?,?,?,1,?)",
+                    (sym, sym[:-4], "TRADING", s0.isoformat(), s0.isoformat()))
+        for i in range((date.today() - s0).days - 1):
+            d = s0 + timedelta(days=i)
+            o = p
+            p = max(0.01, p * (1 + rnd.gauss(0.0008, 0.015)))
+            ms = int(B.d2ms(d.isoformat()))
+            con.execute("INSERT INTO daily VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (sym, d.isoformat(), o, max(o, p) * 1.01, min(o, p) * 0.99, p, 3e6 / p, 3e6, 500, 1.5e6 / p, 1.5e6, ms, ms + 86_399_999, "smoke"))
+        con.execute("INSERT INTO ticker_snapshots VALUES(?,?,?,?,?)", ((d0 + timedelta(days=n - 1)).isoformat(), sym, p, 3e6, "smoke"))
     con.commit()
     con.execute(f"CREATE VIEW IF NOT EXISTS v_universe AS {B.FILTERED_SQL}")
     A.run(con, verbose=False)

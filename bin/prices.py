@@ -19,7 +19,8 @@ def _r(x):
 
 
 def build(con, api):
-    uni = {s for (s,) in con.execute("SELECT symbol FROM latest WHERE in_universe=1")}
+    from binance_sync import stock_symbols
+    uni = {s for (s,) in con.execute("SELECT symbol FROM latest WHERE in_universe=1")} | stock_symbols(con, trading_only=True)
     rows = {}
     for t in api("/api/v3/ticker/24hr"):
         s = t.get("symbol")

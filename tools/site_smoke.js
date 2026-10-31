@@ -12,7 +12,7 @@ const server = http.createServer((q, r) => { const u = decodeURIComponent(q.url.
   r.writeHead(200, { "Content-Type": TYPES[path.extname(f)] || "application/octet-stream" }); fs.createReadStream(f).pipe(r); });
 const ROUTES = ["overview", "world", "highlights", "highlights/shortlist", "highlights/calls", "highlights/breakouts", "highlights/patterns", "highlights/cups", "highlights/doubles", "highlights/moves",
   "highlights/ideas", "highlights/channels", "highlights/bots", "bot", "mmbee", "mmbee/bots", "mmbee/live", "mmbee/livu", "mmbee/backtest", "bot/each", "bot/record", "bot/fade", "signals", "signals/library", "screener", "watchlist",
-  "listings", "lab", "pair/BTCUSDT/1d", "pair/BTCUSDT/1w", "pair/BTCUSDT/1M", "pair/BTCUSDT/4h", "pair/BTCUSDT/1h", "pair/ZIGUSDT/1d", "me",
+  "listings", "stocks", "pair/NVDABUSDT/1d", "lab", "pair/BTCUSDT/1d", "pair/BTCUSDT/1w", "pair/BTCUSDT/1M", "pair/BTCUSDT/4h", "pair/BTCUSDT/1h", "pair/ZIGUSDT/1d", "me",
   "top50", "record", "library", "shortlist"];
 (async () => {
   if (!LIVE) await new Promise(ok => server.listen(0, "127.0.0.1", ok));

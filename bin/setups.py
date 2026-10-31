@@ -70,7 +70,8 @@ def _pivots(x, L, R, high):
 def _load(con):
     from binance_sync import STABLE_BASES
     tokens = dict(con.execute("SELECT symbol, token FROM pairs"))
-    excl = excluded_tokens(set(tokens.values())) | set(STABLE_BASES)
+    from binance_sync import stock_tokens
+    excl = excluded_tokens(set(tokens.values())) | set(STABLE_BASES) | stock_tokens(con)    # bStocks: not crypto
     ser = defaultdict(list)
     for s, d, o, h, l, c, v in con.execute("SELECT symbol, date, open, high, low, close, volume_usdt FROM daily ORDER BY symbol, date"):
         if tokens.get(s) not in excl:

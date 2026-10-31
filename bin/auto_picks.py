@@ -74,7 +74,9 @@ def liquid(con, last_date, top=TOP_LIQ):
     frm = _days_before(last_date, 27)
     rows = con.execute("SELECT symbol, AVG(volume_usdt) FROM (SELECT symbol, volume_usdt FROM daily WHERE date>? AND date<=?) "
                        "GROUP BY symbol", (frm, last_date)).fetchall()
-    rows = [(v or 0, s) for s, v in rows if s.endswith("USDT") and s[:-4] not in STABLE]
+    from binance_sync import stock_tokens
+    stocks = stock_tokens(con)                          # bStocks do not take crypto liquidity ranks
+    rows = [(v or 0, s) for s, v in rows if s.endswith("USDT") and s[:-4] not in STABLE and s[:-4] not in stocks]
     rows.sort(reverse=True)
     return {s for _, s in rows[:top]}
 
@@ -100,8 +102,11 @@ def strong_bear(signal_stats):
 
 def liquid_all(con, last_date):
     frm = _days_before(last_date, 27)
+    from binance_sync import stock_tokens
+    stocks = stock_tokens(con)
     return {s for s, v in con.execute("SELECT symbol, AVG(volume_usdt) FROM (SELECT symbol, volume_usdt FROM daily WHERE date>? AND date<=?) "
-                                      "GROUP BY symbol", (frm, last_date)) if (v or 0) >= MIN_ADV and s.endswith("USDT") and s[:-4] not in STABLE}
+                                      "GROUP BY symbol", (frm, last_date)) if (v or 0) >= MIN_ADV and s.endswith("USDT") and s[:-4] not in STABLE
+            and s[:-4] not in stocks}
 
 
 def candidates(screener, signals, signal_stats, last_date, active=(), after=None, side="long"):

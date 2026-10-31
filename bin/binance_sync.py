@@ -41,6 +41,37 @@ MIN_VOL_USDT = 100_000          # 24h quote volume floor for the filtered view
 STABLE_BASES = {"USDC", "FDUSD", "TUSD", "BUSD", "USDP", "DAI", "EUR", "EURI", "AEUR",
                 "GBP", "AUD", "TRY", "BRL", "PAX", "USD1", "XUSD", "USDS", "SUSD", "UST",
                 "BFUSD", "USDE", "PYUSD", "RLUSD", "USDD", "FRAX", "LUSD", "GUSD", "U"}
+# Binance bStocks: tokenized US stocks and ETFs, launched 11 Jun 2026, ticker + "B" (NVDAB, TSLAB, MUB ...). They are
+# not crypto: kept out of the crypto universe (rankings, signals, calls, patterns, divergences) and shown on their own
+# Stocks view (Bilal, 31 Oct 2026). A token is a stock when it ends in "B" and was first listed on or after the launch;
+# a crypto coin ending in "B" that lists later goes in CRYPTO_B.
+STOCKS_SINCE = "2026-06-11"
+CRYPTO_B = set()
+
+
+def is_stock(token, first_listed):
+    return bool(token) and token.endswith("B") and len(token) > 2 and (first_listed or "") >= STOCKS_SINCE and token not in CRYPTO_B
+
+
+def stock_tokens(con):
+    """Tokens of every bStock in the pairs table (empty when there is no pairs table)."""
+    try:
+        return {t for t, fc in con.execute("SELECT token, first_candle FROM pairs") if is_stock(t, fc)}   # first_candle: Binance's first day
+    except sqlite3.Error:
+        return set()
+
+
+def stock_symbols(con, trading_only=False):
+    """Symbols of every bStock pair (empty when there is no pairs table)."""
+    try:
+        return {s for s, t, fc, st in con.execute("SELECT symbol, token, first_candle, status FROM pairs")
+                if is_stock(t, fc) and (st == "TRADING" or not trading_only)}
+    except sqlite3.Error:
+        return set()
+
+
+STOCK_SQL = (f"(p.token LIKE '%B' AND LENGTH(p.token) > 2 AND COALESCE(p.first_candle, '') >= '{STOCKS_SINCE}'"
+             f" AND p.token NOT IN ({','.join(chr(39) + b + chr(39) for b in sorted(CRYPTO_B)) or chr(39) * 2}))")
 HOSTS = ["https://data-api.binance.vision", "https://api.binance.com"]
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -457,7 +488,7 @@ def run_sync(con, force):
 
 
 # ---------------------------------------------------------------- circulating supply (for estimated market cap)
-ENGINE_VERSION = "21"     # bump when engine/bot/export code changes so the next hourly run rebuilds once
+ENGINE_VERSION = "22"     # bump when engine/bot/export code changes so the next hourly run rebuilds once
 SUPPLY_URL = "https://www.binance.com/bapi/asset/v2/public/asset-service/product/get-products?includeEtf=false"
 
 
@@ -537,6 +568,7 @@ JOIN ticker_snapshots t ON t.symbol = p.symbol
  AND t.snap_date = (SELECT MAX(snap_date) FROM ticker_snapshots)
 WHERE p.status = 'TRADING' AND t.quote_volume_24h >= {MIN_VOL_USDT}
   AND p.token NOT IN ({",".join("'" + b + "'" for b in sorted(STABLE_BASES))})
+  AND NOT {STOCK_SQL}
 """
 
 

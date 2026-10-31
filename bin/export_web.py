@@ -79,8 +79,10 @@ def key_highlights(con, days=90):
     the candle was volume-confirmed; (3) it is the strongest such signal for that pair that day (others listed
     as `also`); (4) it ranks in the day's top KEY_PER_DAY by |edge|."""
     since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    raw = con.execute("""SELECT first_seen_utc, symbol, tf, period_start, kind, direction, detail FROM highlight_log
-                         WHERE first_seen_utc >= ? ORDER BY first_seen_utc""", (since,)).fetchall()
+    from binance_sync import STOCK_SQL           # bStocks are on their own view, not in the crypto feed
+    raw = con.execute(f"""SELECT first_seen_utc, symbol, tf, period_start, kind, direction, detail FROM highlight_log
+                         WHERE first_seen_utc >= ? AND symbol NOT IN (SELECT p.symbol FROM pairs p WHERE {STOCK_SQL})
+                         ORDER BY first_seen_utc""", (since,)).fetchall()
     stats = {}
     if exists(con, "signal_stats"):
         for sig, tf, d, var, n, w30, e30, ee, el, ne, nl in con.execute(
@@ -500,7 +502,7 @@ def run(con=None):
     try:                                         # daily divergences (price + RSI + MACD) on the liquid coins, last 10 candles
         import chan_calls
         from binance_sync import STABLE_BASES     # every liquid pair (top 300 by 24h volume), not only those with a channel
-        top = con.execute(f"""SELECT symbol FROM latest WHERE vol_24h_usdt >= 1e6 AND token NOT IN ({",".join("'" + b + "'" for b in sorted(STABLE_BASES))})
+        top = con.execute(f"""SELECT symbol FROM latest WHERE in_universe=1 AND vol_24h_usdt >= 1e6 AND token NOT IN ({",".join("'" + b + "'" for b in sorted(STABLE_BASES))})
                               ORDER BY vol_24h_usdt DESC LIMIT 300""").fetchall()
         liq = {s_: k + 1 for k, (s_,) in enumerate(top)}
         dv = chan_calls.recent_divergences(con, sorted(liq), days=10)
@@ -582,21 +584,37 @@ def run(con=None):
     write(os.path.join(OUT, "listings.json"), {
         # stopped trading: the day the change was seen, or (for pairs halted before tracking began) the day after
         # their last daily candle, marked as estimated
-        "listings": table(con, """SELECT * FROM (SELECT p.symbol, p.token, p.status, p.first_candle,
+        "listings": table(con, f"""SELECT * FROM (SELECT p.symbol, p.token, p.status, p.first_candle,
               CASE WHEN p.status != 'TRADING' THEN COALESCE(p.delisted_on,
                    date((SELECT MAX(date) FROM daily d WHERE d.symbol=p.symbol), '+1 day')) END AS delisted_on,
               CASE WHEN p.status != 'TRADING' AND p.delisted_on IS NULL THEN 1 ELSE 0 END AS delisted_est,
               (SELECT close FROM daily d WHERE d.symbol=p.symbol ORDER BY date DESC LIMIT 1) AS last_close,
               (SELECT quote_volume_24h FROM ticker_snapshots t WHERE t.symbol=p.symbol ORDER BY snap_date DESC LIMIT 1) AS vol_24h_usdt
-              FROM pairs p) WHERE first_candle >= ? OR delisted_on >= ? ORDER BY COALESCE(delisted_on, first_candle) DESC""",
-                          (ago(180), ago(180))),
+              FROM pairs p WHERE NOT {__import__("binance_sync").STOCK_SQL}) WHERE first_candle >= ? OR delisted_on >= ?
+              ORDER BY COALESCE(delisted_on, first_candle) DESC""", (ago(180), ago(180))),     # bStocks: on the Stocks view
         "universe_log": table(con, "SELECT * FROM universe_log WHERE date >= ? ORDER BY date DESC", (ago(180),)),
     })
     write(os.path.join(OUT, "weekly.json"), table(con, "SELECT * FROM weekly_report"))
+    try:                                         # bStocks: tokenized US stocks and ETFs, their own view (not crypto)
+        from binance_sync import stock_symbols, STOCKS_SINCE
+        ss = sorted(stock_symbols(con, trading_only=True))
+        q_ = ",".join("?" * len(ss)) or "''"
+        write(os.path.join(OUT, "stocks.json"), {
+            "since": STOCKS_SINCE,
+            "rows": table(con, f"""SELECT symbol, token, listed, last_date, last_close, ret_1d, ret_7d, ret_30d, ret_90d, vol_24h_usdt,
+                                   last_day_volume_usdt, d_rsi14, d_ema50, d_ema200, d_bull_score FROM latest WHERE symbol IN ({q_})
+                                   ORDER BY vol_24h_usdt DESC""", ss),
+            "delisted": table(con, f"""SELECT p.symbol, p.token, p.first_candle, p.delisted_on FROM pairs p
+                                       WHERE p.status != 'TRADING' AND p.token LIKE '%B' AND COALESCE(p.first_candle, '') >= ?""", (STOCKS_SINCE,))})
+        print(f"export_web: {len(ss)} bStocks")
+    except Exception as e:
+        print("export_web: stocks skipped:", repr(e))
     from binance_sync import STABLE_BASES          # stablecoins (EUR, EURI, RLUSD ...) are never watchlist ideas
     stables = ",".join("'" + b + "'" for b in sorted(STABLE_BASES))
+    from binance_sync import STOCK_SQL
     write(os.path.join(OUT, "watch.json"), table(con, f"""SELECT * FROM watch_hits WHERE date >= ?
-        AND symbol NOT IN (SELECT symbol FROM pairs WHERE token IN ({stables})) ORDER BY date DESC, rvol DESC""", (ago(365),)))
+        AND symbol NOT IN (SELECT symbol FROM pairs WHERE token IN ({stables}))
+        AND symbol NOT IN (SELECT p.symbol FROM pairs p WHERE {STOCK_SQL}) ORDER BY date DESC, rvol DESC""", (ago(365),)))
     write(os.path.join(OUT, "signals.json"), table(con, """
         SELECT tf, period_start, symbol, signal, direction, provisional, close, confirmed, rvol FROM signals
         WHERE warm=1 AND symbol IN (SELECT symbol FROM v_universe)
@@ -610,7 +628,9 @@ def run(con=None):
     cols = ["t", "o", "h", "l", "c", "v", "e21", "e50", "e200", "rsi", "macd", "sig", "rv", "bbu", "bbl", "st", "sa", "sb", "x"]
     bits = [("ema21", 2), ("ema50", 4), ("ema200", 8), ("rsi14", 16), ("macd", 32), ("supertrend", 64), ("ichi_span_b", 128)]
     index, shards = {}, [dict() for _ in range(SHARDS)]
-    for i, sym in enumerate(universe):
+    from binance_sync import stock_symbols       # pair charts: the crypto universe plus the bStocks (their own view)
+    chart_syms = universe + sorted(stock_symbols(con, trading_only=True) - set(universe))
+    for i, sym in enumerate(chart_syms):
         k = i % SHARDS
         index[sym] = f"s{k:02d}.json"
         entry = {}

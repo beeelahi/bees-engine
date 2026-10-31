@@ -55,7 +55,9 @@ def run(con, out_dir, now_ms, stats_path=None):
     if not con.execute("SELECT 1 FROM sqlite_master WHERE name='candles_4h'").fetchone() or not os.path.isdir(out_dir):
         return []
     keep_from = now_ms - KEEP_DAYS * 86_400_000
-    syms = [s for (s,) in con.execute("SELECT symbol FROM h4_state WHERE backfilled=1")]
+    from binance_sync import stock_symbols            # bStocks are not crypto: no move cards for them
+    stocks = stock_symbols(con)
+    syms = [s for (s,) in con.execute("SELECT symbol FROM h4_state WHERE backfilled=1") if s not in stocks]
     liq = []
     for s in syms:
         if s.endswith("USDT") and s[:-4] in STABLE:

@@ -143,6 +143,7 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .mb-best td { font-weight: 600; }
 .lu-row { cursor: pointer; } .lu-row:hover td { background: var(--hover, rgba(127,127,127,.06)); }
 .lu-row.sel td { background: var(--accent-soft); } .lu-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.st-tbl th:nth-child(-n+2), .st-tbl td:nth-child(-n+2) { text-align: left; } .st-tbl th.sorted { color: var(--fg); }
 .lu-coin { font-weight: 700; } .lu-tbl th:nth-child(-n+2) { text-align: left; } .lu-set { min-width: 15rem; }
 .wl-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 12px; }
 .wl-tbl th:nth-child(2), .wl-tbl td:nth-child(2) { text-align: left; }
@@ -429,6 +430,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <a href="#watchlist" data-view="watchlist">Watchlist</a>
       <a href="#signals" data-view="signals">Signals</a>
       <a href="#listings" data-view="listings">Listings</a>
+      <a href="#stocks" data-view="stocks">Stocks</a>
       <a href="#pair" data-view="pair">Pair chart</a>
       <a href="#lab" data-view="lab">Setup Lab</a>
     </nav>
@@ -1203,6 +1205,27 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
         <div class="tbl-wrap" style="max-height: 68vh"><table><thead id="libHead"></thead><tbody id="libBody"></tbody></table></div>
       </div>
       <p class="note" id="libParams"></p>
+    </div>
+  </section>
+
+  <section class="view" id="v-stocks" hidden>
+    <div class="card">
+      <div class="card-head"><h2>US stocks on Binance</h2><span class="note" id="stAsOf"></span></div>
+      <p class="note" style="margin:0 0 14px;max-width:95ch">Binance's tokenized US stocks and ETFs (bStocks, launched June 2026), traded around the clock against USDT. Outside US market hours the token can drift from the stock's last close. They are kept apart from the crypto lists, signals and calls on this site.</p>
+      <div class="grid-kpi">
+        <div class="card kpi"><div class="label">Stocks and ETFs</div><div class="v" id="stN">—</div><div class="note" id="stNN">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Up / down today</div><div class="v" id="stBreadth">—</div><div class="note" id="stBreadthN">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Best today</div><div class="v" id="stBest">—</div><div class="note" id="stBestN">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Worst today</div><div class="v" id="stWorst">—</div><div class="note" id="stWorstN">&nbsp;</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="controls" style="margin-bottom:12px">
+        <input class="search" id="stQ" placeholder="Search, e.g. NVDA" autocomplete="off" aria-label="Search stocks">
+        <div class="seg" id="stType"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="stock" aria-pressed="false">Stocks</button><button type="button" data-v="etf" aria-pressed="false">ETFs</button></div>
+      </div>
+      <div class="tbl-wrap"><table class="st-tbl"><thead><tr><th data-k="tk">Ticker</th><th data-k="type">Type</th><th data-k="px" title="Live price (refreshes every 15 minutes), else the last daily close">Price</th><th data-k="d1">1D</th><th data-k="w1">7D</th><th data-k="m1">30D</th><th data-k="m3">90D</th><th data-k="vol" title="Last 24 hours, USDT">Volume</th><th data-k="rsi" title="Daily RSI(14)">RSI</th><th data-k="listed">Listed</th></tr></thead><tbody id="stBody"></tbody></table></div>
+      <p class="note" id="stFoot" style="margin-top:10px">Tap a row for its chart. Click a column to sort.</p>
     </div>
   </section>
 
@@ -2285,6 +2308,47 @@ function loadMM() {                   // the MM-Bee data (about half a megabyte)
   if (S.mm !== undefined || mmLoading) return mmLoading;
   mmLoading = j("data/mmbee.json").then(d => { S.mm = d; }, () => { S.mm = null; }).then(() => { mmLoading = null; if (!$("#v-mmbee").hidden) setSub("mmbee", S.sub.mmbee); });
   return mmLoading;
+}
+// ---------- Stocks: Binance bStocks (data/stocks.json, loaded when the tab opens)
+let stLoading = null;
+const ST_ETF = { QQQ: "ETF", SPY: "ETF", SMH: "ETF", EWY: "ETF", SOXL: "3x leveraged ETF", TQQQ: "3x leveraged ETF", KORU: "3x leveraged ETF",
+  SOXS: "3x inverse ETF", SQQQ: "3x inverse ETF", UVXY: "Volatility ETF" };   // ETFs we can name with certainty; the rest show as stocks
+function loadStocks() {
+  if (S.st !== undefined || stLoading) return stLoading;
+  stLoading = j("data/stocks.json").then(d => { S.st = d; }, () => { S.st = null; }).then(() => { stLoading = null; if (!$("#v-stocks").hidden) renderStocks(); });
+  return stLoading;
+}
+function renderStocks() {
+  if (S.st === undefined) { loadStocks(); $("#stBody").innerHTML = '<tr><td colspan="10" class="empty">Loading…</td></tr>'; return; }
+  const D = S.st, R = D && D.rows ? toObjs(D.rows) : [];
+  if (!R.length) { $("#stBody").innerHTML = '<tr><td colspan="10" class="empty">No stock data yet.</td></tr>'; return; }
+  const rows = R.map(r => { const tk = r.token.replace(/B$/, ""), lp = livePx(r.symbol);
+    return { ...r, tk, type: ST_ETF[tk] ? "etf" : "stock", typeName: ST_ETF[tk] || "Stock", px: lp ? lp[0] : r.last_close, d1: lp && isNum(lp[1]) ? lp[1] : r.ret_1d,
+      w1: r.ret_7d, m1: r.ret_30d, m3: r.ret_90d, vol: r.vol_24h_usdt, rsi: r.d_rsi14, live: !!lp }; });
+  const up = rows.filter(x => x.d1 > 0).length, dn = rows.filter(x => x.d1 < 0).length, byD = rows.filter(x => isNum(x.d1)).sort((a, b) => b.d1 - a.d1);
+  mbSet("stN", String(rows.length)); $("#stNN").textContent = `${rows.filter(x => x.type === "etf").length} of them ETFs`;
+  mbSet("stBreadth", `${up} / ${dn}`, up > dn ? "pos" : dn > up ? "neg" : ""); $("#stBreadthN").textContent = rows.some(x => x.live) ? "live prices vs the last daily close" : "last daily close";
+  if (byD.length) { const b = byD[0], w = byD[byD.length - 1];
+    mbSet("stBest", fPct(b.d1, 1), cls(b.d1)); $("#stBestN").textContent = b.tk; mbSet("stWorst", fPct(w.d1, 1), cls(w.d1)); $("#stWorstN").textContent = w.tk; }
+  $("#stAsOf").textContent = rows[0].last_date ? "daily data through " + rows[0].last_date : "";
+  const q = ($("#stQ").value || "").trim().toUpperCase(), ty = S.stType || "", k = S.stSort || "vol", dir = S.stDir || -1;
+  const list = rows.filter(x => (!q || x.tk.includes(q)) && (!ty || x.type === ty))
+    .sort((a, b) => { const A = a[k], B = b[k]; if (typeof A === "string" || typeof B === "string") return dir * String(A || "").localeCompare(String(B || "")); return dir * ((isNum(A) ? A : -1e18) - (isNum(B) ? B : -1e18)); });
+  const body = $("#stBody"); body.replaceChildren(); const frag = document.createDocumentFragment();
+  list.forEach(x => { const t = document.createElement("tr"); t.className = "clickable"; t.onclick = () => openPair(x.symbol, "1d");
+    const name = document.createElement("span"); name.className = "sym"; name.textContent = x.tk; const sm = document.createElement("small"); sm.textContent = " · " + x.token; name.append(sm);
+    t.append(tdNode(name), tdNode(chip(x.typeName, x.type === "etf" ? "warn" : "neutral")), td(fPx(x.px), "num"), td(fPct(x.d1, 1), "num " + cls(x.d1)), td(fPct(x.w1, 1), "num " + cls(x.w1)),
+      td(fPct(x.m1, 1), "num " + cls(x.m1)), td(fPct(x.m3, 1), "num " + cls(x.m3)), td(fUsd(x.vol), "num"), td(isNum(x.rsi) ? fN(x.rsi, 0) : "—", "num"), td(x.listed || "—", "num"));
+    frag.append(t); });
+  body.append(frag);
+  if (!list.length) body.innerHTML = '<tr><td colspan="10" class="empty">No match.</td></tr>';
+  $$(".st-tbl th").forEach(th => { th.classList.toggle("sorted", th.dataset.k === k); th.setAttribute("aria-sort", th.dataset.k === k ? (dir > 0 ? "ascending" : "descending") : "none"); });
+  $("#stFoot").textContent = `${list.length} shown · tap a row for its chart · click a column to sort` + ((D.delisted && D.delisted.rows && D.delisted.rows.length) ? ` · ${D.delisted.rows.length} delisted` : "");
+}
+function initStocks() {
+  $("#stQ").addEventListener("input", () => renderStocks());
+  $$("#stType button").forEach(b => b.onclick = () => { S.stType = b.dataset.v; $$("#stType button").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false")); renderStocks(); });
+  $$(".st-tbl th").forEach(th => { th.style.cursor = "pointer"; th.onclick = () => { const k = th.dataset.k; S.stDir = S.stSort === k ? -(S.stDir || -1) : (k === "tk" || k === "type" ? 1 : -1); S.stSort = k; renderStocks(); }; });
 }
 // ---------- World markets (data/world.json, refreshed hourly; loaded when the tab opens)
 let wdLoading = null;
@@ -3800,7 +3864,7 @@ function renderBot() {
 const fUsd2 = v => isNum(v) ? (v < 0 ? "−$" : "$") + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
 
 // ---------- routing + controls
-const VIEWS = ["me", "overview", "world", "bot", "mmbee", "lab", "highlights", "screener", "watchlist", "signals", "listings", "pair"];
+const VIEWS = ["me", "overview", "world", "bot", "mmbee", "lab", "highlights", "screener", "watchlist", "signals", "listings", "stocks", "pair"];
 // sub-sections inside a tab (#bot/record, #signals/library ...); old tab names still open the right place
 const SUBS = { bot: ["portfolio", "each", "record", "fade"], signals: ["latest", "library"], mmbee: ["bots", "live", "livu", "backtest"] };
 const ALIAS = { top50: ["overview", "t50"], record: ["bot", "record"], library: ["signals", "library"] };
@@ -3828,7 +3892,7 @@ function show(v) {
   $$("nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.view === v ? "page" : "false"));
   ({ me: () => { renderMe(); if (!ME.user && AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); }, overview: () => { renderOverview(); renderTop50(); if (focus === "t50") setTimeout(() => $("#t50Card").scrollIntoView({ behavior: "smooth", block: "start" }), 150); },
     bot: () => { $("#botNavFade").hidden = !S.p4; subCounts(); setSub("bot", S.sub.bot); }, mmbee: () => { renderMMHead(); setSub("mmbee", S.sub.mmbee); }, lab: renderLab, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch,
-    signals: () => { subCounts(); setSub("signals", S.sub.signals); }, listings: renderListings, pair: renderPair, world: renderWorld })[v](); }
+    signals: () => { subCounts(); setSub("signals", S.sub.signals); }, listings: renderListings, stocks: renderStocks, pair: renderPair, world: renderWorld })[v](); }
 function subCounts() {
   const R = S.bot, PF = R && R.portfolio, fill = (view, sub, n, title) => { const b = $('.sub-nav[data-for="' + view + '"] button[data-s="' + sub + '"]'); if (!b) return; b.querySelector("i").textContent = n ? String(n) : ""; b.title = title || ""; };
   fill("bot", "portfolio", R && R.bots ? R.bots.length : 0, "bots");
@@ -3839,7 +3903,7 @@ function subCounts() {
   $("#sigHeadNote").textContent = last ? "Daily close " + last + " (UTC)" : "";
 }
 // ---------- Back: return to the exact spot you clicked from (same page, same row), with the button or the browser
-const VIEW_NAME = { overview: "Overview", shortlist: "Bee's Shortlist", top50: "Top 50", bot: "Trading bots", record: "Trading bots", mmbee: "MM-Bee", lab: "Setup Lab", highlights: "Trade Ideas", screener: "Screener", watchlist: "Watchlist", signals: "Signals", library: "Signals", listings: "Listings", pair: "Pair chart" };
+const VIEW_NAME = { stocks: "Stocks", overview: "Overview", shortlist: "Bee's Shortlist", top50: "Top 50", bot: "Trading bots", record: "Trading bots", mmbee: "MM-Bee", lab: "Setup Lab", highlights: "Trade Ideas", screener: "Screener", watchlist: "Watchlist", signals: "Signals", library: "Signals", listings: "Listings", pair: "Pair chart" };
 const backStack = []; let lastClick = null, restoring = false;
 function spotOf(el) {
   const item = el && el.closest && el.closest("tr, .hl, .tile, li, [data-k], button, a");
@@ -4275,7 +4339,7 @@ addEventListener("resize", navFade);
     $("#freshPill").style.cursor = "pointer"; $("#freshPill").onclick = () => location.reload();
     const probe = setInterval(async () => { try { const r = await fetch("data/overview.json", { cache: "no-store" }); if (r.ok) { clearInterval(probe); $("#freshText").textContent = "Connection back · tap to refresh"; $("#freshPill").className = "pill ok"; } } catch (e) {} }, 20000);
   }
-  navFade(); setTimeout(navFade, 500);
+  navFade(); setTimeout(navFade, 500); initStocks();
   if ("serviceWorker" in navigator && isSecureContext) navigator.serviceWorker.register("sw.js").catch(() => {}); initScreenerControls(); if (S.pubSL) $("#hlNavSL").hidden = false; initShortlist(); show(location.hash.slice(1)); authInit(); })();
 })();
 </script>
