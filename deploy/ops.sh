@@ -68,6 +68,9 @@ case "$CMD" in
   calls-study)     setsid nohup nice -n 15 python3 "$ROOT/bin/calls_study.py" > "$ROOT/logs/calls_study.txt" 2>&1 < /dev/null &
                    echo "channel calls study started in the background; read it with study-log" ;;
   study-log)       tail -n "$N" "$ROOT/logs/calls_study.txt" 2>/dev/null || echo "no study output yet" ;;
+  call-lab)        setsid nohup nice -n 15 python3 "$ROOT/research/calls_lab.py" > "$ROOT/logs/calls_lab.txt" 2>&1 < /dev/null &
+                   echo "calls lab (divergences + call rules) started in the background; read it with call-lab-log" ;;
+  call-lab-log)    tail -n "$N" "$ROOT/logs/calls_lab.txt" 2>/dev/null || echo "no calls lab output yet" ;;
   bee-study)       setsid nohup nice -n 15 python3 -u "$ROOT/research/mm_bee_multi.py" > "$ROOT/logs/bee_study.txt" 2>&1 < /dev/null &
                    echo "MM-Bee multi-coin study started in the background; read it with bee-study-log" ;;
   bee-tune)        pf="$ROOT/logs/bee_tune.pid"
@@ -78,5 +81,5 @@ case "$CMD" in
   bee-tune-stop)   pf="$ROOT/logs/bee_tune.pid"; if [ -f "$pf" ] && kill -- -"$(cat "$pf")" 2>/dev/null; then echo "MM-Bee tuning study stopped"; else echo "no MM-Bee tuning study running"; fi; rm -f "$pf" ;;
   bee-tune-log)    tail -n "$N" "$ROOT/logs/bee_tune.txt" 2>/dev/null || echo "no MM-Bee tuning output yet" ;;
   bee-study-log)   tail -n "$N" "$ROOT/logs/bee_study.txt" 2>/dev/null || echo "no MM-Bee study output yet" ;;
-  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check"; exit 2 ;;
+  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log"; exit 2 ;;
 esac
