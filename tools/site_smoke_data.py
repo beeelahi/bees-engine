@@ -62,6 +62,9 @@ def main(out):
     world(E.OUT)
     with open(os.path.join(HERE, "..", "web", "index.html"), encoding="utf-8") as f:
         page = P.wrap(f.read())
+    with open(os.path.join(HERE, "..", "web", "sw.js"), encoding="utf-8") as f, \
+            open(os.path.join(out, "sw.js"), "w", encoding="utf-8") as g:   # the service worker, as published
+        g.write(f.read())
     with open(os.path.join(out, "index.html"), "w", encoding="utf-8") as f:
         f.write(page)
     print("site_smoke_data: package written to", out)
