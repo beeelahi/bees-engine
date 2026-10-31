@@ -104,7 +104,7 @@ def main():
             if adv[k] < MIN_ADV or k + 1 >= len(c):
                 continue
             sg = 1 if x["side"] == "bull" else -1
-            fw = {hz: (c[min(len(c) - 1, k + hz)] / c[k] - 1) if k + hz < len(c) else None for hz in (10, 30, 60)}
+            fw = {hz: max(-0.95, min(3.0, c[k + hz] / c[k] - 1)) if k + hz < len(c) else None for hz in (10, 30, 60)}   # capped: one listing pump cannot dominate
             held = (min(l[k + 1:k + 31]) >= x["px_j"]) if sg == 1 and k + 30 < len(c) else \
                    (max(h[k + 1:k + 31]) <= x["px_j"]) if sg == -1 and k + 30 < len(c) else None
             divs.append({"s": s, "d": dates[k], "side": x["side"], "kind": x["kind"], "candle": x["candle"], "rsi_p": x["rsi_p"],
@@ -170,7 +170,7 @@ def main():
                     x["res"][(mode, tgt)] = trade(o, h, l, c, x["k"], x["side"], stop, tp) + (risk / x["e"], room)
         if n_sym % 50 == 0:
             print(f"  {n_sym}/{len(syms)} pairs, {len(divs)} divergences, {len(cands)} candidates, {time.time() - t0:.0f}s", flush=True)
-    mkt = {d: st.mean(m.values()) for d, m in day_ret.items() if m}
+    mkt = {d: st.median(m.values()) for d, m in day_ret.items() if m}      # median: a freak candle cannot move "the market"
     md = sorted(mkt)
     cum, acc = {}, 1.0
     for d in md:
@@ -286,6 +286,39 @@ def main():
         shown += 1
         if shown >= 40:
             break
+    print("\nmost comfortable (highest win rate) with avg R >= +0.25 and 100+ calls, room 2R+:")
+    comf = sorted([g for g in grid if g["n"] >= 100 and g["avg_r"] >= 0.25 and g["min_rr"] >= 2.0], key=lambda g: (-g["win"], -g["avg_r"]))
+    for g in comf[:30]:
+        print(f"  {g['side']:5s} {g['src']:10s} stop {g['stop']:5s} tp {g['target']:4s} max {100 * g['max_risk']:.0f}%  rr>={g['min_rr']}  {g['filt']:22s}  "
+              f"n {g['n']:5d} ({g['months']} months)  win {g['win']:5.1f}%  avgR {g['avg_r']:+.3f}  PF {g['pf']}  avg {g['avg_pct']:+.2f}%", flush=True)
+    print("\nfixed 2R take-profit, best 15 (100+ calls):")
+    for g in [g for g in grid if g["target"] == "2r" and g["n"] >= 100][:15]:
+        print(f"  {g['side']:5s} {g['src']:10s} stop {g['stop']:5s} max {100 * g['max_risk']:.0f}%  rr>={g['min_rr']}  {g['filt']:22s}  "
+              f"n {g['n']:5d}  win {g['win']:5.1f}%  avgR {g['avg_r']:+.3f}  PF {g['pf']}  avg {g['avg_pct']:+.2f}%", flush=True)
+    print("\nshorts, best 12 (100+ calls):")
+    for g in [g for g in grid if g["side"] == "short" and g["n"] >= 100][:12]:
+        print(f"  short {g['src']:10s} stop {g['stop']:5s} tp {g['target']:4s} max {100 * g['max_risk']:.0f}%  rr>={g['min_rr']}  {g['filt']:22s}  "
+              f"n {g['n']:5d}  win {g['win']:5.1f}%  avgR {g['avg_r']:+.3f}  PF {g['pf']}  avg {g['avg_pct']:+.2f}%", flush=True)
+    by_year = defaultdict(list)                      # the leading long rule, year by year (is it steady?)
+    lead = next((g for g in grid if g["side"] == "long" and g["min_rr"] >= 2.0), None)
+    if lead:
+        for x in cands:
+            key = (lead["stop"], lead["target"])
+            if x["side"] != "long" or x["d"] < SPLIT or key not in x["res"]:
+                continue
+            if lead["src"] == "chan+div" and not (x["src"] == "chan" and x["div"]):
+                continue
+            if lead["src"] == "chan" and x["src"] != "chan":
+                continue
+            ret, R, _, _, risk, room = x["res"][key]
+            if risk > lead["max_risk"] or room < lead["min_rr"] or ("touch" in lead["filt"] and not x["touch"]):
+                continue
+            if "candle" in lead["filt"] and not x["candle"]:
+                continue
+            if "btc" in lead["filt"] and x["btc_up"] is not True:
+                continue
+            by_year[x["d"][:4]].append(R)
+        print("\nleading long rule by year: " + ", ".join(f"{y} n {len(v)} avgR {st.mean(v):+.2f} win {100 * sum(r > 0 for r in v) / len(v):.0f}%" for y, v in sorted(by_year.items())), flush=True)
     path = os.path.join(os.path.dirname(os.path.abspath(db)), "calls_lab.json")
     with open(path + ".tmp", "w") as f:
         json.dump(out, f, separators=(",", ":"))
