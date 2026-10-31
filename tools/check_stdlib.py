@@ -8,7 +8,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if sys.version_info < (3, 10):
     print("stdlib check needs Python 3.10+ (sys.stdlib_module_names); skipped on", sys.version.split()[0])
     sys.exit(0)
-local = {f[:-3] for d in ("bin", "tests", "tools") for f in os.listdir(os.path.join(ROOT, d)) if f.endswith(".py")} | {"tests"}
+local = {f[:-3] for d in ("bin", "tests", "tools", "research") for f in os.listdir(os.path.join(ROOT, d)) if f.endswith(".py")} | {"tests"}
 bad = []
 for d in ("bin", "tests"):
     for dirpath, _, files in os.walk(os.path.join(ROOT, d)):
