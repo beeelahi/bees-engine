@@ -17,7 +17,8 @@ Status at the latest closed candle (first match wins):
   breakout / breakdown     a close beyond a line by 5% of the width after 5 closes inside, in the last 3 candles
   mid_reclaim / mid_loss   a close back above / below the midline after 5 closes on the other side, last 3 candles
   mid_retest               after a reclaim (3-40 candles earlier) price dipped to the midline and closed above it
-  bottom_bounce            touched the bottom zone in the last 3 candles and closed green, 15-40% up the channel
+  bottom_bounce            touched the bottom line (within 10% of the width and 1.5% of price) in the last 3 candles
+                           and closed green, 15-40% up the channel
   near_bottom / near_top   inside, in the lowest / highest 15% of the channel
   top_reject               tagged the top zone in the last 3 candles and closed red below 85% of the channel
   above_top / below_bottom outside the lines but not a break; inside: anywhere else.
@@ -30,6 +31,7 @@ TF = {"1d": {"P_MAJOR": 10, "P_MINOR": 5, "min_bars": 90, "lookback": 2600, "bar
 TOL_TOUCH, TOL_MID, TOL_IN, WICK, TOL_PX, AWAY, MAX_POKES = 0.10, 0.06, 0.05, 0.15, 0.08, 0.25, 2
 MIN_WIDTH_PCT, MAX_WIDTH_PCT, MAX_WIDTH_START_PCT = 8.0, 400.0, 700.0
 EDGE, BREAK_W, MAX_PER_COIN = 0.15, 0.05, 3
+TOUCH_PX = 0.015          # a bottom (top) touch: the low (high) came within 1.5% of the line's price (31 Oct 2026)
 
 
 def pivots(x, P, high):
@@ -204,8 +206,9 @@ def state(f, o, h, l, c, i):
             if all(c[z] > _mid(f, z) for z in range(j, i + 1)) and min(l[i - 2:i + 1]) <= mid + 0.05 * w and c[i] > o[i]:
                 return {"status": "mid_retest", "event_i": i, "level": mid, "pos": pos}
             break
-    touched_bot = min(l[i - z] - lines(f, i - z)[0] for z in range(3)) <= 0.10 * w
-    touched_top = max(h[i - z] - lines(f, i - z)[1] for z in range(3)) >= -0.10 * w
+    # a touch means price really reached the line: within 10% of the width AND within TOUCH_PX of the price
+    touched_bot = any(l[i - z] - lines(f, i - z)[0] <= min(0.10 * w, TOUCH_PX * lines(f, i - z)[0]) for z in range(3))
+    touched_top = any(h[i - z] - lines(f, i - z)[1] >= -min(0.10 * w, TOUCH_PX * lines(f, i - z)[1]) for z in range(3))
     if pos > 1:
         st = "above_top"
     elif pos < 0:
@@ -276,7 +279,12 @@ def rows_for(sym, tf, times, o, h, l, c, v, rank):
                "touches": [f["touch_lo"], f["touch_hi"]], "mid_touches": f["touch_mid"], "quality": round(f["quality"], 1),
                "touch_t": [times[x] for x in f["touch_at"]], "mid_t": [times[x] for x in f["mid_at"]],
                "to_bottom_pct": round(100 * (lo1 / c[i] - 1), 1), "to_mid_pct": round(100 * (mid / c[i] - 1), 1),
-               "to_top_pct": round(100 * (hi1 / c[i] - 1), 1), "liq_rank": rank}
+               "to_top_pct": round(100 * (hi1 / c[i] - 1), 1), "liq_rank": rank,
+               # did price really reach each line in the last 3 candles (low / high within TOUCH_PX of the line's price)
+               "touch3": {"lo": any(l[i - z] <= lines(f, i - z)[0] * (1 + TOUCH_PX) for z in range(3)),
+                          "mid": any(l[i - z] <= sum(lines(f, i - z)) / 2 * (1 + TOUCH_PX) for z in range(3)),
+                          "hi": any(h[i - z] >= lines(f, i - z)[1] * (1 - TOUCH_PX) for z in range(3))},
+               "low5": _r(min(l[i - 4:i + 1])), "high5": _r(max(h[i - 4:i + 1]))}
         if s["event_i"] is not None:
             j = s["event_i"]
             row.update(event_t=times[j], level=_r(s["level"]), ago=i - j)

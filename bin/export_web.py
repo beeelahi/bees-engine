@@ -496,6 +496,23 @@ def run(con=None):
         print(f"export_web: {len(calls['rows'])} channel calls, {n_new} new")
     except Exception as e:
         print("export_web: channel calls skipped:", repr(e))
+    dvx = {"rows": [], "rules": {}}
+    try:                                         # daily divergences (price + RSI + MACD) on the liquid coins, last 10 candles
+        import chan_calls
+        liq = {x["symbol"]: x.get("liq_rank") for x in channels["rows"] if x.get("tf") == "1d"}
+        dv = chan_calls.recent_divergences(con, sorted(liq), days=10)
+        bc = [c_ for (c_,) in con.execute("SELECT close FROM daily WHERE symbol='BTCUSDT' ORDER BY date DESC LIMIT 400")][::-1]
+        e50 = None
+        for v_ in bc:
+            e50 = v_ if e50 is None else 2 / 51 * v_ + (1 - 2 / 51) * e50
+        lastc = {s_: c_ for s_, c_ in con.execute("SELECT symbol, last_close FROM latest")}
+        dvx = {"rows": sorted(({"symbol": s_, **d_, "close": lastc.get(s_), "liq_rank": liq.get(s_)} for s_, d_ in dv.items()),
+                              key=lambda r: (r["date"], r["kind"] == "triple"), reverse=True),
+               "btc_above_ema50": bool(bc and e50 and bc[-1] > e50), "scanned": len(liq),
+               "stats": (calls.get("stats") or {}), "rules": {"days": 10, "pivot": 3, "rsi_zone": [40, 60], "gap": [8, 60]}}
+        print(f"export_web: {len(dvx['rows'])} daily divergences in the last 10 candles on {len(liq)} liquid pairs")
+    except Exception as e:
+        print("export_web: divergences skipped:", repr(e))
     lt = {"rows": [], "stats": {}, "rules": {}}
     try:                                         # long-term (250+ day) channel breakouts with their confirmation dossier
         import ltbo
@@ -542,6 +559,7 @@ def run(con=None):
         hl["setups"] = {"rows": [], "stats": {}, "kinds": {}, "rules": {}}
     hl["channels"] = channels
     hl["channel_calls"] = calls
+    hl["divergences"] = dvx
     hl["hs"] = hsd
     hl["ltbo"] = lt
     hl["patterns"] = ptd

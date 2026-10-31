@@ -55,6 +55,12 @@ h2 { font-size: 15px; margin: 0; font-weight: 600; text-wrap: balance; }
 .grid-kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
 .kpi .v { font-family: var(--font-num); font-size: 28px; font-weight: 600; margin-top: 6px; letter-spacing: -0.01em; }
 .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 20px; }
+.dv-lead { margin: 0 0 14px; max-width: 90ch; } .dv-h { font-size: 15px; margin: 0; display: flex; gap: 8px; align-items: center; }
+.dv-h.up { color: var(--up); } .dv-h.down { color: var(--down); } .dv-h span { font-size: 12px; color: var(--muted); font-weight: 600; }
+.dv-sub { margin: 2px 0 8px; } .dv-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 26rem; overflow: auto; }
+.dv-list li { display: grid; grid-template-columns: minmax(4.5rem, auto) auto 1fr; gap: 4px 10px; align-items: center; padding: 8px 6px; border-bottom: 1px solid var(--line); border-radius: 6px; }
+.dv-list li.clickable:hover, .dv-list li.clickable:focus-visible { background: rgba(255,255,255,0.04); outline: none; }
+.dv-list li small { grid-column: 1 / -1; color: var(--muted); font-size: 11.5px; } .dv-list li.empty, .dv-list li.note { display: block; }
 .tbl-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: rgba(8, 16, 40, 0.55); }
 table { border-collapse: collapse; width: 100%; }
 th, td { padding: 7px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
@@ -447,6 +453,15 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <p class="note" style="margin:0 0 14px">The strongest live setups across the dashboard: grade A channel calls, recent grade A long-term breakouts and head-and-shoulders necklines in play. Information only, not advice.</p>
       <div class="hx-grid" id="ovBest"></div>
     </div>
+    <div class="card" id="dvCard" hidden>
+      <div class="card-head"><h2>Daily divergences</h2><span class="note" id="dvNote"></span></div>
+      <p class="note dv-lead" id="dvLead"></p>
+      <div class="grid-2 dv-cols">
+        <div><h3 class="dv-h up">Bullish <span id="dvNBull"></span></h3><p class="note dv-sub">Lower low in price, higher low in RSI: selling is fading</p><ul class="dv-list" id="dvBull"></ul></div>
+        <div><h3 class="dv-h down">Bearish <span id="dvNBear"></span></h3><p class="note dv-sub">Higher high in price, lower high in RSI: buying is fading</p><ul class="dv-list" id="dvBear"></ul></div>
+      </div>
+      <p class="note" id="dvRecord" style="margin-top:12px"></p>
+    </div>
     <div class="grid-2">
       <div class="card">
         <div class="card-head"><h2>Top gainers</h2>
@@ -707,7 +722,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
           <div class="card" id="callsCardH">
             <div class="card-head"><h2>Channel calls</h2><span class="note" id="callsNoteH"></span></div>
             <p class="note" style="margin:0 0 12px" id="callsIntroH"></p>
-            <div class="tbl-wrap" style="max-height: 50vh; margin-bottom:12px"><table><thead><tr><th>Grade</th><th>Pair</th><th title="The day this entry was first listed here (signal issued)">Added</th><th>Side</th><th>Channel status</th><th>Channel</th><th title="Proven signals in the same direction: daily in the last 3 days or the latest weekly candle">Agreeing signals</th><th title="0-10 confluence of trend and momentum (daily)">Bull score</th><th>Close</th><th title="Longs: 10% of the channel width under the bottom line. Shorts: back above the line that was lost, +10% of the width">Stop / invalid</th><th>Target 1</th><th>Target 2</th><th title="Reward to target 1 ÷ risk to the stop">R:R</th><th title="Since 2022: this channel status's median 30-day result vs the average coin, and how often it beat the market">History vs market</th><th>Liquidity</th></tr></thead><tbody id="callsBodyH"></tbody></table></div>
+            <div class="tbl-wrap" style="max-height: 50vh; margin-bottom:12px"><table><thead><tr><th>Grade</th><th>Pair</th><th title="The day this entry was first listed here (signal issued)">Added</th><th>Side</th><th>Channel status</th><th>Channel</th><th title="Proven signals in the same direction: daily in the last 3 days or the latest weekly candle">Agreeing signals</th><th title="0-10 confluence of trend and momentum (daily)">Bull score</th><th>Close</th><th title="Longs: 10% of the channel width under the line the entry rests on. Shorts: just above the 5-day high. Never more than 8% from the price">Stop</th><th title="Take profit at 3x the risk">Target (3R)</th><th title="The channel's next line, and how many R away it is (the room the trade has)">Next line</th><th title="A daily divergence (price vs RSI and MACD) in the same direction, confirmed in the last 10 candles">Divergence</th><th title="Since 2022: this channel status's median 30-day result vs the average coin, and how often it beat the market">History vs market</th><th>Liquidity</th></tr></thead><tbody id="callsBodyH"></tbody></table></div>
             <div class="card-head" style="margin-top:4px"><h2 style="font-size:1rem">Posted to highlights</h2><span class="note">each new call, when it happened (last 90 days)</span></div>
             <div class="hl-list" id="hlCalls"></div>
           </div>
@@ -1684,7 +1699,7 @@ const chLines = (x, k) => { const s = isNum(x.slope) ? x.slope : (x.lo1 - x.lo0)
 const chanTime = (x, t) => x.tf === "4h" ? new Date(t * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC" : t;
 function chanShape(x) { const s = x.slope_pct_day; return (Math.abs(s) < 0.05 ? "Flat" : s > 0 ? "Rising" : "Falling") + (Math.abs(s) < 0.05 ? "" : " " + fPct(s, 2) + "/day") + " · " + (x.tf === "4h" ? fN(x.days, 0) + " days" : x.days + " days"); }
 const callData = () => (S.hlMeta && S.hlMeta.channel_calls) || { rows: [], rules: {} };
-const CALL_INTRO = "Coins with an entry inside a clean daily channel that other indicators confirm. Only the channel statuses with a measured edge are used: long at the bottom of the channel (near the bottom, bounce off the bottom) or on a midline retest that held; short / caution when the midline is lost or price is rejected at the top. Each call also needs at least one PROVEN signal in the same direction (daily in the last 3 days or the latest weekly candle) and the bull score on the right side (5+ for longs, 5 or less for shorts). The stop sits 10% of the channel width beyond the line the entry depends on; a call is kept only when that stop is within 20% of the price and the first target pays at least 1.5× the risk. Record (every call replayed on the full history, 2022 on, with signals chosen on data up to 2021): midline retests +0.22R and bottom entries +0.18R per call on average, shorts +0.10R; most calls lose and the winners are larger, so expect losing streaks. Midline reclaims and breakouts showed no edge and are not used. Checked after every daily close; each new call is posted to Trade Ideas. Not advice.";
+const CALL_INTRO_V1 = "Coins with an entry inside a clean daily channel that other indicators confirm. Only the channel statuses with a measured edge are used: long at the bottom of the channel (near the bottom, bounce off the bottom) or on a midline retest that held; short / caution when the midline is lost or price is rejected at the top. Each call also needs at least one PROVEN signal in the same direction (daily in the last 3 days or the latest weekly candle) and the bull score on the right side (5+ for longs, 5 or less for shorts). The stop sits 10% of the channel width beyond the line the entry depends on; a call is kept only when that stop is within 20% of the price and the first target pays at least 1.5× the risk. Record (every call replayed on the full history, 2022 on, with signals chosen on data up to 2021): midline retests +0.22R and bottom entries +0.18R per call on average, shorts +0.10R; most calls lose and the winners are larger, so expect losing streaks. Midline reclaims and breakouts showed no edge and are not used. Checked after every daily close; each new call is posted to Trade Ideas. Not advice.";
 
 function renderCalls(bodyId, side) {
   const C = callData(), D = chanData(), body = $("#" + bodyId); if (!body) return; body.replaceChildren();
@@ -1696,14 +1711,23 @@ function renderCalls(bodyId, side) {
     t.append(tdNode(chip(x.grade, x.grade === "A" ? (x.side === "long" ? "up" : "down") : "neutral")), tdNode(symNode(x.symbol)), addedTd(x), tdNode(chip(x.side === "long" ? "Long" : "Short / caution", x.side === "long" ? "up" : "down")),
       tdNode(chip((D.labels || {})[x.status] || x.status, CH_UP[x.status] || "neutral")), td(Math.round(ch.days || 0) + " days · " + (ch.touches || []).join("/") + " touches · Q " + fN(ch.quality, 1), ""),
       tdNode(sigs), td(String(x.bull_score), "num"), td(fPx(x.close), "num"), td(fPx(x.stop) + (isNum(x.risk_pct) ? " (" + fN(x.risk_pct, 1) + "%)" : ""), "num"),
-      td(fPx(x.t1) + " (" + fPct(100 * (x.t1 / x.close - 1), 1) + ")", "num"), td(isNum(x.t2) ? fPx(x.t2) + " (" + fPct(100 * (x.t2 / x.close - 1), 1) + ")" : "—", "num"),
-      td(isNum(x.rr) ? fN(x.rr, 1) : "—", "num"), x.hist ? td(fPct(x.hist.rel30, 1) + " · " + x.hist.beat30 + "%", "num " + cls(x.hist.rel30)) : td("—", "cold"), td("#" + x.liq_rank, "num")); frag.append(t); });
+      td(fPx(x.t1) + " (" + fPct(100 * (x.t1 / x.close - 1), 1) + ")", "num"),
+      td(isNum(x.line_target) ? fPx(x.line_target) + (isNum(x.room_r) ? " · " + fN(x.room_r, 1) + "R" : "") : isNum(x.t2) ? fPx(x.t2) : "—", "num"),
+      x.divergence ? tdNode(chip((x.divergence.kind === "triple" ? "RSI + MACD" : "RSI") + " · " + x.divergence.date.slice(5), x.side === "long" ? "up" : "down")) : td("—", "cold"), x.hist ? td(fPct(x.hist.rel30, 1) + " · " + x.hist.beat30 + "%", "num " + cls(x.hist.rel30)) : td("—", "cold"), td("#" + x.liq_rank, "num")); frag.append(t); });
   body.append(frag);
   if (!rows.length) body.innerHTML = '<tr><td colspan="15" class="empty">No channel entry is confirmed by other indicators right now. That is a valid answer: nothing forced.</td></tr>';
 }
+function callIntro(C) {               // the rules in words, with their measured record (calls lab, out of sample)
+  const R = C.rules || {}, st = C.stats || {}, L = st.long, Sh = st.short;
+  if (R.version !== 2) return CALL_INTRO_V1;
+  const rec = (x, w) => x ? `${w}: ${x.n} calls since 2022, ${fN(x.win, 0)}% winners, ${x.avg_r >= 0 ? "+" : ""}${fN(x.avg_r, 2)}R a call on average, profit factor ${fN(x.pf, 2)}${isNum(x.worst_year) ? ", positive every year (worst " + (x.worst_year >= 0 ? "+" : "") + fN(x.worst_year, 2) + "R)" : ""}` : "";
+  return `Fewer calls, only the confident ones. A long needs price to actually touch the channel line (a low within ${R.touch_pct || 1.5}% of the bottom, or of the midline on a retest), at least one PROVEN bullish signal and a bull score of 5+. A short needs the midline lost or a rejection at the top with a PROVEN bearish signal. ` +
+    `Every call: stop at most ${fN(R.max_risk_pct || 8, 0)}% away, take profit at ${fN(R.take_profit_r || 3, 0)}× the risk, and the channel's next line at least ${(R.min_room_r || {}).long || 3}R away (shorts ${(R.min_room_r || {}).short || 2.5}R), so the target has room. Grade A: a daily divergence agrees. ` +
+    `Record, every call replayed on the full history with signals chosen on data up to 2021 (out of sample): ${[rec(L, "longs"), rec(Sh, "shorts")].filter(Boolean).join("; ") || "being measured"}. Most calls still lose (about 2 in 3) and the winners pay 3R, so expect losing streaks. Checked after every daily close. Not advice.`;
+}
 function renderCallsAll() {
   const C = callData(), n = (C.rows || []).length, a = (C.rows || []).filter(x => x.grade === "A").length;
-  $("#callsIntroH").textContent = CALL_INTRO;
+  $("#callsIntroH").textContent = callIntro(C);
   $("#callsNoteH").textContent = n ? `${n} now · ${a} grade A` : "";
   renderCalls("callsBodyH", "");
   const list = $("#hlCalls"); if (!list) return; list.replaceChildren();
@@ -2104,8 +2128,9 @@ function callCard(x) { const D = chanData(), ch = x.channel || {}, long = x.side
       badges: [chip(long ? "Long" : "Short", long ? "up" : "down"), chip("Grade " + x.grade, x.grade === "A" ? "warn" : "neutral")],
       head: (D.labels || {})[x.status] || x.status,
       metrics: [["Price", fPx(x.close)], ["Stop", fPx(x.stop), "", isNum(x.risk_pct) ? (long ? "−" : "+") + fN(x.risk_pct, 1) + "%" : ""], ["Target", fPx(x.t1), long ? "pos" : "neg", pctTo(x.t1, x.close)], ["Reward : risk", isNum(x.rr) ? fN(x.rr, 1) + "×" : "—"]],
-      tags: x.signals.map(k => { const [tf, sg] = k.split(":"); return sigLabel(sg, long ? "bullish" : "bearish") + (tf === "1w" ? " (weekly)" : ""); }),
-      foot: `${x.date} · bull score ${x.bull_score}/10` + (x.hist && isNum(x.hist.rel30) ? ` · record ${fPct(x.hist.rel30, 1)} vs market` : "") });
+      tags: (x.divergence ? [[(long ? "Bullish" : "Bearish") + " divergence (" + (x.divergence.kind === "triple" ? "RSI + MACD" : "RSI") + ") " + x.divergence.date.slice(5), "ok"]] : [])
+        .concat(x.signals.map(k => { const [tf, sg] = k.split(":"); return sigLabel(sg, long ? "bullish" : "bearish") + (tf === "1w" ? " (weekly)" : ""); })),
+      foot: `${x.date} · bull score ${isNum(x.bull_score) ? x.bull_score + "/10" : "—"}` + (isNum(x.room_r) ? ` · next line ${fN(x.room_r, 1)}R away` : "") });
   }
 function ltCard(x) { const ck = x.checks || {}, wk = x.weekly;
     return hxCard({ sym: x.symbol, dir: x.grade === "A" ? "up" : x.grade === "C" ? "down" : "neutral", added: x.added, sub: `${Math.round(ck.days || 0)}-day channel · broke out ${x.event_date} (${x.days_since}d ago)`,
@@ -2835,7 +2860,28 @@ function renderBestIdeas() {
   if (!out.length) g.append(hxEl("div", "hx-empty", "No high-grade setup right now. Nothing forced."));
   $("#ovBestCard").hidden = false;
 }
+function renderDivergences() {        // daily divergences that started in the last 10 candles (bin/diverge.py), with their honest record
+  const D = S.hlMeta && S.hlMeta.divergences, card = $("#dvCard"); if (!card) return;
+  if (!D || !D.scanned) { card.hidden = true; return; } card.hidden = false;
+  const rows = D.rows || [], bull = rows.filter(x => x.side === "bull"), bear = rows.filter(x => x.side === "bear"), st = D.stats || {}, dv = st.divergence || {}, base = st.baseline || {};
+  $("#dvNote").textContent = `last ${(D.rules || {}).days || 10} daily candles · ${D.scanned} liquid pairs scanned`;
+  $("#dvNBull").textContent = bull.length; $("#dvNBear").textContent = bear.length;
+  $("#dvLead").textContent = `${bull.length} coin${bull.length === 1 ? "" : "s"} with a fresh bullish divergence and ${bear.length} with a bearish one. BTC is ${D.btc_above_ema50 ? "above" : "below"} its 50-day average, ` +
+    (D.btc_above_ema50 ? "the backdrop in which bullish divergences have worked best." : "a backdrop in which bullish divergences have mostly failed: treat them as early warnings, not entries.");
+  const li = (x, ul) => { const l = document.createElement("li"); l.className = "clickable"; l.tabIndex = 0; l.onclick = () => openPair(x.symbol, "1d"); l.onkeydown = e => { if (e.key === "Enter") openPair(x.symbol, "1d"); };
+    const b = document.createElement("b"), k = chip(x.kind === "triple" ? "RSI + MACD" : "RSI only", x.kind === "triple" ? (x.side === "bull" ? "up" : "down") : "neutral"), m = document.createElement("small");
+    b.textContent = x.symbol.replace(/USDT$/, "");
+    m.textContent = `since ${x.date.slice(5)} · price ${fPx(x.px[0])} → ${fPx(x.px[1])}, RSI ${fN(x.rsi[0], 0)} → ${fN(x.rsi[1], 0)}` + (isNum(x.close) && isNum(x.px[1]) ? ` · now ${fPct(100 * (x.close / x.px[1] - 1), 1)} from the swing` : "");
+    l.append(b, k, m); ul.append(l); };
+  [[bull, "#dvBull"], [bear, "#dvBear"]].forEach(([L, id]) => { const ul = $(id); ul.replaceChildren(); L.slice(0, 12).forEach(x => li(x, ul));
+    if (!L.length) { const e = document.createElement("li"); e.className = "empty"; e.textContent = "None right now."; ul.append(e); }
+    if (L.length > 12) { const e = document.createElement("li"); e.className = "note"; e.textContent = `+${L.length - 12} more on the pair charts`; ul.append(e); } });
+  const a = dv["bull|triple|all|oos"], u = dv["bull|triple|btc_up|oos"], d = dv["bull|triple|btc_down|oos"];
+  $("#dvRecord").textContent = a && isNum(base.up30) ? `Record since 2022 (liquid coins, out of sample): after a bullish RSI + MACD divergence the coin was higher 30 days later ${fN(a.win30, 0)}% of the time (${a.n} cases), against ${fN(base.up30, 0)}% for any coin on any day. ` +
+    (u && d ? `With BTC above its 50-day average: ${fN(u.win30, 0)}%; below it: ${fN(d.win30, 0)}%. ` : "") + `The divergence low held for 30 days in ${fN(a.held30, 0)}% of cases. A divergence says momentum is turning, not that the bottom is in: it marks bottoms best when the wider market has already turned up.` : "";
+}
 function renderOverview() {
+  renderDivergences();
   renderMarket();
   renderToday();
   renderBestIdeas();
@@ -3400,6 +3446,8 @@ function chartMarkers(times) {
     else [P.a, P.z].forEach((q, k) => add(q[0], { position: bear ? "aboveBar" : "belowBar", shape: "circle", color: col, text: (bear ? "Top " : "Bottom ") + (k + 1) }));
     if (x.break_date) add(x.break_date, { position: bear ? "aboveBar" : "belowBar", shape: bear ? "arrowDown" : "arrowUp", color: col, text: cup ? "Breakout" : "Break" });
     if (x.retest_date) add(x.retest_date, { position: bear ? "aboveBar" : "belowBar", shape: "square", color: warn, text: "Retest" }); });
+  if (on("mk") && tf === "1d") ((S.hlMeta && S.hlMeta.divergences || {}).rows || []).filter(x => x.symbol === sym).forEach(x => { const b = x.side === "bull";   // a fresh daily divergence: its two swings
+    add(x.swing_date, { position: b ? "belowBar" : "aboveBar", shape: b ? "arrowUp" : "arrowDown", color: b ? up : dn, text: (b ? "Bull" : "Bear") + " div" + (x.kind === "triple" ? " (RSI+MACD)" : "") }); });
   if (on("sg")) ideas().filter(x => x.symbol === sym).forEach(x => add(x.date, x.side === "long" ? { position: "belowBar", shape: "circle", color: up, text: "L" } : { position: "aboveBar", shape: "circle", color: dn, text: "S" }));
   if (on("tr")) (S.bot && S.bot.bots || []).forEach(b => {
     const P = b.paper || {};
@@ -3778,7 +3826,7 @@ function show(v) {
     if (["1h", "4h", "1d", "1w", "1M"].includes(parts[2])) S.pairTf = parts[2]; v = "pair"; }
   if (!VIEWS.includes(v)) v = "overview"; VIEWS.forEach(x => { $("#v-" + x).hidden = x !== v; });
   $$("nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.view === v ? "page" : "false"));
-  ({ me: () => { if (!ME.user) { if (AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); return; } renderMe(); }, overview: () => { renderOverview(); renderTop50(); if (focus === "t50") setTimeout(() => $("#t50Card").scrollIntoView({ behavior: "smooth", block: "start" }), 150); },
+  ({ me: () => { renderMe(); if (!ME.user && AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); }, overview: () => { renderOverview(); renderTop50(); if (focus === "t50") setTimeout(() => $("#t50Card").scrollIntoView({ behavior: "smooth", block: "start" }), 150); },
     bot: () => { $("#botNavFade").hidden = !S.p4; subCounts(); setSub("bot", S.sub.bot); }, mmbee: () => { renderMMHead(); setSub("mmbee", S.sub.mmbee); }, lab: renderLab, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch,
     signals: () => { subCounts(); setSub("signals", S.sub.signals); }, listings: renderListings, pair: renderPair, world: renderWorld })[v](); }
 function subCounts() {

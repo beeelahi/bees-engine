@@ -1,5 +1,5 @@
 """
-Track record of the channel calls (chan_calls.py) on the server's full history (read-only). Long-running: start it
+Track record of the FIRST channel-call rules (v1, until 31 Oct 2026; the live v2 rules were chosen with research/calls_lab.py) on the server's full history (read-only). Long-running: start it
 with the ops command `calls-study` (runs in the background) and read the result with `study-log`.
 
 Point in time: channels are re-detected every REFIT days with only the candles closed then (chan.find); each day is
