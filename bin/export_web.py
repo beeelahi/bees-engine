@@ -499,7 +499,10 @@ def run(con=None):
     dvx = {"rows": [], "rules": {}}
     try:                                         # daily divergences (price + RSI + MACD) on the liquid coins, last 10 candles
         import chan_calls
-        liq = {x["symbol"]: x.get("liq_rank") for x in channels["rows"] if x.get("tf") == "1d"}
+        from binance_sync import STABLE_BASES     # every liquid pair (top 300 by 24h volume), not only those with a channel
+        top = con.execute(f"""SELECT symbol FROM latest WHERE vol_24h_usdt >= 1e6 AND token NOT IN ({",".join("'" + b + "'" for b in sorted(STABLE_BASES))})
+                              ORDER BY vol_24h_usdt DESC LIMIT 300""").fetchall()
+        liq = {s_: k + 1 for k, (s_,) in enumerate(top)}
         dv = chan_calls.recent_divergences(con, sorted(liq), days=10)
         bc = [c_ for (c_,) in con.execute("SELECT close FROM daily WHERE symbol='BTCUSDT' ORDER BY date DESC LIMIT 400")][::-1]
         e50 = None
