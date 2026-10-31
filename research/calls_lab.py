@@ -49,11 +49,16 @@ def trade(o, h, l, c, k, side, stop, t1, hold=HOLD):
 def summ(T):
     if not T:
         return None
+    yrs = defaultdict(list)
+    for x in T:
+        yrs[x[2][:4]].append(x[1])
     r, R = [x[0] for x in T], [x[1] for x in T]
     pos, neg = sum(x for x in r if x > 0), -sum(x for x in r if x < 0)
     return {"n": len(T), "win": round(100 * sum(x > 0 for x in r) / len(r), 1), "avg_pct": round(100 * st.mean(r), 2),
             "avg_r": round(st.mean(R), 3), "pf": round(pos / neg, 2) if neg else None,
-            "months": len({x[2][:7] for x in T})}
+            "months": len({x[2][:7] for x in T}),
+            "years": {y: [len(v), round(st.mean(v), 2), round(100 * sum(r > 0 for r in v) / len(v))] for y, v in sorted(yrs.items())},
+            "worst_year": round(min(st.mean(v) for v in yrs.values() if len(v) >= 8), 2) if any(len(v) >= 8 for v in yrs.values()) else None}
 
 
 def main():
@@ -76,6 +81,7 @@ def main():
     for d in bd:
         e = btc[d] if e is None else 2 / 51 * btc[d] + (1 - 2 / 51) * e
         bema[d] = btc[d] > e                                          # BTC above its 50-day EMA
+    base = {"n": 0, "up30": 0, "down30": 0, "held30": 0}
     day_ret = defaultdict(dict)        # date -> {sym: daily return} for liquid pairs (the market average)
     divs, cands = [], []
     for n_sym, s in enumerate(syms):
@@ -94,6 +100,11 @@ def main():
         for k in range(1, len(c)):
             if adv[k - 1] >= MIN_ADV:
                 day_ret[dates[k]][s] = c[k] / c[k - 1] - 1
+            if adv[k] >= MIN_ADV and k + 30 < len(c) and dates[k] >= SPLIT:      # baseline: any liquid coin-day, 2022 on
+                base["n"] += 1
+                base["up30"] += c[k + 30] > c[k]
+                base["down30"] += c[k + 30] < c[k]
+                base["held30"] += min(l[k + 1:k + 31]) >= l[k]
         first = len(cands)
         r = DV.rsi(c)
         hist = DV.macd(c)[2]
@@ -179,6 +190,10 @@ def main():
     out = {"generated_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "split": SPLIT, "hold": HOLD, "cost": COST}
 
     # ---------------- part 1: divergences
+    if base["n"]:
+        out["baseline"] = {k: round(100 * base[k] / base["n"], 1) for k in ("up30", "down30", "held30")}
+        print(f"\n# BASELINE (any liquid coin-day, 2022 on, n {base['n']}): up after 30 days {out['baseline']['up30']}%, down {out['baseline']['down30']}%, "
+              f"that day's low not broken in 30 days {out['baseline']['held30']}%", flush=True)
     print("\n# PART 1: daily divergences (liquid pairs), excess vs the average liquid pair; 'held' = the divergence low (high) not broken in 30 days")
     idx = {d: k for k, d in enumerate(md)}
 
@@ -299,6 +314,13 @@ def main():
     for g in [g for g in grid if g["side"] == "short" and g["n"] >= 100][:12]:
         print(f"  short {g['src']:10s} stop {g['stop']:5s} tp {g['target']:4s} max {100 * g['max_risk']:.0f}%  rr>={g['min_rr']}  {g['filt']:22s}  "
               f"n {g['n']:5d}  win {g['win']:5.1f}%  avgR {g['avg_r']:+.3f}  PF {g['pf']}  avg {g['avg_pct']:+.2f}%", flush=True)
+    print("\nshortlist with year-by-year avg R (n, avgR, win%), 2R+ room, 60+ calls, every year with 8+ calls positive:")
+    steady = [g for g in grid if g["n"] >= 60 and g["min_rr"] >= 2.0 and g["worst_year"] is not None and g["worst_year"] > 0]
+    steady.sort(key=lambda g: (-g["worst_year"], -g["avg_r"]))
+    for g in steady[:40]:
+        print(f"  {g['side']:5s} {g['src']:10s} stop {g['stop']:5s} tp {g['target']:4s} max {100 * g['max_risk']:.0f}%  rr>={g['min_rr']}  {g['filt']:20s} "
+              f"n {g['n']:4d} win {g['win']:4.1f}% avgR {g['avg_r']:+.2f} PF {g['pf']} worst year {g['worst_year']:+.2f} | "
+              + " ".join(f"{y}:{v[0]}/{v[1]:+.2f}/{v[2]}%" for y, v in g["years"].items()), flush=True)
     by_year = defaultdict(list)                      # the leading long rule, year by year (is it steady?)
     lead = next((g for g in grid if g["side"] == "long" and g["min_rr"] >= 2.0), None)
     if lead:
