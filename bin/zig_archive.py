@@ -29,7 +29,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DB = os.path.join(ROOT, "data", "zig.db")
 OUT = os.path.join(ROOT, "web_export", "zig.json")
 EVERY_S, M15, H = 10 * 60, 900_000, 3_600_000
-FLOW_BACK_H = 7 * 24            # first run: trades of the last week (as far as MEXC serves them)
+FLOW_BACK_H = 30                # first run: MEXC keeps roughly the last day of trades (probed 2026-11-01: 24h yes, 36h no)
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS k15(open_ms INTEGER PRIMARY KEY, o REAL, h REAL, l REAL, c REAL, vol REAL, qvol REAL);
 CREATE TABLE IF NOT EXISTS flow(hour_ms INTEGER PRIMARY KEY, n INTEGER, buy_qty REAL, sell_qty REAL, buy_usdt REAL, sell_usdt REAL,
@@ -108,13 +108,37 @@ def window_trades(fetch, a, b, depth=0):
     return rows
 
 
+def hour_volumes(fetch, a, b):
+    """MEXC's own 1-hour candles for [a, b): open_ms -> USDT traded. Every hour of trades is checked against it."""
+    out = {}
+    while a < b:
+        rows = get(fetch, "/api/v3/klines", {"symbol": SYM, "interval": "60m", "startTime": a, "endTime": b - 1, "limit": 1000})
+        if not rows:
+            break
+        out.update({int(r[0]): float(r[7]) for r in rows})
+        nxt = max(int(r[0]) for r in rows) + H
+        if nxt <= a:
+            break
+        a = nxt
+    return out
+
+
 def fill_flow(con, fetch=None, now=None, log=print):
-    """Summarise every completed hour since the last one stored (first run: the last week). Returns hours added."""
+    """Summarise every completed hour since the last one stored (first run: as far back as MEXC serves trades).
+    Each hour is checked against MEXC's 1-hour candle: it is marked complete only when its trades add up to the candle's
+    volume (within 0.5%). An hour MEXC no longer serves (no trades but candle volume) is not stored at all: a gap is never
+    recorded as a quiet hour. Returns hours stored."""
     now = now or now_ms()
-    last = con.execute("SELECT MAX(hour_ms) FROM flow WHERE complete=1").fetchone()[0]
+    last = con.execute("SELECT MAX(hour_ms) FROM flow").fetchone()[0]
     h = (last + H) if last else (now // H - FLOW_BACK_H) * H
-    added = 0
+    if h + H > now:
+        return 0
+    vol = hour_volumes(fetch, h, now // H * H)
+    added = gaps = 0
     while h + H <= now:
+        kq = vol.get(h)
+        if kq is None:
+            break                                          # MEXC has not closed this hour's candle yet: next run
         try:
             tr = window_trades(fetch, h, h + H)
         except Exception as e:
@@ -127,13 +151,22 @@ def fill_flow(con, fetch=None, now=None, log=print):
         sq = sum(float(t["q"]) for t in tr if t.get("m"))
         bu = sum(float(t["q"]) * float(t["p"]) for t in tr if not t.get("m"))
         su = sum(float(t["q"]) * float(t["p"]) for t in tr if t.get("m"))
+        if n == 0 and kq > 0:
+            gaps += 1                                      # trades no longer served for this hour: leave it out
+            h += H
+            continue
+        ok = abs(bu + su - kq) <= max(1.0, 0.005 * kq)
         vw = (bu + su) / (bq + sq) if bq + sq else None
         big = max((float(t["q"]) * float(t["p"]) for t in tr), default=0.0)
-        con.execute("INSERT OR REPLACE INTO flow VALUES(?,?,?,?,?,?,?,?,1)", (h, n, bq, sq, bu, su, vw, big))
+        con.execute("INSERT OR REPLACE INTO flow VALUES(?,?,?,?,?,?,?,?,?)", (h, n, bq, sq, bu, su, vw, big, 1 if ok else 0))
+        if not ok:
+            log(f"zig: trades for {iso(h)} add up to ${bu + su:,.0f} but the candle says ${kq:,.0f}; kept, marked incomplete")
         added += 1
         h += H
         if fetch is None:
             time.sleep(0.12)
+    if gaps and last:
+        log(f"zig: {gaps} hours of trades were no longer served by MEXC (the archive was not refreshed in time)")
     con.commit()
     return added
 
@@ -165,7 +198,7 @@ def snap_ticker(con, fetch=None, now=None):
 def build(con, now=None):
     now = now or now_ms()
     q = lambda sql, a=(): [list(r) for r in con.execute(sql, a)]  # noqa: E731
-    flow = q("SELECT hour_ms, n, buy_usdt, sell_usdt, vwap, big_usdt FROM flow WHERE hour_ms >= ? ORDER BY hour_ms", (now - 14 * 86400_000,))
+    flow = q("SELECT hour_ms, n, buy_usdt, sell_usdt, vwap, big_usdt FROM flow WHERE complete=1 AND hour_ms >= ? ORDER BY hour_ms", (now - 14 * 86400_000,))
     d24 = [r for r in flow if r[0] >= now - 25 * H][-24:]
     book = q("SELECT t, bid, ask, spread_bps, b1, b2, b5, a1, a2, a5 FROM book WHERE t >= ? ORDER BY t", (now // 1000 - 14 * 86400,))
     hourly_book, seen = [], set()
@@ -177,14 +210,15 @@ def build(con, now=None):
     tick = con.execute("SELECT t, last, qvol24, chg24, high, low FROM ticker ORDER BY t DESC LIMIT 1").fetchone()
     k15 = q("SELECT open_ms, o, h, l, c, qvol FROM k15 WHERE open_ms >= ? ORDER BY open_ms", (now - 7 * 86400_000,))
     span = con.execute("SELECT MIN(open_ms), MAX(open_ms), COUNT(*) FROM k15").fetchone()
-    fl = con.execute("SELECT MIN(hour_ms), COUNT(*), SUM(n) FROM flow").fetchone()
+    fl = con.execute("SELECT MIN(hour_ms), COUNT(*), SUM(n) FROM flow WHERE complete=1").fetchone()
     return {"generated_utc": iso(now), "symbol": SYM, "venue": "MEXC",
             "now": {"book": book[-1] if book else None, "ticker": list(tick) if tick else None,
                     "day": {"trades": sum(r[1] for r in d24), "buy_usdt": sum(r[2] for r in d24), "sell_usdt": sum(r[3] for r in d24),
                             "big_usdt": max((r[5] for r in d24), default=0), "hours": len(d24)}},
             "flow": flow, "book": hourly_book, "k15": k15,
             "archive": {"k15_from": iso(span[0]) if span[0] else None, "k15_bars": span[2], "flow_from": iso(fl[0]) if fl[0] else None,
-                        "flow_hours": fl[1], "trades": fl[2] or 0, "book_snaps": con.execute("SELECT COUNT(*) FROM book").fetchone()[0]},
+                        "flow_hours": fl[1], "trades": fl[2] or 0,
+                        "flow_incomplete": con.execute("SELECT COUNT(*) FROM flow WHERE complete=0").fetchone()[0], "book_snaps": con.execute("SELECT COUNT(*) FROM book").fetchone()[0]},
             "columns": {"flow": ["hour_ms", "trades", "buy_usdt", "sell_usdt", "vwap", "biggest_usdt"],
                         "book": ["t", "bid", "ask", "spread_bps", "bid_1pct", "bid_2pct", "bid_5pct", "ask_1pct", "ask_2pct", "ask_5pct"],
                         "k15": ["open_ms", "o", "h", "l", "c", "usdt"]}}
@@ -221,11 +255,14 @@ def refresh(force=False, log=print, fetch=None, out=OUT, db=DB, now=None):
 
 
 def status(db=DB):
+    if not os.path.exists(db):
+        print(f"{db} not created yet (the engine's next run creates it, or run zig-refresh)")
+        return
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     d = build(con)
     a = d["archive"]
     print(f"zig.db: 15m candles {a['k15_bars']} from {a['k15_from']}; trade flow {a['flow_hours']} hours ({a['trades']} trades) from {a['flow_from']}; "
-          f"{a['book_snaps']} order-book snapshots")
+          f"{a['book_snaps']} order-book snapshots; {a['flow_incomplete']} hours kept but not matching the candle")
     if d["now"]["book"]:
         b = d["now"]["book"]
         print(f"now: bid {b[1]} ask {b[2]} spread {b[3]} bp; resting within 2%: bids ${b[5]:,.0f}, asks ${b[8]:,.0f}")
