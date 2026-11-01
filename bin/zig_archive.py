@@ -234,21 +234,33 @@ def status(db=DB):
 
 
 def probe():
-    t0 = now_ms()
-    for path, p in (("/api/v3/aggTrades", {"symbol": SYM, "startTime": t0 - H, "endTime": t0 - 1, "limit": 1000}),
-                    ("/api/v3/aggTrades", {"symbol": SYM, "startTime": t0 - 6 * 86400_000, "endTime": t0 - 6 * 86400_000 + H - 1, "limit": 1000}),
-                    ("/api/v3/aggTrades", {"symbol": SYM, "startTime": t0 - 40 * 86400_000, "endTime": t0 - 40 * 86400_000 + H - 1, "limit": 1000}),
-                    ("/api/v3/klines", {"symbol": SYM, "interval": "15m", "startTime": t0 - 500 * M15, "endTime": t0, "limit": 500}),
-                    ("/api/v3/klines", {"symbol": SYM, "interval": "15m", "startTime": 1625097600000, "endTime": 1625097600000 + 500 * M15, "limit": 500}),
-                    ("/api/v3/depth", {"symbol": SYM, "limit": 1000})):
+    """What MEXC really serves: how far back trades go, and whether the trades add up to the candles' volume."""
+    t0 = now_ms() // H * H
+    for back in (1, 2, 4, 8, 12, 24, 36, 48, 72, 120):
+        a = t0 - back * H
         try:
-            r = get(None, path, p)
-            if isinstance(r, dict):
-                print(f"{path}: bids {len(r.get('bids', []))}, asks {len(r.get('asks', []))}, top {r.get('bids', [[None]])[0]} / {r.get('asks', [[None]])[0]}")
-            else:
-                print(f"{path} {iso(p.get('startTime', t0))}: {len(r)} rows; first {r[0] if r else None}")
+            tr = window_trades(None, a, a + H)
+            k = get(None, "/api/v3/klines", {"symbol": SYM, "interval": "60m", "startTime": a, "endTime": a + H - 1, "limit": 2})
+            kq = float(k[0][7]) if k else None
+            tq = sum(float(t["q"]) * float(t["p"]) for t in tr)
+            span = f"{iso(min(t['T'] for t in tr))}..{iso(max(t['T'] for t in tr))}" if tr else "-"
+            print(f"hour {iso(a)} ({back}h ago): {len(tr)} trades ${tq:,.0f} | 1h candle ${kq:,.0f} | trade times {span}" if kq is not None
+                  else f"hour {iso(a)}: {len(tr)} trades ${tq:,.0f} | no candle")
         except Exception as e:
-            print(f"{path}: FAILED {str(e)[:160]}")
+            print(f"hour {iso(a)}: FAILED {str(e)[:160]}")
+    try:
+        r = get(None, "/api/v3/aggTrades", {"symbol": SYM, "limit": 1000})
+        print(f"latest 1000 (no time): {len(r)} rows, {iso(min(t['T'] for t in r))}..{iso(max(t['T'] for t in r))}, ${sum(float(t['q']) * float(t['p']) for t in r):,.0f}")
+        r = get(None, "/api/v3/trades", {"symbol": SYM, "limit": 1000})
+        print(f"/trades latest: {len(r)} rows, {iso(min(t['time'] for t in r))}..{iso(max(t['time'] for t in r))}, ${sum(float(t['quoteQty']) for t in r):,.0f}")
+    except Exception as e:
+        print(f"latest: FAILED {str(e)[:160]}")
+    for p in ({"interval": "15m", "startTime": 1625097600000, "limit": 3}, {"interval": "15m", "startTime": t0 - 400 * 86400_000, "limit": 3},
+              {"interval": "15m", "startTime": t0 - 200 * 86400_000, "limit": 3}, {"interval": "15m", "startTime": t0 - 60 * 86400_000, "limit": 3}):
+        r = get(None, "/api/v3/klines", dict(symbol=SYM, endTime=p["startTime"] + 3 * M15, **p))
+        print(f"15m candles from {iso(p['startTime'])}: {len(r)} rows")
+    d = get(None, "/api/v3/depth", {"symbol": SYM, "limit": 1000})
+    print(f"depth: bids {len(d.get('bids', []))}, asks {len(d.get('asks', []))}, top {d['bids'][0]} / {d['asks'][0]}")
 
 
 if __name__ == "__main__":
