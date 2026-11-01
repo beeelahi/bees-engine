@@ -983,6 +983,12 @@ def main():
             light_publish = True
     except Exception as e:
         log.warning(f"World markets skipped: {e}")
+    try:                                       # Stocks tab: tokenized stocks on Solana (xStocks, Ondo), hourly
+        import onchain_stocks
+        if onchain_stocks.refresh(log=log.info):
+            light_publish = True
+    except Exception as e:
+        log.warning(f"On-chain stocks skipped: {e}")
     try:                                       # MM-Bee tab: paper market-making results (paper files only)
         import mm_site
         if mm_site.export(os.path.join(ROOT, "web_export")):
