@@ -26,7 +26,7 @@ class FakeMexc:
             rows = [[t, "1", "2", "0.5", "1.5", "10", t + D, "15"] for t in range(100 * D, 1301 * D, D) if s <= t <= e][:lim]
             return 200, {}, json.dumps(rows)
         if u.path == "/api/v3/ticker/24hr":
-            return 200, {}, json.dumps({"lastPrice": "0.0416", "priceChangePercent": "0.0109", "highPrice": "0.0425", "lowPrice": "0.0407", "quoteVolume": "3665080.7"})
+            return 200, {}, json.dumps({"symbol": "ZIGUSDT", "lastPrice": "0.0416", "priceChangePercent": "0.0109", "highPrice": "0.0425", "lowPrice": "0.0407", "quoteVolume": "3665080.7"})
         if u.path == "/api/v3/exchangeInfo":
             return 200, {}, json.dumps({"symbols": [{"symbol": "ZIGUSDT", "status": "1", "baseAsset": "ZIG", "quoteAsset": "USDT", "isSpotTradingAllowed": True}]})
         return 404, {}, "{}"
@@ -67,6 +67,97 @@ class VenuesTest(unittest.TestCase):
             self.assertTrue(B._fetch.calls[0][0] == "/api/v3/klines")
         finally:
             B._fetch = old
+
+
+class FakeGateKucoin:
+    """Gate (1,000 points a call, refuses windows before day 300 as too old) and KuCoin (1,500 rows a call, newest
+    first); daily candles from day 100 (KuCoin) / day 300 (Gate) to day 1300."""
+
+    def __init__(self, gate_down=False):
+        self.calls, self.gate_down = [], gate_down
+
+    def __call__(self, url):
+        from urllib.parse import urlparse, parse_qs
+        u = urlparse(url)
+        q = {k: v[0] for k, v in parse_qs(u.query).items()}
+        self.calls.append((u.netloc, u.path, q))
+        if "gateio" in u.netloc:
+            if self.gate_down:
+                return 503, {}, "down"
+            if u.path == "/api/v4/spot/candlesticks":
+                a, b = int(q["from"]), int(q["to"])
+                assert (b - a) // 86400 + 1 <= 1000
+                if a < 300 * 86400:
+                    return 400, {}, '{"label":"INVALID_PARAM_VALUE","message":"too long ago"}'
+                rows = [[str(t), "15", "1.5", "2", "0.5", "1", "10", "true"] for t in range(300 * 86400, 1301 * 86400, 86400) if a <= t <= b]
+                return 200, {}, json.dumps(rows)
+            if u.path == "/api/v4/spot/currency_pairs":
+                return 200, {}, json.dumps([{"id": "GGG_USDT", "base": "GGG", "quote": "USDT", "trade_status": "tradable"}])
+            if u.path == "/api/v4/spot/tickers":
+                return 200, {}, json.dumps([{"currency_pair": "GGG_USDT", "last": "2", "change_percentage": "-3.5", "high_24h": "2.2", "low_24h": "1.9", "quote_volume": "250000"}])
+        if "kucoin" in u.netloc:
+            if u.path == "/api/v1/market/candles":
+                a, b = int(q["startAt"]), int(q["endAt"])
+                rows = [[str(t), "1", "1.5", "2", "0.5", "10", "15"] for t in range(100 * 86400, 1301 * 86400, 86400) if a <= t < b][::-1][:1500]
+                return 200, {}, json.dumps({"code": "200000", "data": rows})
+            if u.path == "/api/v2/symbols":
+                return 200, {}, json.dumps({"code": "200000", "data": [{"symbol": "KKK-USDT", "baseCurrency": "KKK", "quoteCurrency": "USDT", "enableTrading": True}]})
+            if u.path == "/api/v1/market/allTickers":
+                return 200, {}, json.dumps({"code": "200000", "data": {"ticker": [{"symbol": "KKK-USDT", "last": "3", "changeRate": "0.021", "high": "3.1", "low": "2.8", "volValue": "180000"}]}})
+        return 404, {}, "{}"
+
+
+class GateKucoinTest(unittest.TestCase):
+    def setUp(self):
+        self.old = (dict(V.EXTERNAL), dict(V.NATIVE))
+        V.EXTERNAL.update({"GGGUSDT": "gate", "KKKUSDT": "kucoin"})
+        V.NATIVE.update({"GGGUSDT": "GGG_USDT", "KKKUSDT": "KKK-USDT"})
+
+    def tearDown(self):
+        V.EXTERNAL.clear(), V.EXTERNAL.update(self.old[0]), V.NATIVE.clear(), V.NATIVE.update(self.old[1])
+
+    def test_gate_reshaped_and_old_windows_skipped(self):
+        rows = V.klines(FakeGateKucoin(), {"symbol": "GGGUSDT", "interval": "1d", "startTime": 0, "limit": 5000}, now_ms=2000 * D)
+        self.assertEqual(rows[0][0], 300 * D)                          # the windows Gate refused were skipped, not fatal
+        self.assertEqual(len(rows), 1001)                              # days 300..1300, none lost at the boundary
+        self.assertEqual(rows[0][1:6], ["1", "2", "0.5", "1.5", "10"])  # Gate's [t, qv, c, h, l, o, bv] -> o h l c vb
+        self.assertEqual(rows[0][7], "15")
+        self.assertEqual(rows[0][6], 301 * D - 1)
+
+    def test_kucoin_reshaped_oldest_first(self):
+        rows = V.klines(FakeGateKucoin(), {"symbol": "KKKUSDT", "interval": "1d", "startTime": 0, "limit": 5000}, now_ms=2000 * D)
+        self.assertEqual(len(rows), 1201)
+        self.assertEqual([r[0] for r in rows], sorted(r[0] for r in rows))
+        self.assertEqual(rows[0][1:6], ["1", "2", "0.5", "1.5", "10"])  # KuCoin's [t, o, c, h, l, vb, vq]
+        self.assertEqual(rows[-1][0], 1300 * D)
+
+    def test_bulk_status_ticker_and_failed_venue(self):
+        d, failed = V.bulk(FakeGateKucoin(), ["GGGUSDT", "KKKUSDT"])
+        self.assertEqual(failed, set())
+        self.assertEqual(d["GGGUSDT"]["status"], "TRADING")
+        self.assertAlmostEqual(float(d["GGGUSDT"]["ticker"]["priceChangePercent"]), -3.5)   # Gate: already percent
+        self.assertAlmostEqual(float(d["KKKUSDT"]["ticker"]["priceChangePercent"]), 2.1)    # KuCoin: a fraction
+        self.assertEqual(d["KKKUSDT"]["ticker"]["quoteVolume"], "180000")
+        sl, V.time.sleep = V.time.sleep, lambda x: None
+        try:
+            d, failed = V.bulk(FakeGateKucoin(gate_down=True), ["GGGUSDT", "KKKUSDT"])
+        finally:
+            V.time.sleep = sl
+        self.assertEqual(failed, {"gate"})                             # caller keeps Gate's pairs as they were
+        self.assertNotIn("GGGUSDT", d)
+
+    def test_loads_library_file_safely(self):
+        import os
+        import tempfile
+        p = os.path.join(tempfile.mkdtemp(), "x.json")
+        json.dump({"AAAUSDT": {"venue": "gate", "native": "AAA_USDT"}, "BAD USDT": {"venue": "gate", "native": "x"},
+                   "CCCUSDT": {"venue": "ftx", "native": "C"}, "ZIGUSDT": {"venue": "gate", "native": "ZIG_USDT"}}, open(p, "w"))
+        ext, nat = V._load(p)
+        self.assertEqual(ext["AAAUSDT"], "gate")
+        self.assertNotIn("BAD USDT", ext)
+        self.assertNotIn("CCCUSDT", ext)                               # only venues we trust
+        self.assertEqual(ext["ZIGUSDT"], "mexc")                       # pinned entries can't be overridden
+        self.assertEqual(V._load(p + ".missing")[0], V.PINNED)
 
 
 if __name__ == "__main__":

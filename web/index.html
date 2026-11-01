@@ -53,6 +53,22 @@ h2 { font-size: 15px; margin: 0; font-weight: 600; text-wrap: balance; }
 .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 .note { color: var(--muted); font-size: 12.5px; }
 .grid-kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.cp-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.cp-tile { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: rgba(255,255,255,0.03); min-width: 0; }
+.cp-tile .label { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cp-tile .v { font-size: 20px; font-weight: 650; margin: 2px 0; font-variant-numeric: tabular-nums; }
+.cp-tile .note { font-size: 11.5px; } .cp-tile .note b { font-weight: 600; }
+.cp-bar { display: flex; height: 10px; border-radius: 6px; overflow: hidden; margin: 12px 0 6px; } .cp-bar i { display: block; height: 100%; }
+.cp-ctl { display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between; align-items: center; margin: 12px 0 6px; }
+.chart-cp { height: 280px; }
+@media (max-width: 640px) { .cp-grid { grid-template-columns: 1fr 1fr; gap: 8px; } .cp-tile .v { font-size: 17px; } .chart-cp { height: 230px; } }
+.cn-ctl { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 4px 0 12px; }
+.cn-ctl select { background: rgba(255,255,255,0.04); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; font-size: 12.5px; }
+.cn-tbl td.nm { max-width: 220px; } .cn-tbl td.nm .n { display: block; color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cn-v { display: inline-flex; gap: 3px; } .cn-v span { font-size: 10.5px; padding: 1px 5px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted); }
+.cn-v span.p { color: var(--fg); border-color: var(--accent); }
+.cn-hot { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; } .cn-hot button { font-size: 12px; }
+@media (max-width: 640px) { .cn-tbl .sm-hide { display: none; } .cn-tbl td.nm { max-width: 130px; } }
 .kpi .v { font-family: var(--font-num); font-size: 28px; font-weight: 600; margin-top: 6px; letter-spacing: -0.01em; }
 .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 20px; }
 .dv-lead { margin: 0 0 14px; max-width: 90ch; } .dv-h { font-size: 15px; margin: 0; display: flex; gap: 8px; align-items: center; }
@@ -456,6 +472,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <a href="#me" data-view="me" id="navMe" hidden>★ My dashboard</a>
       <a href="#overview" data-view="overview">Overview</a>
       <a href="#world" data-view="world">World</a>
+      <a href="#coins" data-view="coins">Coins</a>
       <a href="#highlights" data-view="highlights">Trade Ideas<span class="badge" id="hlBadge" hidden></span></a>
       <a href="#bot" data-view="bot">Trading bots</a>
       <a href="#strategies" data-view="strategies">Strategies</a>
@@ -479,6 +496,15 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <div class="mk-grid" id="mkGrid"></div>
       <div class="chart-mk" id="mkChart"></div>
       <div class="legend" id="mkLegend"></div>
+    </div>
+<div class="card cp-card" id="capsOv">
+      <div class="card-head"><h2>Crypto market cap</h2><span class="note" data-k="asof"></span></div>
+      <div class="cp-grid" data-k="grid"></div>
+      <div class="cp-bar" data-k="bar" aria-hidden="true"></div><div class="legend" data-k="barlg"></div>
+      <div class="cp-ctl"><div class="seg" data-k="what"><button type="button" data-v="caps" aria-pressed="true">Market caps</button><button type="button" data-v="dom" aria-pressed="false">Dominance</button><button type="button" data-v="alt" aria-pressed="false">Altcoin season</button></div>
+        <div class="seg" data-k="rng"><button type="button" data-v="365" aria-pressed="true">1Y</button><button type="button" data-v="0" aria-pressed="false">All</button></div></div>
+      <div class="chart-cp" data-k="chart"></div><div class="legend" data-k="lg"></div>
+      <p class="note" data-k="foot"></p>
     </div>
     <div class="card today" id="todayCard">
       <div class="card-head"><h2>What matters today</h2><span class="note" id="todayAsOf"></span></div>
@@ -546,6 +572,15 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
         </div>
       </div>
       <div class="wx-pulse" id="wxPulse"></div>
+    </div>
+    <div class="card cp-card" id="capsWx">
+      <div class="card-head"><h2>Crypto market cap</h2><span class="note" data-k="asof"></span></div>
+      <div class="cp-grid" data-k="grid"></div>
+      <div class="cp-bar" data-k="bar" aria-hidden="true"></div><div class="legend" data-k="barlg"></div>
+      <div class="cp-ctl"><div class="seg" data-k="what"><button type="button" data-v="caps" aria-pressed="true">Market caps</button><button type="button" data-v="dom" aria-pressed="false">Dominance</button><button type="button" data-v="alt" aria-pressed="false">Altcoin season</button></div>
+        <div class="seg" data-k="rng"><button type="button" data-v="365" aria-pressed="true">1Y</button><button type="button" data-v="0" aria-pressed="false">All</button></div></div>
+      <div class="chart-cp" data-k="chart"></div><div class="legend" data-k="lg"></div>
+      <p class="note" data-k="foot"></p>
     </div>
     <div class="wx-main">
       <div class="card">
@@ -1372,6 +1407,28 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
     </div>
   </section>
 
+  <section class="view" id="v-coins" hidden>
+    <div class="card">
+      <div class="card-head"><h2>Coin library</h2><span class="note" id="cnAsOf"></span></div>
+      <p class="note" style="margin:0 0 12px" id="cnLead">CoinMarketCap's top 1,000 crypto projects by market cap, without stablecoins, tokenized stocks, ETFs and gold, or wrapped copies of other coins, and where each one trades on the exchanges we use: Binance, KuCoin, Gate and MEXC.</p>
+      <div class="cp-grid" id="cnKpis"></div>
+      <div class="cn-hot" id="cnHot"></div>
+    </div>
+    <div class="card">
+      <div class="cn-ctl">
+        <input class="search" id="cnQ" type="search" placeholder="Search coin" aria-label="Search coin" autocomplete="off">
+        <select id="cnSector" aria-label="Sector"></select>
+        <div class="seg" id="cnVenue"><button type="button" data-v="" aria-pressed="true">All</button><button type="button" data-v="B" aria-pressed="false">Binance</button><button type="button" data-v="K" aria-pressed="false">KuCoin</button><button type="button" data-v="G" aria-pressed="false">Gate</button><button type="button" data-v="M" aria-pressed="false">MEXC</button><button type="button" data-v="-" aria-pressed="false">None</button></div>
+        <button type="button" class="toggle" id="cnHotOnly" aria-pressed="false">Trending only</button>
+        <span class="note" id="cnShown"></span>
+      </div>
+      <div class="tbl-wrap"><table class="wl-tbl cn-tbl"><thead><tr><th data-k="rank" class="num">#</th><th data-k="symbol">Coin</th><th data-k="sector" class="sm-hide">Sector</th><th data-k="price" class="num">Price</th><th data-k="ch24" class="num">24h</th><th data-k="ch7" class="num sm-hide">7d</th><th data-k="ch30" class="num">30d</th><th data-k="ch1y" class="num sm-hide">1y</th><th data-k="mcap" class="num">Market cap</th><th data-k="vol24" class="num sm-hide">Volume 24h</th><th class="sm-hide" title="B Binance, K KuCoin, G Gate, M MEXC; outlined = where our charts take the data from">Trades on</th></tr></thead><tbody id="cnBody"></tbody></table></div>
+      <div style="text-align:center;margin-top:12px"><button type="button" class="toggle" id="cnMore" hidden>Show more</button></div>
+      <details style="margin-top:14px"><summary class="note" id="cnExSum">Left out</summary><div class="tbl-wrap" style="max-height:40vh;margin-top:8px"><table><thead><tr><th class="num">#</th><th>Coin</th><th>Why</th></tr></thead><tbody id="cnEx"></tbody></table></div></details>
+      <p class="note" id="cnFoot" style="margin-top:12px"></p>
+    </div>
+  </section>
+
   <section class="view" id="v-listings" hidden>
     <div class="grid-2">
       <div class="card"><div class="card-head"><h2>New listings, last 180 days</h2><span class="note">USDT pairs, by first candle</span></div>
@@ -1500,7 +1557,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
     <p><b>For information and education only.</b> Nothing on Bee's Dashboard, including its signals, trade ideas, highlights, bot results, scores, rankings and answers from Ask Claude, is financial, investment, legal or tax advice, or a recommendation, offer or solicitation to buy, sell or hold any asset.</p>
     <p><b>High risk.</b> Cryptoassets are highly volatile and largely unregulated. You can lose some or all of the money you invest. Never invest money you cannot afford to lose.</p>
     <p><b>Simulated results.</b> The bots are paper trading only: no real orders are placed. Backtests and paper results are hypothetical, based on historical data and on assumptions about fees, slippage and fills that may not match real trading. Past performance, simulated or actual, does not guarantee future results.</p>
-    <p><b>No warranty.</b> Data comes from Binance public market data and is processed automatically. We check it carefully, but it may contain errors, delays or omissions, and is provided "as is", without warranty of any kind. Estimated market caps are approximations. Answers from Ask Claude are generated automatically from this data and may be incomplete or wrong.</p>
+    <p><b>No warranty.</b> Data comes from the public market data of Binance, KuCoin, Gate and MEXC, CoinMarketCap and the other sources named on each page, and is processed automatically. We check it carefully, but it may contain errors, delays or omissions, and is provided "as is", without warranty of any kind. Estimated market caps are approximations. Answers from Ask Claude are generated automatically from this data and may be incomplete or wrong.</p>
     <p><b>Your responsibility.</b> Do your own research, verify information independently and consult a licensed professional before making any financial decision. The operators of Bee's Dashboard accept no responsibility or liability for any loss or damage arising from the use of, or reliance on, this site or its content. Availability may be restricted in some jurisdictions; you are responsible for complying with the laws that apply to you.</p>
   </section>
 </main>
@@ -1744,7 +1801,7 @@ const tzName = () => { try { return Intl.DateTimeFormat().resolvedOptions().time
 const livePx = sym => { const x = S.px && S.px.rows && S.px.rows[sym]; const age = S.px && S.px.as_of ? (Date.now() - Date.parse(S.px.as_of)) / 6e4 : 1e9; return x && age < 180 ? x : null; };
 function renderFresh() {
   const ov = S.ov, st = ov.status || {};
-  const ven = Object.entries(ov.venues || {}); if (ven.length) $("#brandSub").textContent = "Binance spot · USDT pairs (+ " + ven.map(([k, v]) => k.replace(/USDT$/, "") + " from " + v).join(", ") + ") · daily close 00:00 UTC";
+  const ven = Object.entries(ov.venues || {}); if (ven.length) $("#brandSub").textContent = "Binance spot · USDT pairs" + (ven.length <= 2 ? " (+ " + ven.map(([k, v]) => k.replace(/USDT$/, "") + " from " + v).join(", ") + ")" : " + " + ven.length + " from KuCoin, Gate, MEXC") + " · daily close 00:00 UTC";
   const runIso = st.last_run_utc || ov.generated_utc;
   // the engine refreshes every 15 minutes (live prices, 4h candles, shortlist); the daily package only rebuilds
   // after each daily close (00:00 UTC), so the newest of the two is the real "last update"
@@ -3966,7 +4023,8 @@ function chartMarkers(times) {
 }
 // TradingView's embedded chart (drawing tools); a frame from TradingView only, no script of theirs runs on this page
 const TV_INT = { "1h": "60", "4h": "240", "1d": "D", "1w": "W", "1M": "M" };
-function tvSymbol(sym) { const v = venueOf(sym); return (v ? v.toUpperCase() : "BINANCE") + ":" + sym; }
+const TV_EX = { MEXC: "MEXC", Gate: "GATEIO", KuCoin: "KUCOIN" };
+function tvSymbol(sym) { const v = venueOf(sym); return (v ? TV_EX[v] || v.toUpperCase() : "BINANCE") + ":" + sym; }
 function pairViewSet() {
   const tv = S.pairView === "tv";
   $$("#pairView button").forEach(b => b.setAttribute("aria-pressed", String((b.dataset.v === "tv") === tv)));
@@ -3983,6 +4041,116 @@ function pairViewSet() {
   box.replaceChildren(f);
 }
 $$("#pairView button").forEach(b => b.onclick = () => { S.pairView = b.dataset.v; store.set("pairView", S.pairView); pairViewSet(); });
+
+// ---------- crypto market cap (data/caps.json: CMC's daily global market cap split into BTC / ETH / stablecoins / the rest)
+let capsLoading = null; const capCharts = {};
+function loadCaps() {
+  if (S.caps !== undefined || capsLoading) return capsLoading;
+  capsLoading = j("data/caps.json").then(d => { S.caps = d; }, () => { S.caps = null; }).then(() => { capsLoading = null; ["capsOv", "capsWx"].forEach(id => { const c = $("#" + id); if (c && !c.closest(".view").hidden) renderCaps(id); }); });
+  return capsLoading;
+}
+function renderCaps(id) {
+  const card = $("#" + id); if (!card) return;
+  const k = n => card.querySelector('[data-k="' + n + '"]');
+  if (S.caps === undefined) { loadCaps(); return; }
+  const D = S.caps; if (!D || !D.now) { card.hidden = true; return; } card.hidden = false;
+  const N = D.now, d7 = D.d7, d30 = D.d30, d1 = D.d1, pc = (a, b) => isNum(a) && isNum(b) && b ? 100 * (a / b - 1) : null, pt = (a, b) => isNum(a) && isNum(b) ? a - b : null;
+  const day = new Date(N.ts * 1000).toISOString().slice(0, 10);
+  k("asof").textContent = "CoinMarketCap · daily · " + day;
+  const g = k("grid"); g.replaceChildren();
+  const tile = (label, v, ch, pts, title) => { const t = document.createElement("div"); t.className = "cp-tile"; if (title) t.title = title;
+    const l = document.createElement("div"); l.className = "label"; l.textContent = label; const vv = document.createElement("div"); vv.className = "v"; vv.textContent = v;
+    const n = document.createElement("div"); n.className = "note";
+    ch.forEach(([lab, x], i) => { if (i) n.append(" · "); const b = document.createElement("b"); b.className = cls(x); b.textContent = x === null ? "—" : pts ? (x > 0 ? "+" : "") + x.toFixed(2) + " pts" : fPct(x, 1); n.append(lab + " ", b); });
+    t.append(l, vv, n); g.append(t); };
+  [["Total (TOTAL)", "total", "Every coin CoinMarketCap tracks"], ["Without BTC (TOTAL2)", "total2", "Total minus Bitcoin"], ["Without BTC, ETH (TOTAL3)", "total3", "Total minus Bitcoin and Ether"],
+   ["Altcoins, no stablecoins", "alts_ex_stables", "Total minus Bitcoin, Ether and stablecoins: the money in the rest of crypto"]].forEach(([l, f, ti]) =>
+    tile(l, fUsd(N[f]), [["24h", pc(N[f], d1 && d1[f])], ["7d", pc(N[f], d7 && d7[f])], ["30d", pc(N[f], d30 && d30[f])]], false, ti));
+  [["BTC dominance", "btc_d", "Bitcoin's share of the total"], ["ETH dominance", "eth_d", "Ether's share of the total"], ["Stablecoin share", "stable_d", "Stablecoins' share of the total: rises when money waits on the side"]].forEach(([l, f, ti]) =>
+    tile(l, N[f].toFixed(2) + "%", [["7d", pt(N[f], d7 && d7[f])], ["30d", pt(N[f], d30 && d30[f])]], true, ti));
+  const A = D.altseason || {}, as = A.series || [], aAgo = days => { if (!as.length) return null; const t = as[as.length - 1][0] - days * 86400; return as.reduce((b, r) => Math.abs(r[0] - t) < Math.abs(b[0] - t) ? r : b, as[0])[1]; };
+  tile("Altcoin season index", isNum(A.now) ? A.now.toFixed(0) + " / 100" : "—", [["7d", isNum(A.now) && isNum(aAgo(7)) ? A.now - aAgo(7) : null], ["30d", isNum(A.now) && isNum(aAgo(30)) ? A.now - aAgo(30) : null]], true,
+    "CoinMarketCap's index: 75 or more = altcoin season, 25 or less = bitcoin season");
+  g.lastChild.querySelector(".note").innerHTML = g.lastChild.querySelector(".note").innerHTML.replace(/ pts/g, "");
+  const bar = k("bar"); bar.replaceChildren(); const parts = [["Bitcoin", N.btc, "#f7931a"], ["Ether", N.eth, "#8c8cf7"], ["Stablecoins", N.stables, "#3fb68b"], ["Everything else", N.alts_ex_stables, css("--accent") || "#5fa8ff"]];
+  parts.forEach(([n, v, col]) => { const i = document.createElement("i"); i.style.width = (100 * v / N.total) + "%"; i.style.background = col; i.title = n + " " + fUsd(v) + " (" + (100 * v / N.total).toFixed(1) + "%)"; bar.append(i); });
+  mbLegendIn(k("barlg"), parts.map(([n, v, col]) => [col, n + " " + (100 * v / N.total).toFixed(1) + "%"]));
+  const what = card.dataset.what || "caps", rng = +(card.dataset.rng || 365);
+  card.querySelectorAll('[data-k="what"] button').forEach(b => { b.setAttribute("aria-pressed", String(b.dataset.v === what)); b.onclick = () => { card.dataset.what = b.dataset.v; renderCaps(id); }; });
+  card.querySelectorAll('[data-k="rng"] button').forEach(b => { b.setAttribute("aria-pressed", String(+b.dataset.v === rng)); b.onclick = () => { card.dataset.rng = b.dataset.v; renderCaps(id); }; });
+  if (capCharts[id]) { capCharts[id].remove(); delete capCharts[id]; }
+  const box = k("chart"); box.replaceChildren();
+  if (typeof LightweightCharts !== "undefined") {
+    const ch = mbChartMake(box); capCharts[id] = ch; ch.applyOptions({ timeScale: { timeVisible: false } });
+    const from = rng ? N.ts - rng * 86400 : 0, G = D.series.filter(r => r[0] >= from);
+    const line = (col, f, fmt, w = 2) => ch.addLineSeries({ color: col, lineWidth: w, priceLineVisible: false, lastValueVisible: true, priceFormat: { type: "custom", formatter: fmt, minMove: 0.01 } }).setData(G.map(r => ({ time: r[0], value: f(r) })));
+    const T = v => "$" + (v / 1e12).toFixed(2) + "T", P = v => v.toFixed(1) + "%";
+    if (what === "caps") { line(css("--fg") || "#e8eefc", r => r[1], T); line("#8c8cf7", r => r[1] - r[2], T); line(css("--accent") || "#5fa8ff", r => r[1] - r[2] - r[3], T); line("#3fb68b", r => r[5], T, 1);
+      mbLegendIn(k("lg"), [[css("--fg"), "Total"], ["#8c8cf7", "TOTAL2 (no BTC)"], [css("--accent"), "TOTAL3 (no BTC, ETH)"], ["#3fb68b", "Altcoins without stablecoins"]]); }
+    else if (what === "dom") { line("#f7931a", r => 100 * r[2] / r[1], P); line("#8c8cf7", r => 100 * r[3] / r[1], P); line("#3fb68b", r => 100 * r[4] / r[1], P);
+      mbLegendIn(k("lg"), [["#f7931a", "BTC dominance"], ["#8c8cf7", "ETH dominance"], ["#3fb68b", "Stablecoin share"]]); }
+    else { const s2 = ch.addLineSeries({ color: css("--accent") || "#5fa8ff", lineWidth: 2, priceLineVisible: false, priceFormat: { type: "custom", formatter: v => v.toFixed(0), minMove: 1 } });
+      s2.setData(as.filter(r => r[0] >= from).map(r => ({ time: r[0], value: r[1] })));
+      s2.createPriceLine({ price: 75, color: "#3fb68b", lineWidth: 1, lineStyle: 2, title: "Altcoin season" }); s2.createPriceLine({ price: 25, color: "#f7931a", lineWidth: 1, lineStyle: 2, title: "Bitcoin season" });
+      mbLegendIn(k("lg"), [[css("--accent"), "Altcoin season index (0–100)"]]); }
+    ch.timeScale().fitContent();
+  }
+  const first = D.series.length ? new Date(D.series[0][0] * 1000).toISOString().slice(0, 10) : "";
+  k("foot").textContent = `Source: CoinMarketCap's global market cap, split into Bitcoin, Ether, stablecoins and the rest (the four add up to the total). TOTAL2 = total minus BTC; TOTAL3 = total minus BTC and ETH. Daily points for the last year; before that (back to ${first}) CoinMarketCap gives about one point a week. Refreshed every 3 hours.`;
+}
+function mbLegendIn(lg, items) { lg.replaceChildren(); items.forEach(([col, t]) => { const sp = document.createElement("span"), i = document.createElement("i"); i.style.background = col; sp.append(i, document.createTextNode(t)); lg.append(sp); }); }
+
+// ---------- coin library (data/library.json)
+let cnLoading = null; const CN_V = { B: "Binance", K: "KuCoin", G: "Gate", M: "MEXC" };
+function renderCoins() {
+  if (S.coins === undefined) { if (!cnLoading) cnLoading = j("data/library.json").then(d => { S.coins = d; }, () => { S.coins = null; }).then(() => { cnLoading = null; if (!$("#v-coins").hidden) renderCoins(); }); return; }
+  const L = S.coins; if (!L) { $("#cnBody").innerHTML = '<tr><td colspan="11" class="empty">The coin library is published with the next refresh.</td></tr>'; return; }
+  const C = L.columns, ix = Object.fromEntries(C.map((c, i) => [c, i])), R = L.rows, cn = L.counts;
+  $("#cnAsOf").textContent = "updated " + mbAgo(L.generated_utc) + (S.index ? " · " + fQ(R.filter(r => r[ix.pair] && S.index[r[ix.pair]]).length) + " with a chart here" : "");
+  const kp = $("#cnKpis"); kp.replaceChildren();
+  [["Coins", fQ(R.length), `of CMC's top ${fQ(cn.listed)}; ${fQ(cn.excluded)} left out`], ["On Binance", fQ(cn.binance), "charted from Binance"],
+   ["Only KuCoin, Gate, MEXC", fQ(cn.other_only), `${fQ(cn.tracked_other)} trade $100k+ a day there: tracked`], ["Not on these four", fQ(cn.none), "listed elsewhere only"]].forEach(([l, v, n]) => { const t = document.createElement("div"); t.className = "cp-tile";
+    t.innerHTML = '<div class="label"></div><div class="v"></div><div class="note"></div>'; t.children[0].textContent = l; t.children[1].textContent = v; t.children[2].textContent = n; kp.append(t); });
+  const hot = $("#cnHot"); hot.replaceChildren();
+  const hs = [...new Map((L.trending || []).map(t => [String(t.symbol).toUpperCase(), t])).values()];
+  if (hs.length) { const lab = document.createElement("span"); lab.className = "note"; lab.textContent = "Trending searches now (CMC, CoinGecko):"; hot.append(lab);
+    hs.forEach(t => { const b = document.createElement("button"); b.type = "button"; b.className = "toggle"; b.textContent = t.symbol; b.title = t.name + " · " + t.source + (t.in_top ? "" : " · outside the top 1,000"); b.onclick = () => { $("#cnQ").value = t.symbol; S.cnQ = String(t.symbol).toLowerCase(); S.cnN = 100; renderCoins(); }; hot.append(b); }); }
+  const sel = $("#cnSector");
+  if (!sel.options.length) { const secs = [...new Set(R.map(r => r[ix.sector]))].sort((a, b) => (a === "Other") - (b === "Other") || a.localeCompare(b));
+    [["", "All sectors"]].concat(secs.map(x => [x, x + " (" + R.filter(r => r[ix.sector] === x).length + ")"])).forEach(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; sel.append(o); });
+    sel.onchange = () => { S.cnSec = sel.value; S.cnN = 100; renderCoins(); };
+    $("#cnQ").oninput = e => { S.cnQ = e.target.value.trim().toLowerCase(); S.cnN = 100; renderCoins(); };
+    $$("#cnVenue button").forEach(b => b.onclick = () => { S.cnVen = b.dataset.v; S.cnN = 100; renderCoins(); });
+    $("#cnHotOnly").onclick = () => { S.cnHot = !S.cnHot; S.cnN = 100; renderCoins(); };
+    $$(".cn-tbl th[data-k]").forEach(th => th.onclick = () => { const key = th.dataset.k; S.cnAsc = S.cnKey === key ? !S.cnAsc : ["rank", "symbol", "sector"].includes(key); S.cnKey = key; renderCoins(); });
+    $("#cnMore").onclick = () => { S.cnN = (S.cnN || 100) + 200; renderCoins(); }; }
+  $$("#cnVenue button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === (S.cnVen || ""))));
+  $("#cnHotOnly").setAttribute("aria-pressed", String(!!S.cnHot));
+  const q = S.cnQ || "", sec = S.cnSec || "", ven = S.cnVen || "", key = S.cnKey || "rank", asc = S.cnKey ? !!S.cnAsc : true;
+  let rows = R.filter(r => (!q || String(r[ix.symbol]).toLowerCase().includes(q) || String(r[ix.name]).toLowerCase().includes(q)) && (!sec || r[ix.sector] === sec)
+    && (!ven || (ven === "-" ? !r[ix.venues] : String(r[ix.venues] || "").includes(ven))) && (!S.cnHot || r[ix.trending]));
+  const kv = r => r[ix[key]], num = ["rank", "price", "ch24", "ch7", "ch30", "ch1y", "mcap", "vol24"].includes(key);
+  rows.sort((a, b) => { const x = kv(a), y = kv(b); if (x === null || x === undefined) return 1; if (y === null || y === undefined) return -1; const c = num ? x - y : String(x).localeCompare(String(y)); return asc ? c : -c; });
+  $$(".cn-tbl th[data-k]").forEach(th => { th.classList.toggle("sorted", th.dataset.k === key); th.classList.toggle("asc", th.dataset.k === key && asc); });
+  const n = S.cnN || 100, body = $("#cnBody"), frag = document.createDocumentFragment();
+  rows.slice(0, n).forEach(r => { const t = document.createElement("tr"), pair = r[ix.pair], charted = pair && S.index && S.index[pair];
+    if (charted) { t.className = "clickable"; t.title = "Open the " + pair.replace(/USDT$/, "") + " chart"; t.onclick = () => openPair(pair); }
+    const nm = document.createElement("span"), b = document.createElement("b"); b.textContent = r[ix.symbol]; nm.append(b);
+    if (r[ix.trending]) nm.append(" ", chip("trending", "warn"));
+    const sub = document.createElement("span"); sub.className = "n"; sub.textContent = r[ix.name] + (r[ix.chain] ? " · " + r[ix.chain] : ""); nm.append(sub);
+    const vb = document.createElement("span"); vb.className = "cn-v"; String(r[ix.venues] || "").split("").forEach(c => { const x = document.createElement("span"); x.textContent = c; x.title = CN_V[c] + (CN_V[c] === r[ix.primary] ? " (our chart's data)" : ""); if (CN_V[c] === r[ix.primary]) x.className = "p"; vb.append(x); });
+    if (!r[ix.venues]) vb.textContent = "—";
+    t.append(td(fQ(r[ix.rank]), "num"), tdNode(nm, "nm"), td(r[ix.sector], "sm-hide"), td(fPx(r[ix.price]), "num"), td(fPct(r[ix.ch24], 1), "num " + cls(r[ix.ch24])), td(fPct(r[ix.ch7], 1), "num sm-hide " + cls(r[ix.ch7])),
+      td(fPct(r[ix.ch30], 1), "num " + cls(r[ix.ch30])), td(fPct(r[ix.ch1y], 0), "num sm-hide " + cls(r[ix.ch1y])), td(fUsd(r[ix.mcap]), "num"), td(fUsd(r[ix.vol24]), "num sm-hide"), tdNode(vb, "sm-hide"));
+    frag.append(t); });
+  body.replaceChildren(frag); if (!rows.length) body.innerHTML = '<tr><td colspan="11" class="empty">No coin matches.</td></tr>';
+  $("#cnShown").textContent = Math.min(n, rows.length) + " of " + rows.length; $("#cnMore").hidden = rows.length <= n;
+  const ex = L.excluded || [], eb = $("#cnEx");
+  if (!eb.children.length) { const by = {}; ex.forEach(x => { const k_ = x[3].replace(/ \(.+\)$/, ""); by[k_] = (by[k_] || 0) + 1; });
+    $("#cnExSum").textContent = `Left out: ${ex.length} (` + Object.entries(by).sort((a, b) => b[1] - a[1]).map(([k_, v]) => v + " " + k_).join(", ") + ")";
+    const f2 = document.createDocumentFragment(); ex.forEach(x => { const t = document.createElement("tr"); t.append(td(fQ(x[0]), "num"), td(x[1] + " · " + x[2]), td(x[3])); f2.append(t); }); eb.append(f2); }
+  $("#cnFoot").textContent = "Market data: CoinMarketCap, refreshed every 3 hours. A coin counts as listed on an exchange only when the ticker matches and the exchange's price is within 10% of CoinMarketCap's, so a different coin with the same ticker is never mixed in. Coins not on Binance are charted from whichever of KuCoin, Gate or MEXC trades the most of them, once that is at least $100k a day. Not financial advice.";
+}
 // ZIG archive (data/zig.json): MEXC order flow, order book and 15m candles we keep ourselves
 let zgLoading = null, zgCharts = [];
 function renderZig() {
@@ -4353,7 +4521,7 @@ function renderBot() {
 const fUsd2 = v => isNum(v) ? (v < 0 ? "−$" : "$") + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
 
 // ---------- routing + controls
-const VIEWS = ["me", "overview", "world", "bot", "strategies", "mmbee", "lab", "highlights", "screener", "watchlist", "signals", "listings", "stocks", "pair"];
+const VIEWS = ["me", "overview", "world", "coins", "bot", "strategies", "mmbee", "lab", "highlights", "screener", "watchlist", "signals", "listings", "stocks", "pair"];
 // sub-sections inside a tab (#bot/record, #signals/library ...); old tab names still open the right place
 const SUBS = { bot: ["portfolio", "each", "record", "fade"], signals: ["latest", "library"], mmbee: ["bots", "live", "livu", "backtest"], stocks: ["basket", "onchain", "binance"] };
 const ALIAS = { top50: ["overview", "t50"], record: ["bot", "record"], library: ["signals", "library"] };
@@ -4380,9 +4548,9 @@ function show(v) {
     if (["1h", "4h", "1d", "1w", "1M"].includes(parts[2])) S.pairTf = parts[2]; v = "pair"; }
   if (!VIEWS.includes(v)) v = "overview"; VIEWS.forEach(x => { $("#v-" + x).hidden = x !== v; });
   $$("nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.view === v ? "page" : "false"));
-  ({ me: () => { renderMe(); if (!ME.user && AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); }, overview: () => { renderOverview(); renderTop50(); if (focus === "t50") setTimeout(() => $("#t50Card").scrollIntoView({ behavior: "smooth", block: "start" }), 150); },
+  ({ me: () => { renderMe(); if (!ME.user && AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); }, overview: () => { renderOverview(); renderCaps("capsOv"); renderTop50(); if (focus === "t50") setTimeout(() => $("#t50Card").scrollIntoView({ behavior: "smooth", block: "start" }), 150); },
     bot: () => { $("#botNavFade").hidden = !S.p4; subCounts(); setSub("bot", S.sub.bot); }, mmbee: () => { renderMMHead(); setSub("mmbee", S.sub.mmbee); }, lab: renderLab, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch,
-    signals: () => { subCounts(); setSub("signals", S.sub.signals); }, listings: renderListings, strategies: renderStrategies, stocks: () => setSub("stocks", S.sub.stocks), pair: renderPair, world: renderWorld })[v](); }
+    signals: () => { subCounts(); setSub("signals", S.sub.signals); }, listings: renderListings, strategies: renderStrategies, stocks: () => setSub("stocks", S.sub.stocks), pair: renderPair, world: () => { renderWorld(); renderCaps("capsWx"); }, coins: renderCoins })[v](); }
 function subCounts() {
   const R = S.bot, PF = R && R.portfolio, fill = (view, sub, n, title) => { const b = $('.sub-nav[data-for="' + view + '"] button[data-s="' + sub + '"]'); if (!b) return; b.querySelector("i").textContent = n ? String(n) : ""; b.title = title || ""; };
   fill("bot", "portfolio", R && R.bots ? R.bots.length : 0, "bots");

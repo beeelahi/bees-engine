@@ -63,10 +63,10 @@ def build(con, universe, now_ms, table="candles_4h", state="h4_state", bar_ms=4 
                         (sym,)).fetchone()[0] or 0
         liq.append((v, sym))
     liq.sort(reverse=True)
-    pick = [s for _, s in liq[:n_pairs]] + [s for _, s in liq[n_pairs:] if venues.is_external(s)]
+    pick = [s for _, s in liq[:n_pairs]] + [s for _, s in liq[n_pairs:] if venues.is_pinned(s)]
     index, shards = {}, [dict() for _ in range(SHARDS + 1)]     # the last shard holds pairs added on purpose (long history)
     for k, sym in enumerate(pick):
-        ext = venues.is_external(sym)
+        ext = venues.is_pinned(sym)
         rows = _series(con, sym, now_ms, table, bar_ms, max(calc, show_ext + 300) if ext else calc)
         if len(rows) < 60:
             continue

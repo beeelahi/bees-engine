@@ -56,7 +56,7 @@ def is_stock(token, first_listed):
 def stock_tokens(con):
     """Tokens of every bStock in the pairs table (empty when there is no pairs table)."""
     try:
-        return {t for t, fc in con.execute("SELECT token, first_candle FROM pairs") if is_stock(t, fc)}   # first_candle: Binance's first day
+        return {t for s, t, fc in con.execute("SELECT symbol, token, first_candle FROM pairs") if is_stock(t, fc) and not venues.is_external(s)}
     except sqlite3.Error:
         return set()
 
@@ -65,13 +65,14 @@ def stock_symbols(con, trading_only=False):
     """Symbols of every bStock pair (empty when there is no pairs table)."""
     try:
         return {s for s, t, fc, st in con.execute("SELECT symbol, token, first_candle, status FROM pairs")
-                if is_stock(t, fc) and (st == "TRADING" or not trading_only)}
+                if is_stock(t, fc) and (st == "TRADING" or not trading_only) and not venues.is_external(s)}
     except sqlite3.Error:
         return set()
 
 
 STOCK_SQL = (f"(p.token LIKE '%B' AND LENGTH(p.token) > 2 AND COALESCE(p.first_candle, '') >= '{STOCKS_SINCE}'"
-             f" AND p.token NOT IN ({','.join(chr(39) + b + chr(39) for b in sorted(CRYPTO_B)) or chr(39) * 2}))")
+             f" AND p.token NOT IN ({','.join(chr(39) + b + chr(39) for b in sorted(CRYPTO_B)) or chr(39) * 2})"
+             f" AND p.symbol NOT IN ({','.join(chr(39) + x + chr(39) for x in sorted(venues.EXTERNAL)) or chr(39) * 2}))")   # bStocks are Binance's
 HOSTS = ["https://data-api.binance.vision", "https://api.binance.com"]
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -366,12 +367,16 @@ def refresh_universe(con, today, stamp):
         if t and st == "TRADING":
             con.execute("INSERT OR IGNORE INTO ticker_snapshots VALUES(?,?,?,?,?)",
                         (today, sym, float(t["lastPrice"]), float(t["quoteVolume"]), stamp))
-    for sym in venues.EXTERNAL:                  # pairs from another venue; Binance wins if it lists the same symbol
-        if sym in seen:
+    ext, failed = venues.bulk(_fetch, [x for x in venues.EXTERNAL if x not in seen])   # Binance wins on the same symbol
+    for sym in venues.EXTERNAL:
+        if sym not in seen and venues.venue(sym) in failed:
+            seen.add(sym)                         # its exchange could not be read: keep the pair as it was, never "delisted"
+    if failed:
+        log.warning(f"  could not read {', '.join(sorted(failed))}: their pairs kept as they were")
+    for sym in venues.EXTERNAL:
+        if sym in seen or sym not in ext:
             continue
-        s = venues.exchange_info(_fetch, sym)
-        if not s:
-            continue
+        s = ext[sym]
         seen.add(sym)
         st = s["status"]
         row = con.execute("SELECT status FROM pairs WHERE symbol=?", (sym,)).fetchone()
@@ -382,14 +387,13 @@ def refresh_universe(con, today, stamp):
             con.execute("UPDATE pairs SET delisted_on=CASE WHEN ?='TRADING' THEN NULL WHEN status='TRADING' THEN ? ELSE delisted_on END,"
                         " status=?, last_seen_trading=COALESCE(?, last_seen_trading) WHERE symbol=?",
                         (st, today, st, today if st == "TRADING" else None, sym))
-        try:
-            t = venues.ticker24(_fetch, sym)
-            if st == "TRADING":
-                con.execute("INSERT OR IGNORE INTO ticker_snapshots VALUES(?,?,?,?,?)",
-                            (today, sym, float(t["lastPrice"]), float(t["quoteVolume"]), stamp))
-        except Exception as e:
-            log.warning(f"  {sym}: 24h ticker from {venues.venue(sym)} failed: {e}")
-        log.info(f"  {sym}: tracked from {venues.venue(sym)} ({st})")
+        t = s.get("ticker")
+        if t and st == "TRADING":
+            con.execute("INSERT OR IGNORE INTO ticker_snapshots VALUES(?,?,?,?,?)",
+                        (today, sym, float(t["lastPrice"]), float(t["quoteVolume"]), stamp))
+    n_ext = sum(1 for x in venues.EXTERNAL if x in ext)
+    if n_ext:
+        log.info(f"  {n_ext} pairs tracked from other exchanges ({', '.join(f'{venues.NAME[v]} {sum(1 for x in ext if venues.venue(x) == v)}' for v in sorted({venues.venue(x) for x in ext}))})")
     for (sym,) in con.execute("SELECT symbol FROM pairs").fetchall():
         if not sym.isascii():
             for t in ("pairs", "daily", "gaps", "anomalies", "ticker_snapshots"):
@@ -567,7 +571,7 @@ SELECT p.symbol FROM pairs p
 JOIN ticker_snapshots t ON t.symbol = p.symbol
  AND t.snap_date = (SELECT MAX(snap_date) FROM ticker_snapshots)
 WHERE p.status = 'TRADING' AND (t.quote_volume_24h >= {MIN_VOL_USDT}
-       OR p.symbol IN ({",".join("'" + x + "'" for x in sorted(venues.EXTERNAL)) or "''"}))   -- pairs tracked on purpose (ZIG) stay in, quiet days too
+       OR p.symbol IN ({",".join("'" + x + "'" for x in sorted(venues.PINNED)) or "''"}))   -- pairs tracked on purpose (ZIG) stay in, quiet days too
   AND p.token NOT IN ({",".join("'" + b + "'" for b in sorted(STABLE_BASES))})
   AND NOT {STOCK_SQL}
 """
@@ -992,6 +996,12 @@ def main():
             light_publish = True
     except Exception as e:
         log.warning(f"Strategy lab skipped: {e}")
+    try:                                       # coin library: CMC top 1,000, exchange mapping, market totals (every 3h)
+        import coin_library
+        if coin_library.refresh(log=log.info):
+            light_publish = True
+    except Exception as e:
+        log.warning(f"Coin library skipped: {e}")
     try:                                       # ZIG archive: MEXC trades, order book, 15m candles, ticker (data/zig.db)
         import zig_archive
         if zig_archive.refresh(log=log.info):

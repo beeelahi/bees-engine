@@ -74,6 +74,7 @@ def main(out):
     world(E.OUT)
     onchain(E.OUT)
     zig(E.OUT)
+    library(E.OUT)
     import subprocess                                    # the Strategies tab: the strategy lab on the synthetic history
     subprocess.run([sys.executable, os.path.join(HERE, "..", "research", "strategy_lab.py"), db, os.path.join(E.OUT, "strategies.json")], check=True, capture_output=True)
     with open(os.path.join(HERE, "..", "web", "index.html"), encoding="utf-8") as f:
@@ -118,6 +119,17 @@ def onchain(out_data):
     import onchain_stocks as O
     from tests.test_onchain_stocks import fake
     O.refresh(force=True, log=print, fetch=fake, out=os.path.join(out_data, "onchain.json"), db=os.path.join(tempfile.mkdtemp(), "onchain.db"), cands=[])
+
+
+def library(out_data):
+    """Coins tab and market-cap card from the unit tests' canned CMC / exchange data."""
+    import tempfile
+    sys.path.insert(0, os.path.join(HERE, ".."))
+    import coin_library as CL
+    from tests.test_coin_library import ROWS, BOOKS, totals
+    d = tempfile.mkdtemp()
+    CL.build(log=print, db=os.path.join(d, "l.db"), rows=ROWS, books=BOOKS, tr=[("CMC", "XMR", "Monero", 300, 3), ("CoinGecko", "NEW", "Newcoin", 1, None)],
+             ext_file=os.path.join(d, "ext.json"), out_lib=os.path.join(out_data, "library.json"), out_caps=os.path.join(out_data, "caps.json"), totals=totals)
 
 
 def zig(out_data):

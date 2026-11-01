@@ -34,16 +34,17 @@ def build(con, api):
                        round(float(t["quoteVolume"]))]
         except (KeyError, TypeError, ValueError):
             continue
-    for s in sorted(uni):                       # pairs tracked from another venue (venues.py)
-        try:
-            import venues
-            if not venues.is_external(s):
+    try:                                        # pairs tracked from another exchange (venues.py): two calls per exchange
+        import venues
+        ext, _ = venues.bulk(None, sorted(s for s in uni if venues.is_external(s)))
+        for s, x in ext.items():
+            t = x.get("ticker")
+            if not t or x["status"] != "TRADING" or float(t["lastPrice"]) <= 0:
                 continue
-            t = venues.ticker24(None, s)
             rows[s] = [_r(t["lastPrice"]), round(float(t["priceChangePercent"]), 2), _r(t["highPrice"]), _r(t["lowPrice"]),
                        round(float(t["quoteVolume"]))]
-        except Exception:
-            continue
+    except Exception:
+        pass
     return {"as_of": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "columns": COLUMNS, "rows": rows}
 
 

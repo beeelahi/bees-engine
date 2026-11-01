@@ -132,11 +132,11 @@ def exclusion(r):
         return "stablecoin"
     if not t & STABLE_TAGS and 0.98 <= px <= 1.02 and abs(c30) < 2 and abs(c7) < 1.5:
         return "stablecoin (price held at $1)"
-    if t & STOCK_TAGS:
+    if t & STOCK_TAGS and not (r.get("symbol") or "").upper().startswith("USD"):
         return "tokenized stock or ETF"
     if t & GOLD_TAGS:
         return "tokenized gold or commodity"
-    if "tokenized-treasury-bonds" in t:
+    if "tokenized-treasury-bonds" in t or (t & STOCK_TAGS and (r.get("symbol") or "").upper().startswith("USD")):
         return "tokenized bond fund"
     if "tokenized-assets" in t:
         return "tokenized asset"
@@ -219,6 +219,20 @@ def match(rows, books):
                 err = abs(hit[0] / (px * f) - 1)
                 if err <= PRICE_TOL and err < best.get((v, base), (9, None, 1))[0]:
                     best[(v, base)] = (err, r["id"], f)
+    claimed = {k for k in best}
+    for r in rows:                              # second pass, coins with no match yet: the exchange may add letters
+        px = q(r).get("price") or 0             # (CMC "BEAM" trades as "BEAMX"); a tighter 3% price check
+        sym = (r.get("symbol") or "").upper()
+        if px <= 0 or not sym.isascii() or len(sym) < 3 or any(c == r["id"] for _, c, _ in best.values()):
+            continue
+        for v in VENUES:
+            for base, hit in (books.get(v) or {}).items():
+                if (v, base) in claimed or not base.startswith(sym) or len(base) - len(sym) > 2 or hit[0] <= 0:
+                    continue
+                err = abs(hit[0] / px - 1)
+                if err <= 0.03:
+                    best[(v, base)] = (err, r["id"], 1)
+                    claimed.add((v, base))
     out = {}
     for (v, base), (err, cid, f) in best.items():
         last, vol, native = books[v][base]
@@ -250,13 +264,11 @@ def trending():
 # ---------------------------------------------------------------- market totals
 def global_history(con, log=print):
     """CMC's daily global market cap split into BTC / ETH / stablecoins / the rest; full history the first time."""
-    have = con.execute("SELECT COUNT(*) FROM global_daily").fetchone()[0]
-    pts = None
-    for rng in (("all", "5y", "3y", "1y") if have < 400 else ("1y",)):
+    have = con.execute("SELECT MIN(ts) FROM global_daily").fetchone()[0]
+    pts = []
+    for rng in (("1y",) if have and have < time.time() - 3 * 365 * 86400 else ("all", "1y")):   # "all" is ~weekly; "1y" daily
         try:
-            pts = _json(f"https://api.coinmarketcap.com/data-api/v4/global-metrics/quotes/historical?convertId=2781&range={rng}")["data"]["points"]
-            if pts:
-                break
+            pts += _json(f"https://api.coinmarketcap.com/data-api/v4/global-metrics/quotes/historical?convertId=2781&range={rng}")["data"]["points"]
         except Exception as e:
             log(f"library: global history range {rng} failed ({str(e)[:80]})")
     if not pts:
@@ -303,23 +315,24 @@ def caps_export(con, now_utc):
 
 
 # ---------------------------------------------------------------- build
-def build(log=print, db=DB, now=None):
+def build(log=print, db=DB, now=None, rows=None, books=None, tr=None, ext_file=EXT_FILE, out_lib=OUT_LIB, out_caps=OUT_CAPS, totals=None):
+    """rows / books / tr / totals: injected data (tests); by default fetched live."""
     now_utc = (now or datetime.now(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ")
     today = now_utc[:10]
     os.makedirs(os.path.dirname(db), exist_ok=True)
     con = sqlite3.connect(db, timeout=60)
     con.executescript(SCHEMA)
-    rows = cmc_listing(TOP_N)
-    if len(rows) < TOP_N * 0.9:
+    rows = cmc_listing(TOP_N) if rows is None else rows
+    if len(rows) < TOP_N * 0.9 and books is None:
         raise RuntimeError(f"CMC listing short: {len(rows)} rows")
-    books = exchange_books()
+    books = dict(exchange_books() if books is None else books)
     bin_all = books.pop("_binance_all", set())
     hits = match(rows, books)
-    tr = trending()
+    tr = trending() if tr is None else tr
     tr_syms = {(x[1] or "").upper() for x in tr}
     ext_prev = {}
     try:
-        ext_prev = json.load(open(EXT_FILE))
+        ext_prev = json.load(open(ext_file))
     except (OSError, ValueError):
         pass
     ext = dict(ext_prev)
@@ -334,7 +347,8 @@ def build(log=print, db=DB, now=None):
         elif prim:
             base, f, last, vol, native = h[prim]
             sym = base + "USDT"
-            if sym in ext or (not why and vol >= EXT_MIN_VOL and sym not in bin_all and sym.isascii() and sym.isalnum()):
+            mine = sym in ext and ext[sym].get("venue") == prim and ext[sym].get("native") == native   # this coin's own tracked pair
+            if mine or (sym not in ext and not why and vol >= EXT_MIN_VOL and sym not in bin_all and sym.isascii() and sym.isalnum()):
                 if sym not in ext:
                     ext[sym] = {"venue": prim, "native": native, "base": base, "cmc_id": r["id"], "name": r.get("name"), "added": today}
                 pair = sym
@@ -357,11 +371,27 @@ def build(log=print, db=DB, now=None):
                     (r.get("platform") or {}).get("name"), vset, VENUE_NAME.get(prim), pair,
                     round(h[prim][3]) if prim else None, int((r.get("symbol") or "").upper() in tr_syms)])
     in_top = {(r.get("symbol") or "").upper() for r in rows}
+    for src, sy, nm, px, _ in tr:              # hyped coins outside the top 1,000: tracked when an exchange we trust trades them
+        sy = (sy or "").upper()
+        try:
+            px = float(px or 0)
+        except (TypeError, ValueError):
+            px = 0
+        if sy in in_top or px <= 0 or not sy.isascii() or not sy.isalnum():
+            continue
+        cands = [(v, books[v][sy]) for v in ("kucoin", "gate", "mexc") if sy in (books.get(v) or {}) and abs(books[v][sy][0] / px - 1) <= PRICE_TOL]
+        bh = "binance" if sy in (books.get("binance") or {}) and abs(books["binance"][sy][0] / px - 1) <= PRICE_TOL else None
+        if bh or not cands:
+            continue
+        v, (last, vol, nat) = max(cands, key=lambda c: c[1][1])
+        sym = sy + "USDT"
+        if vol >= EXT_MIN_VOL and sym not in bin_all and sym not in ext:
+            ext[sym] = {"venue": v, "native": nat, "base": sy, "cmc_id": None, "name": nm, "added": today, "why": f"trending on {src}"}
     hot = [{"source": s, "symbol": sy, "name": nm, "in_top": (sy or "").upper() in in_top} for s, sy, nm, _, _ in tr]
     for x in set(ext) - set(ext_prev):
         log(f"library: new pair {x} from {VENUE_NAME[ext[x]['venue']]} ({ext[x]['name']})")
     try:
-        n = global_history(con, log)
+        n = (totals or global_history)(con, log)
     except Exception as e:
         n = 0
         log(f"library: market totals skipped ({str(e)[:120]})")
@@ -377,14 +407,14 @@ def build(log=print, db=DB, now=None):
                "rows": lib, "excluded": excluded}
     caps = caps_export(con, now_utc)
     con.close()
-    for path, d in ((OUT_LIB, lib_out), (OUT_CAPS, caps)):
+    for path, d in ((out_lib, lib_out), (out_caps, caps)):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path + ".tmp", "w") as f:
             json.dump(d, f, separators=(",", ":"))
         os.replace(path + ".tmp", path)
-    with open(EXT_FILE + ".tmp", "w") as f:
+    with open(ext_file + ".tmp", "w") as f:
         json.dump(ext, f, indent=1, sort_keys=True)
-    os.replace(EXT_FILE + ".tmp", EXT_FILE)
+    os.replace(ext_file + ".tmp", ext_file)
     log(f"library: {len(lib)} coins kept of {len(rows)} ({len(excluded)} excluded); on Binance {counts['binance']}, "
         f"only elsewhere {counts['other_only']} ({counts['tracked_other']} tracked), on none of our exchanges {counts['none']}; "
         f"{len(ext)} pairs from other exchanges; market totals {n} days")
@@ -418,6 +448,10 @@ def status():
     cp = json.load(open(OUT_CAPS))
     n = cp["now"]
     if n:
+        print(f"  BTC ${n['btc'] / 1e9:,.1f}B ETH ${n['eth'] / 1e9:,.1f}B stables ${n['stables'] / 1e9:,.1f}B rest ${n['alts_ex_stables'] / 1e9:,.1f}B; d30 TOTAL ${cp['d30']['total'] / 1e12:.3f}T")
+        g = cp["series"]
+        gaps = [round((b[0] - a[0]) / 86400, 1) for a, b in zip(g, g[1:])]
+        print(f"  spacing: last 365 points median {sorted(gaps[-365:])[len(gaps[-365:]) // 2]} days, max {max(gaps[-365:])}")
         print(f"caps {datetime.fromtimestamp(n['ts'], timezone.utc):%Y-%m-%d}: TOTAL ${n['total'] / 1e12:.3f}T, TOTAL2 ${n['total2'] / 1e12:.3f}T, TOTAL3 ${n['total3'] / 1e12:.3f}T, "
               f"BTC.D {n['btc_d']:.2f}%, ETH.D {n['eth_d']:.2f}%, stables {n['stable_d']:.2f}%; series {len(cp['series'])} days from "
               f"{datetime.fromtimestamp(cp['series'][0][0], timezone.utc):%Y-%m-%d}; altseason {cp['altseason']['now']}")

@@ -331,12 +331,12 @@ def run(con, now_ms=None, stats_path=None):
             continue
         r = con.execute("SELECT AVG(volume_usdt) FROM (SELECT volume_usdt FROM daily WHERE symbol=? ORDER BY date DESC LIMIT 20)", (sym,)).fetchone()
         n = con.execute("SELECT COUNT(*) FROM daily WHERE symbol=?", (sym,)).fetchone()[0]
-        if r[0] and (r[0] >= MIN_ADV or venues.is_external(sym)) and n >= 200:      # pairs added on purpose always scanned
+        if r[0] and (r[0] >= MIN_ADV or venues.is_pinned(sym)) and n >= 200:      # pairs added on purpose always scanned
             liq.append((r[0], sym))
     liq.sort(reverse=True)
     rank = {s: k + 1 for k, (_, s) in enumerate(liq)}
     rows = []
-    for _, sym in liq[:TOP_DAILY] + [z for z in liq[TOP_DAILY:] if venues.is_external(z[1])]:
+    for _, sym in liq[:TOP_DAILY] + [z for z in liq[TOP_DAILY:] if venues.is_pinned(z[1])]:
         d = con.execute("SELECT date, open, high, low, close, volume_usdt FROM daily WHERE symbol=? ORDER BY date DESC LIMIT ?",
                         (sym, TF["1d"]["lookback"] + 50)).fetchall()[::-1]
         if len(d) < 200:
@@ -346,7 +346,7 @@ def run(con, now_ms=None, stats_path=None):
         import h4_export
         have = {s for (s,) in con.execute("SELECT symbol FROM h4_state WHERE backfilled=1")}
         h4 = [z for z in liq if z[1] in have]
-        for _, sym in h4[:TOP_4H] + [z for z in h4[TOP_4H:] if venues.is_external(z[1])]:
+        for _, sym in h4[:TOP_4H] + [z for z in h4[TOP_4H:] if venues.is_pinned(z[1])]:
             d = h4_export._series(con, sym, now_ms)[-(TF["4h"]["lookback"] + 50):]
             if len(d) < 300:
                 continue

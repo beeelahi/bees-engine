@@ -325,7 +325,7 @@ def run(con, stats_path=None):
         if tokens.get(sym) in excl:
             continue
         r = con.execute("SELECT AVG(volume_usdt) FROM (SELECT volume_usdt FROM daily WHERE symbol=? ORDER BY date DESC LIMIT 20)", (sym,)).fetchone()
-        if r[0] and (r[0] >= MIN_ADV or venues.is_external(sym)):
+        if r[0] and (r[0] >= MIN_ADV or venues.is_pinned(sym)):
             liq.append((r[0], sym))
     liq.sort(reverse=True)
     rows, scanned = [], 0

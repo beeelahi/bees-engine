@@ -446,7 +446,7 @@ def run(con=None):
         "last_date": last,
         "status": status,
         "site": site,
-        "venues": {s: v.upper() for s, v in __import__("venues").EXTERNAL.items()},   # pairs not from Binance
+        "venues": {s: __import__("venues").NAME[v] for s, v in __import__("venues").EXTERNAL.items() if s in set(universe)},   # pairs not from Binance
         "supply_as_of": (con.execute("SELECT MAX(as_of) FROM supply").fetchone()[0] if exists(con, "supply") else None),
         "market": market_snapshot(con, universe, last),
         "counts": {
@@ -581,6 +581,7 @@ def run(con=None):
                                                  "pairs": {k: {kk: r(vv) for kk, vv in v.items()} for k, v in snap.items()}})
     except Exception as e:
         print("export_web: derivatives skipped:", repr(e))
+    EXT_SQL = ",".join("'" + x + "'" for x in sorted(__import__("venues").EXTERNAL)) or "''"
     write(os.path.join(OUT, "listings.json"), {
         # stopped trading: the day the change was seen, or (for pairs halted before tracking began) the day after
         # their last daily candle, marked as estimated
@@ -590,10 +591,11 @@ def run(con=None):
               CASE WHEN p.status != 'TRADING' AND p.delisted_on IS NULL THEN 1 ELSE 0 END AS delisted_est,
               (SELECT close FROM daily d WHERE d.symbol=p.symbol ORDER BY date DESC LIMIT 1) AS last_close,
               (SELECT quote_volume_24h FROM ticker_snapshots t WHERE t.symbol=p.symbol ORDER BY snap_date DESC LIMIT 1) AS vol_24h_usdt
-              FROM pairs p WHERE NOT {__import__("binance_sync").STOCK_SQL}) WHERE first_candle >= ? OR delisted_on >= ?
+              FROM pairs p WHERE NOT {__import__("binance_sync").STOCK_SQL} AND p.symbol NOT IN ({EXT_SQL})) WHERE first_candle >= ? OR delisted_on >= ?
               ORDER BY COALESCE(delisted_on, first_candle) DESC""", (ago(180), ago(180))),     # bStocks: on the Stocks view
         "universe_log": table(con, f"""SELECT * FROM universe_log WHERE date >= ?
-              AND symbol NOT IN (SELECT p.symbol FROM pairs p WHERE {__import__("binance_sync").STOCK_SQL}) ORDER BY date DESC""", (ago(180),)),
+              AND symbol NOT IN (SELECT p.symbol FROM pairs p WHERE {__import__("binance_sync").STOCK_SQL}) AND symbol NOT IN ({EXT_SQL})
+              ORDER BY date DESC""", (ago(180),)),     # Binance's listings and universe; other exchanges' pairs are not Binance listings
     })
     write(os.path.join(OUT, "weekly.json"), table(con, "SELECT * FROM weekly_report"))
     try:                                         # bStocks: tokenized US stocks and ETFs, their own view (not crypto)
@@ -635,7 +637,7 @@ def run(con=None):
         k = i % SHARDS
         index[sym] = f"s{k:02d}.json"
         entry = {}
-        ext = __import__("venues").is_external(sym)          # pairs added on purpose: their complete history
+        ext = __import__("venues").is_pinned(sym)            # pairs added on purpose: their complete history
         for tf, frm in (("1d", "0000" if ext else d_from), ("1w", "0000" if ext else w_from), ("1M", "0000")):
             rows = con.execute("""
                 SELECT c.period_start, c.open, c.high, c.low, c.close, c.volume_usdt, i.ema21, i.ema50, i.ema200,
