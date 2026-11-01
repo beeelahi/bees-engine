@@ -2396,7 +2396,7 @@ function hxBoard() {
   hxFill("board", rows.map(x => { const mixed = x.dir === "mixed", net = mixed ? null : x.dir;
     return hxCard({ sym: x.sym, dir: mixed ? "warn" : x.dir, sub: `${x.L.length} setup${x.L.length > 1 ? "s" : ""}`,
       badges: [chip(mixed ? "Mixed" : x.dir === "up" ? "Bullish" : "Bearish", mixed ? "warn" : x.dir)],
-      head: mixed ? `Setups disagree: ${x.up} bullish, ${x.dn} bearish` : `${x.L.length} ${x.dir === "up" ? "bullish" : "bearish"} setup${x.L.length > 1 ? "s" : ""} agree`,
+      head: mixed ? `Setups disagree: ${x.up} bullish, ${x.dn} bearish` : x.L.length > 1 ? `${x.L.length} ${x.dir === "up" ? "bullish" : "bearish"} setups agree` : `One ${x.dir === "up" ? "bullish" : "bearish"} setup`,
       tags: x.L.map(e => [e.text + (e.when ? " · " + e.when.slice(5) : ""), e.dir === "up" ? "dup" : "ddn"]), maxTags: 5,
       foot: x.last ? "newest " + x.last : "" }); }),
     "No live setup right now.", all.length ? `${all.length} coins · ${all.filter(x => x.dir === "mixed").length} with setups that disagree` : "");
