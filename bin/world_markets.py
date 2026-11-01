@@ -134,6 +134,14 @@ SECTOR_COS = {
     "xlu": {"sector": ["Utilities"]},
     "xlre": {"industry": ["Real Estate Investment Trusts", "Real Estate Development"]},
 }
+# corrections so the lists match the usual (GICS / sector ETF) grouping where TradingView's classification differs
+SECTOR_FIX = {
+    "xlk": {"add": ["NASDAQ:AMAT", "NASDAQ:LRCX", "NASDAQ:KLAC"]},
+    "smh": {"add": ["NASDAQ:AMAT", "NASDAQ:LRCX", "NASDAQ:KLAC", "NASDAQ:ASML"]},
+    "xli": {"drop": ["AMAT", "LRCX", "KLAC", "SHOP", "ASML"]},
+    "xly": {"drop": ["WMT", "COST"]},
+    "xlp": {"add": ["NYSE:WMT", "NASDAQ:COST"]},
+}
 CO_COLS = ["name", "description", "close", "change", "Perf.W", "Perf.1M", "Perf.YTD", "market_cap_basic", "industry", "sector", "exchange"]
 FNG = "https://api.alternative.me/fng/?limit=8"
 
@@ -310,23 +318,46 @@ def sector_query(spec, n=12):
 
 
 def sector_companies(fetch=fetch, n=12):
-    """{sector id: [company rows]} for every sector tile (sectors that fail are left out)."""
+    """{sector id: [company rows]} for every sector tile (sectors that fail are left out). One share class per company."""
     out = {}
+    adds = sorted({t for f in SECTOR_FIX.values() for t in f.get("add", [])})
+    extra = {}
+    if adds:
+        st, body = fetch(SCAN, data={"symbols": {"tickers": adds}, "columns": CO_COLS}, timeout=20)
+        if st == 200:
+            try:
+                extra = {d["s"]: d for d in json.loads(body).get("data", [])}
+            except (ValueError, KeyError, TypeError):
+                extra = {}
     for sid, spec in SECTOR_COS.items():
-        st, body = fetch(US_SCAN, data=sector_query(spec, n), timeout=20)
+        fix = SECTOR_FIX.get(sid, {})
+        st, body = fetch(US_SCAN, data=sector_query(spec, n + 8), timeout=20)
         if st != 200:
             continue
         try:
-            rows = []
-            for d in json.loads(body).get("data", []):
+            rows, seen = [], set()
+            data = json.loads(body).get("data", []) + [extra[t] for t in fix.get("add", []) if t in extra]
+            for d in data:
+                if d["s"].split(":")[-1] in fix.get("drop", []):
+                    continue
                 v = dict(zip(CO_COLS, d["d"]))
                 if v.get("close") is None:
                     continue
-                rows.append({"sym": d["s"].split(":")[-1], "ticker": d["s"], "name": clean(v.get("description") or v.get("name"), 60),
-                             "price": float(f"{float(v['close']):.6g}"), "d1": _f(v.get("change")), "w1": _f(v.get("Perf.W")), "m1": _f(v.get("Perf.1M")),
-                             "ytd": _f(v.get("Perf.YTD")), "mcap": v.get("market_cap_basic"), "industry": clean(v.get("industry"), 50)})
+                key = re.sub(r"[^a-z]", "", re.sub(r"(?i)\b(class [abc]|inc|corp|corporation|holdings?|new)\b", "", str(v.get("description") or v.get("name"))).lower())[:18]
+                if key in seen:
+                    continue                                       # BRK.A / BRK.B, GOOG / GOOGL: one line per company
+                try:                                               # one bad row never drops the sector
+                    row = {"sym": d["s"].split(":")[-1], "ticker": d["s"], "name": clean(v.get("description") or v.get("name"), 60),
+                           "price": float(f"{float(v['close']):.6g}"), "d1": _f(v.get("change")), "w1": _f(v.get("Perf.W")), "m1": _f(v.get("Perf.1M")),
+                           "ytd": _f(v.get("Perf.YTD")), "mcap": float(v["market_cap_basic"]) if v.get("market_cap_basic") is not None else None,
+                           "industry": clean(v.get("industry"), 50)}
+                except (ValueError, TypeError):
+                    continue
+                seen.add(key)
+                rows.append(row)
+            rows.sort(key=lambda r: -(r["mcap"] or 0))
             if rows:
-                out[sid] = rows
+                out[sid] = rows[:n]
         except (ValueError, KeyError, TypeError):
             continue
         time.sleep(0.3)
