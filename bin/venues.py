@@ -43,14 +43,20 @@ GATE_IV = {"1h": "1h", "4h": "4h", "1d": "1d"}
 KUCOIN_IV = {"1h": "1hour", "4h": "4hour", "1d": "1day", "1w": "1week"}
 
 
+SWITCH = {}                    # symbol -> last Binance day, for a coin Binance stopped that continues from another exchange
+
+
 def _load(path=EXT_FILE):
     ext, native = dict(PINNED), {s: s for s in PINNED}
+    SWITCH.clear()
     try:
         with open(path) as f:
             d = json.load(f)
         for sym, v in d.items():
             if sym not in PINNED and v.get("venue") in BASE and v.get("native") and sym.isascii() and sym.isalnum():
                 ext[sym], native[sym] = v["venue"], v["native"]
+                if v.get("continues_binance_after"):
+                    SWITCH[sym] = v["continues_binance_after"]
     except (OSError, ValueError, AttributeError):
         pass
     return ext, native

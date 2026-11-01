@@ -115,3 +115,51 @@ class LibraryTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DeadBinanceSymbolTest(unittest.TestCase):
+    """XMR left Binance in 2024 and trades on KuCoin: same coin (KuCoin's close on Binance's last day matches), so the
+    old symbol continues. Binance's old LIT was a different coin: the prices don't match, so it is never reused."""
+
+    def setUp(self):
+        import venues as V
+        self.V = V
+        d = tempfile.mkdtemp()
+        self.bdb = os.path.join(d, "b.db")
+        con = sqlite3.connect(self.bdb)
+        con.executescript("CREATE TABLE pairs(symbol TEXT, token TEXT, status TEXT); CREATE TABLE daily(symbol TEXT, date TEXT, close REAL);")
+        con.executemany("INSERT INTO pairs VALUES(?,?,?)", [("XMRUSDT", "XMR", "BREAK"), ("LITUSDT", "LIT", "BREAK"), ("BTCUSDT", "BTC", "TRADING")])
+        con.executemany("INSERT INTO daily VALUES(?,?,?)", [("XMRUSDT", "2024-02-19", 120.0), ("LITUSDT", "2024-03-01", 0.9)])
+        con.commit()
+        con.close()
+        self.old = V.default_fetch
+
+        def fake(url):                               # the other exchange's daily close on that day
+            close = "121.5" if "XMR" in url else "1.80"
+            from urllib.parse import urlparse, parse_qs
+            q = {k: v[0] for k, v in parse_qs(urlparse(url).query).items()}
+            t = int(q["startAt"])
+            return 200, {}, json.dumps({"code": "200000", "data": [[str(t), "1", close, "2", "0.5", "10", "15"]]})
+        V.default_fetch = fake
+
+    def tearDown(self):
+        self.V.default_fetch = self.old
+
+    def test_same_coin_continues_different_coin_refused(self):
+        self.assertEqual(L.continues_binance("XMRUSDT", "kucoin", "XMR-USDT", db=self.bdb), "2024-02-19")
+        self.assertIsNone(L.continues_binance("LITUSDT", "kucoin", "LIT-USDT", db=self.bdb))
+        self.assertIsNone(L.continues_binance("BTCUSDT", "kucoin", "BTC-USDT", db=self.bdb))   # still trading on Binance
+        self.assertNotIn("XMRUSDT", self.V.EXTERNAL)                   # the check leaves the live mapping untouched
+
+    def test_build_uses_it(self):
+        rows = [coin(1, "XMR", "Monero", 300), coin(2, "LIT", "Lighter", 2.0)]
+        books = {"binance": {}, "kucoin": {"XMR": (301, 3e7, "XMR-USDT"), "LIT": (2.01, 2e7, "LIT-USDT")}, "gate": {}, "mexc": {},
+                 "_binance_all": {"XMRUSDT", "LITUSDT"}}
+        d = tempfile.mkdtemp()
+        ext_file = os.path.join(d, "e.json")
+        L.build(log=lambda *a: None, db=os.path.join(d, "l.db"), rows=rows, books=books, tr=[], ext_file=ext_file,
+                out_lib=os.path.join(d, "lib.json"), out_caps=os.path.join(d, "c.json"), totals=totals, binance_db=self.bdb)
+        with open(ext_file) as f:
+            ext = json.load(f)
+        self.assertEqual(ext["XMRUSDT"]["continues_binance_after"], "2024-02-19")
+        self.assertNotIn("LITUSDT", ext)

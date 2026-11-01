@@ -353,6 +353,8 @@ def refresh_universe(con, today, stamp):
         if not s["symbol"].isascii():          # non-Latin tickers excluded by policy
             continue
         sym, st = s["symbol"], s.get("status", "")
+        if st != "TRADING" and venues.is_external(sym):
+            continue                              # Binance stopped it; the same coin continues from another exchange (venues)
         seen.add(sym)
         row = con.execute("SELECT status FROM pairs WHERE symbol=?", (sym,)).fetchone()
         if row is None:
@@ -387,6 +389,10 @@ def refresh_universe(con, today, stamp):
             con.execute("INSERT INTO pairs(symbol, token, status, first_seen, last_seen_trading) VALUES(?,?,?,?,?)",
                         (sym, s["baseAsset"], st, today, today if st == "TRADING" else None))
         else:
+            if row[0] != "TRADING" and st == "TRADING":    # trading again (here: from another exchange): resume 4h / 1h too
+                for tb in ("h4_state", "h1_state"):
+                    if con.execute("SELECT 1 FROM sqlite_master WHERE name=?", (tb,)).fetchone():
+                        con.execute(f"UPDATE {tb} SET finished=0 WHERE symbol=?", (sym,))
             con.execute("UPDATE pairs SET delisted_on=CASE WHEN ?='TRADING' THEN NULL WHEN status='TRADING' THEN ? ELSE delisted_on END,"
                         " status=?, last_seen_trading=COALESCE(?, last_seen_trading) WHERE symbol=?",
                         (st, today, st, today if st == "TRADING" else None, sym))
@@ -428,7 +434,8 @@ def run_sync(con, force):
         meta_set(con, "history_start", hist_start)
         con.commit()
 
-    new_ext = [x for x in venues.EXTERNAL if not con.execute("SELECT 1 FROM pairs WHERE symbol=?", (x,)).fetchone()]
+    ext_keys = ",".join(sorted(venues.EXTERNAL))
+    new_ext = meta_get(con, "external_pairs") != ext_keys     # the library added or dropped a pair: refresh the universe now
     if not force and not new_ext and meta_get(con, "synced_through") == last_day and meta_get(con, "universe_date") == today:
         log.info(f"Up to date through {last_day}. Nothing to do.")
         return {"ok": True, "noop": True, "synced_through": last_day}
@@ -436,6 +443,7 @@ def run_sync(con, force):
     log.info("Refreshing universe (exchangeInfo + 24h tickers) ...")
     refresh_universe(con, today, stamp)
     meta_set(con, "universe_date", today)
+    meta_set(con, "external_pairs", ext_keys)
 
     targets = [r[0] for r in con.execute(
         "SELECT symbol FROM pairs WHERE status='TRADING' ORDER BY symbol")]

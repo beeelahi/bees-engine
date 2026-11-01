@@ -4149,7 +4149,7 @@ function renderCoins() {
   if (!eb.children.length) { const by = {}; ex.forEach(x => { const k_ = x[3].replace(/ \(.+\)$/, ""); by[k_] = (by[k_] || 0) + 1; });
     $("#cnExSum").textContent = `Left out: ${ex.length} (` + Object.entries(by).sort((a, b) => b[1] - a[1]).map(([k_, v]) => v + " " + k_).join(", ") + ")";
     const f2 = document.createDocumentFragment(); ex.forEach(x => { const t = document.createElement("tr"); t.append(td(fQ(x[0]), "num"), td(x[1] + " · " + x[2]), td(x[3])); f2.append(t); }); eb.append(f2); }
-  $("#cnFoot").textContent = "Market data: CoinMarketCap, refreshed every 3 hours. A coin counts as listed on an exchange only when the ticker matches and the exchange's price is within 10% of CoinMarketCap's, so a different coin with the same ticker is never mixed in. Coins not on Binance are charted from whichever of KuCoin, Gate or MEXC trades the most of them, once that is at least $100k a day. Not financial advice.";
+  $("#cnFoot").textContent = "Market data: CoinMarketCap, refreshed every 3 hours. A coin counts as listed on an exchange only when the ticker matches and the exchange's price is within 10% of CoinMarketCap's, so a different coin with the same ticker is never mixed in. Coins not on Binance are charted from whichever of KuCoin, Gate or MEXC trades the most of them, once that is at least $100k a day. A coin Binance stopped trading keeps its Binance history and continues from the other exchange only when both prices match on Binance's last day (a different coin that reused the ticker never does). Not financial advice.";
 }
 // ZIG archive (data/zig.json): MEXC order flow, order book and 15m candles we keep ourselves
 let zgLoading = null, zgCharts = [];
@@ -4213,7 +4213,7 @@ async function renderPair() {
   syncPairHash();
   const r = S.scr.find(x => x.symbol === S.pair), p = { "1h": "d", "4h": "d", "1d": "d", "1w": "w", "1M": "m" }[S.pairTf];
   const lp = livePx(S.pair);
-  paintStar(); $("#pairName").textContent = S.pair ? S.pair.replace(/USDT$/, " / USDT") + (venueOf(S.pair) ? " · " + venueOf(S.pair) : "") : "—"; $("#pairPx").textContent = lp ? fPx(lp[0]) : r ? fPx(r.last_close) : "—";
+  paintStar(); $("#pairName").textContent = S.pair ? S.pair.replace(/USDT$/, " / USDT") + (venueOf(S.pair) ? " · " + venueOf(S.pair) + ((S.ov.venue_switch || {})[S.pair] ? " (Binance until " + S.ov.venue_switch[S.pair] + ")" : "") : "") : "—"; $("#pairPx").textContent = lp ? fPx(lp[0]) : r ? fPx(r.last_close) : "—";
   $("#pairPx").title = lp ? "Live price, " + fmtLocal(S.px.as_of) + " (refreshed every 15 minutes)" : "Last daily close";
   const chg = $("#pairChg"); chg.replaceChildren();
   if (lp) { const c = chip(fPct(lp[1]) + " 24h", lp[1] >= 0 ? "up" : "down"); c.title = "Rolling 24 hours to " + fmtLocal(S.px.as_of) + " · high " + fPx(lp[2]) + " · low " + fPx(lp[3]); chg.append(c); }

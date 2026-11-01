@@ -447,6 +447,7 @@ def run(con=None):
         "status": status,
         "site": site,
         "venues": {s: __import__("venues").NAME[v] for s, v in __import__("venues").EXTERNAL.items() if s in set(universe)},   # pairs not from Binance
+        "venue_switch": {s: d for s, d in __import__("venues").SWITCH.items() if s in set(universe)},   # Binance's history up to that day
         "supply_as_of": (con.execute("SELECT MAX(as_of) FROM supply").fetchone()[0] if exists(con, "supply") else None),
         "market": market_snapshot(con, universe, last),
         "counts": {

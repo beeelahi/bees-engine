@@ -242,6 +242,37 @@ def match(rows, books):
     return out
 
 
+def continues_binance(sym, venue, native, db=BINANCE_DB):
+    """A Binance pair that stopped trading may be the same coin another exchange still trades (XMR) or a different coin
+    that reused the ticker (Binance's old LIT was Litentry). Same coin when the other exchange's close on Binance's last
+    trading day is within 3% of Binance's. Returns that day, or None (different coin, or not checkable)."""
+    import venues as V
+    try:
+        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=60)
+        st = con.execute("SELECT status FROM pairs WHERE symbol=?", (sym,)).fetchone()
+        last = con.execute("SELECT date, close FROM daily WHERE symbol=? ORDER BY date DESC LIMIT 1", (sym,)).fetchone()
+        con.close()
+    except sqlite3.Error:
+        return None
+    if not st or st[0] == "TRADING" or not last or not last[1]:
+        return None
+    old = (V.EXTERNAL.get(sym), V.NATIVE.get(sym))
+    V.EXTERNAL[sym], V.NATIVE[sym] = venue, native
+    try:
+        t = int(datetime.strptime(last[0], "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp() * 1000)
+        k = V.klines(None, {"symbol": sym, "interval": "1d", "startTime": t, "endTime": t, "limit": 1})
+    except Exception:
+        k = []
+    finally:
+        if old[0] is None:
+            V.EXTERNAL.pop(sym, None), V.NATIVE.pop(sym, None)
+        else:
+            V.EXTERNAL[sym], V.NATIVE[sym] = old
+    if k and k[0][0] == t and abs(float(k[0][4]) / last[1] - 1) <= 0.03:
+        return last[0]
+    return None
+
+
 def trending():
     """Coins people are searching for right now: CMC's top searches and CoinGecko's trending list. [(source, symbol, name, price)]."""
     out = []
@@ -315,8 +346,11 @@ def caps_export(con, now_utc):
 
 
 # ---------------------------------------------------------------- build
-def build(log=print, db=DB, now=None, rows=None, books=None, tr=None, ext_file=EXT_FILE, out_lib=OUT_LIB, out_caps=OUT_CAPS, totals=None):
-    """rows / books / tr / totals: injected data (tests); by default fetched live."""
+def build(log=print, db=DB, now=None, rows=None, books=None, tr=None, ext_file=EXT_FILE, out_lib=OUT_LIB, out_caps=OUT_CAPS, totals=None,
+          binance_db=None):
+    """rows / books / tr / totals / binance_db: injected data (tests); by default fetched live."""
+    from venues import PINNED
+    binance_db = {"db": binance_db} if binance_db else {}
     now_utc = (now or datetime.now(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ")
     today = now_utc[:10]
     os.makedirs(os.path.dirname(db), exist_ok=True)
@@ -347,10 +381,14 @@ def build(log=print, db=DB, now=None, rows=None, books=None, tr=None, ext_file=E
         elif prim:
             base, f, last, vol, native = h[prim]
             sym = base + "USDT"
-            mine = sym in ext and ext[sym].get("venue") == prim and ext[sym].get("native") == native   # this coin's own tracked pair
-            if mine or (sym not in ext and not why and vol >= EXT_MIN_VOL and sym not in bin_all and sym.isascii() and sym.isalnum()):
-                if sym not in ext:
+            mine = sym in ext and (ext[sym].get("cmc_id") == r["id"] or (ext[sym].get("venue") == prim and ext[sym].get("native") == native))
+            ok = not why and vol >= EXT_MIN_VOL and sym.isascii() and sym.isalnum()
+            cont = continues_binance(sym, prim, native, **binance_db) if ok and sym not in ext and sym in bin_all else None
+            if mine or sym in PINNED or (sym not in ext and ok and (sym not in bin_all or cont)):
+                if sym not in ext and sym not in PINNED:
                     ext[sym] = {"venue": prim, "native": native, "base": base, "cmc_id": r["id"], "name": r.get("name"), "added": today}
+                    if cont:
+                        ext[sym]["continues_binance_after"] = cont      # same coin: Binance's history, then this exchange
                 pair = sym
         vset = "".join(v[0].upper() for v in VENUES if v in h)          # B K G M
         rec = (r["id"], r.get("cmcRank"), r.get("symbol"), r.get("name"), r.get("slug"), sector(r.get("tags")), ",".join(r.get("tags") or []),
