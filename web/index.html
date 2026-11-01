@@ -143,7 +143,21 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .mb-best td { font-weight: 600; }
 .lu-row { cursor: pointer; } .lu-row:hover td { background: var(--hover, rgba(127,127,127,.06)); }
 .lu-row.sel td { background: var(--accent-soft); } .lu-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.st-tbl th:nth-child(-n+2), .st-tbl td:nth-child(-n+2) { text-align: left; } .st-tbl th.sorted { color: var(--fg); }
+.st-tbl th:nth-child(-n+2), .st-tbl td:nth-child(-n+2) { text-align: left; }
+.sk-hero { background: radial-gradient(120% 140% at 0% 0%, rgba(4,183,248,.16), transparent 60%), linear-gradient(180deg, rgba(16, 32, 74, 0.55), rgba(11, 23, 57, 0.92)); }
+.sk-title { font-size: clamp(20px, 2.8vw, 28px); margin: 6px 0 14px; text-wrap: balance; }
+.sk-ask { display: flex; gap: 10px; } .sk-ask input { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(4,183,248,.45); background: rgba(0,0,0,.25); color: var(--fg); }
+.sk-ask input:focus { outline: 2px solid var(--accent); outline-offset: 1px; } .sk-ask .btn { padding: 0 20px; font-size: 15px; white-space: nowrap; }
+.sk-ex { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.sk-chip { border: 1px solid var(--line); background: rgba(255,255,255,0.04); color: var(--muted); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 12.5px; cursor: pointer; }
+.sk-chip:hover, .sk-chip.on { color: var(--fg); border-color: rgba(4,183,248,.55); background: rgba(4,183,248,.12); }
+.sk-tbl th:nth-child(-n+3), .sk-tbl td:nth-child(-n+3), .oc-tbl th:nth-child(-n+3), .oc-tbl td:nth-child(-n+3) { text-align: left; }
+.oc-nm { display: flex; flex-direction: column; } .oc-nm small { color: var(--muted); font-size: 11.5px; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oc-tk { white-space: nowrap; } .oc-go { white-space: nowrap; font-weight: 600; } .oc-tog { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.sk-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; }
+.sk-checkout { margin-top: 14px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,0.02); } .sk-checkout h3 { margin: 0 0 6px; }
+.sk-steps { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 8px; } .sk-steps small { color: var(--muted); }
+@media (max-width: 600px) { .sk-ask { flex-direction: column; } .sk-ask .btn { padding: 12px; } } .st-tbl th.sorted { color: var(--fg); }
 .lu-coin { font-weight: 700; } .lu-tbl th:nth-child(-n+2) { text-align: left; } .lu-set { min-width: 15rem; }
 .wl-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 12px; }
 .wl-tbl th:nth-child(2), .wl-tbl td:nth-child(2) { text-align: left; }
@@ -1228,6 +1242,69 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
   </section>
 
   <section class="view" id="v-stocks" hidden>
+    <div class="card sub-head">
+      <div class="card-head"><h2>Stocks</h2><span class="note" id="skHead"></span></div>
+      <p class="note sub-lead">US stocks and ETFs you can own as tokens: on-chain on Solana from the regulated issuers, or on Binance. Information only, not advice.</p>
+      <div class="hl-nav sub-nav" data-for="stocks" role="tablist" aria-label="Stock sections">
+        <button type="button" role="tab" data-s="basket">Smart basket<i></i></button>
+        <button type="button" role="tab" data-s="onchain">On-chain stocks<i></i></button>
+        <button type="button" role="tab" data-s="binance">Binance stocks<i></i></button>
+      </div>
+    </div>
+    <div class="sub-panel" data-s="basket" hidden>
+      <div class="card sk-hero">
+        <div class="mbx-eyebrow">Smart basket · on-chain stocks on Solana</div>
+        <h2 class="sk-title">Say what you want to own. Get a ready basket in seconds.</h2>
+        <form class="sk-ask" id="skForm" autocomplete="off">
+          <input id="skQ" type="text" placeholder="e.g. Invest $500 into semiconductors and tech" aria-label="Describe the basket you want">
+          <button type="submit" class="btn primary">Build basket</button>
+        </form>
+        <div class="sk-ex" id="skEx"></div>
+        <p class="note" id="skUnderstood" style="margin:10px 0 0"></p>
+      </div>
+      <div class="card" id="skResult" hidden>
+        <div class="card-head"><h3 id="skResH">Your basket</h3><span class="note" id="skResN"></span></div>
+        <div class="grid-kpi sk-kpis">
+          <div class="card kpi"><div class="label">Invest</div><div class="v" id="skAmt">—</div><div class="note" id="skAmtN">&nbsp;</div></div>
+          <div class="card kpi"><div class="label">Positions</div><div class="v" id="skPos">—</div><div class="note" id="skPosN">&nbsp;</div></div>
+          <div class="card kpi"><div class="label">Est. price impact</div><div class="v" id="skImp">—</div><div class="note">value-weighted, rough estimate from liquidity</div></div>
+          <div class="card kpi"><div class="label">Today (the stocks)</div><div class="v" id="skDay">—</div><div class="note" id="skDayN">&nbsp;</div></div>
+        </div>
+        <div class="controls" style="margin:4px 0 10px"><span class="note">Weighting</span>
+          <div class="seg" id="skW"><button type="button" data-v="equal" aria-pressed="true">Equal</button><button type="button" data-v="size" aria-pressed="false">By company size</button></div></div>
+        <div class="tbl-wrap"><table class="sk-tbl"><thead><tr><th>Stock</th><th>Theme</th><th>Token</th><th title="Token price on Solana">Price</th><th title="The token's price vs the stock's last price">vs stock</th><th>Weight</th><th>Amount</th><th title="Tokens you would get at today's price">Tokens</th><th title="On-chain liquidity across Solana DEXs (Jupiter)">Liquidity</th><th title="Rough estimate: the order's share of the pool">Impact</th></tr></thead><tbody id="skBody"></tbody></table></div>
+        <div class="sk-actions">
+          <button type="button" class="btn primary" id="skBuy">Buy basket</button>
+          <button type="button" class="btn" id="skCopy">Copy basket</button>
+          <span class="note" id="skTime"></span>
+        </div>
+        <div class="sk-checkout" id="skCheckout" hidden></div>
+        <p class="note" style="margin-top:12px">How the basket is picked: the request is matched to themes (semiconductors, tech, AI, crypto stocks, index funds and more) and named tickers; within each theme the largest companies whose token has enough on-chain liquidity for this order are chosen, at most five unless you ask for more, one token per company (the deeper of xStocks and Ondo). Only verified issuer tokens are used. Tokenized stocks track the share price; issuer rules apply (xStocks, for example, are not offered to US persons). Not advice.</p>
+      </div>
+    </div>
+    <div class="sub-panel" data-s="onchain" hidden>
+      <div class="card">
+        <div class="card-head"><h2>Stocks on Solana</h2><span class="note" id="ocAsOf"></span></div>
+        <p class="note" style="margin:0 0 14px;max-width:100ch">Tokenized US stocks and ETFs from the two regulated issuers trading on Solana, xStocks (by Backed) and Ondo Global Markets, routed by Jupiter across Raydium, Orca and Meteora. Only the issuers' verified tokens are listed: copycat tokens with the same names are common, so check the mint address before you buy.</p>
+        <div class="grid-kpi">
+          <div class="card kpi"><div class="label">Verified tokens</div><div class="v" id="ocN">—</div><div class="note" id="ocNN">&nbsp;</div></div>
+          <div class="card kpi"><div class="label">Liquid enough to trade</div><div class="v" id="ocT">—</div><div class="note" id="ocTN">&nbsp;</div></div>
+          <div class="card kpi"><div class="label">On-chain liquidity</div><div class="v" id="ocL">—</div><div class="note">all listed tokens</div></div>
+          <div class="card kpi"><div class="label">24h volume</div><div class="v" id="ocV">—</div><div class="note">buys and sells on Solana</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="controls" style="margin-bottom:10px">
+          <input class="search" id="ocQ" placeholder="Search, e.g. NVDA or Apple" autocomplete="off" aria-label="Search on-chain stocks">
+          <div class="seg" id="ocIss"><button type="button" data-v="" aria-pressed="true">All issuers</button><button type="button" data-v="xstocks" aria-pressed="false">xStocks</button><button type="button" data-v="ondo" aria-pressed="false">Ondo</button></div>
+          <label class="note oc-tog"><input type="checkbox" id="ocTrad" checked> Liquid only</label>
+        </div>
+        <div class="sk-ex" id="ocThemes"></div>
+        <div class="tbl-wrap"><table class="oc-tbl"><thead><tr><th>Stock</th><th>Token</th><th>Sector</th><th>Price</th><th title="The token's price vs the stock's last price">vs stock</th><th>24h</th><th title="On-chain liquidity across Solana DEXs (Jupiter)">Liquidity</th><th>24h volume</th><th>Holders</th><th></th></tr></thead><tbody id="ocBody"></tbody></table></div>
+        <p class="note" id="ocFoot" style="margin-top:10px"></p>
+      </div>
+    </div>
+    <div class="sub-panel" data-s="binance" hidden>
     <div class="card">
       <div class="card-head"><h2>US stocks on Binance</h2><span class="note" id="stAsOf"></span></div>
       <p class="note" style="margin:0 0 14px;max-width:95ch">Binance's tokenized US stocks and ETFs (bStocks, launched June 2026), traded around the clock against USDT. Outside US market hours the token can drift from the stock's last close. They are kept apart from the crypto lists, signals and calls on this site.</p>
@@ -1245,6 +1322,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       </div>
       <div class="tbl-wrap"><table class="st-tbl"><thead><tr><th data-k="tk">Ticker</th><th data-k="type">Type</th><th data-k="px" title="Live price (refreshes every 15 minutes), else the last daily close">Price</th><th data-k="d1">1D</th><th data-k="w1">7D</th><th data-k="m1">30D</th><th data-k="m3">90D</th><th data-k="vol" title="Last 24 hours, USDT">Volume</th><th data-k="rsi" title="Daily RSI(14)">RSI</th><th data-k="listed">Listed</th></tr></thead><tbody id="stBody"></tbody></table></div>
       <p class="note" id="stFoot" style="margin-top:10px">Tap a row for its chart. Click a column to sort.</p>
+    </div>
     </div>
   </section>
 
@@ -2412,6 +2490,136 @@ function initStocks() {
   $("#stQ").addEventListener("input", () => renderStocks());
   $$("#stType button").forEach(b => b.onclick = () => { S.stType = b.dataset.v; $$("#stType button").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false")); renderStocks(); });
   $$(".st-tbl th").forEach(th => { th.style.cursor = "pointer"; th.onclick = () => { const k = th.dataset.k; S.stDir = S.stSort === k ? -(S.stDir || -1) : (k === "tk" || k === "type" ? 1 : -1); S.stSort = k; renderStocks(); }; });
+}
+// ---------- On-chain stocks (data/onchain.json: verified xStocks / Ondo tokens on Solana) and the smart basket
+let ocLoading = null;
+function loadOnchain() {
+  if (S.oc !== undefined || ocLoading) return ocLoading;
+  ocLoading = j("data/onchain.json").then(d => { S.oc = d; }, () => { S.oc = null; }).then(() => { ocLoading = null; if (!$("#v-stocks").hidden) setSub("stocks", S.sub.stocks); });
+  return ocLoading;
+}
+const OC_ISS = { xstocks: "xStocks", ondo: "Ondo" };
+const ocShort = n => String(n || "").replace(/,? (Inc\.?|Corporation|Corp\.?|Company|Holdings?|Ltd\.?|plc|N\.V\.|Incorporated|Class [A-C]( Common Stock)?|Common Stock|Trust)$/i, "").replace(/,? (Inc\.?|Corporation|Corp\.?)$/i, "").trim();
+const jupLink = mint => "https://jup.ag/swap/USDC-" + encodeURIComponent(mint);
+function ocRows() { return (S.oc && S.oc.rows) || []; }
+function renderOnchain() {
+  if (S.oc === undefined) { loadOnchain(); $("#ocBody").innerHTML = '<tr><td colspan="10" class="empty">Loading…</td></tr>'; return; }
+  const R = ocRows();
+  if (!R.length) { $("#ocBody").innerHTML = '<tr><td colspan="10" class="empty">On-chain data is published with the next refresh.</td></tr>'; return; }
+  const sum = k => R.reduce((a, x) => a + (x[k] || 0), 0), trad = R.filter(x => x.tradable);
+  mbSet("ocN", String(R.length)); $("#ocNN").textContent = `${R.filter(x => x.issuer === "xstocks").length} xStocks · ${R.filter(x => x.issuer === "ondo").length} Ondo`;
+  mbSet("ocT", String(trad.length)); $("#ocTN").textContent = `$${fQ((S.oc.rules || {}).min_liq || 50000)}+ of liquidity`;
+  mbSet("ocL", fUsd(sum("liq"))); mbSet("ocV", fUsd(sum("vol24")));
+  $("#ocAsOf").textContent = S.oc.generated_utc ? "updated " + mbAgo(S.oc.generated_utc) : "";
+  const TH = S.oc.themes || {}, box = $("#ocThemes");
+  if (!box.dataset.done) { box.dataset.done = 1; [["", "All"], ...Object.entries(TH).map(([k, v]) => [k, v.label])].forEach(([k, l]) => { const b = document.createElement("button"); b.type = "button"; b.className = "sk-chip"; b.textContent = l; b.dataset.v = k;
+      b.onclick = () => { S.ocTheme = k; renderOnchain(); }; box.append(b); }); }
+  $$("#ocThemes .sk-chip").forEach(b => b.classList.toggle("on", (S.ocTheme || "") === b.dataset.v));
+  const q = ($("#ocQ").value || "").trim().toLowerCase(), iss = S.ocIss || "", th = S.ocTheme || "", only = $("#ocTrad").checked;
+  const list = R.filter(x => (!q || x.ticker.toLowerCase().includes(q) || x.symbol.toLowerCase().includes(q) || (x.name || "").toLowerCase().includes(q)) && (!iss || x.issuer === iss) && (!th || (x.themes || []).includes(th)) && (!only || x.tradable));
+  const body = $("#ocBody"); body.replaceChildren(); const fr = document.createDocumentFragment();
+  list.forEach(x => { const t = document.createElement("tr");
+    const nm = document.createElement("span"); nm.className = "oc-nm"; const b = document.createElement("b"); b.textContent = x.ticker; const sm = document.createElement("small"); sm.textContent = ocShort(x.name); nm.append(b, sm);
+    const tk = document.createElement("span"); tk.className = "oc-tk"; tk.append(document.createTextNode(x.symbol + " "), chip(OC_ISS[x.issuer] || x.issuer, x.issuer === "xstocks" ? "warn" : "neutral")); tk.title = "Mint " + x.mint;
+    const a = document.createElement("a"); a.href = jupLink(x.mint); a.target = "_blank"; a.rel = "noopener noreferrer"; a.className = "oc-go"; a.textContent = "Trade ›"; a.title = "Open on Jupiter (USDC → " + x.symbol + ")";
+    t.append(tdNode(nm), tdNode(tk), td(x.type === "ETF" ? "ETF" : (x.sector || "—"), ""), td(fPx(x.price), "num"), td(isNum(x.premium_pct) ? fPct(x.premium_pct, 2) : "—", "num"), td(fPct(x.chg24, 1), "num " + cls(x.chg24)),
+      td(fUsd(x.liq), "num" + (x.tradable ? "" : " cold")), td(fUsd(x.vol24), "num"), td(isNum(x.holders) ? fQ(x.holders) : "—", "num"), tdNode(a));
+    fr.append(t); });
+  body.append(fr);
+  if (!list.length) body.innerHTML = '<tr><td colspan="10" class="empty">No token matches.</td></tr>';
+  $("#ocFoot").textContent = `${list.length} shown · liquidity below $${fQ((S.oc.rules || {}).min_liq || 50000)} is grey (fine to hold, costly to trade in size) · "Trade" opens Jupiter, where you review and sign the swap in your own wallet. ${S.oc.credits || ""}`;
+  $("#skHead").textContent = `${R.length} on-chain · ${((S.st && S.st.rows && S.st.rows.rows) || []).length || "—"} on Binance`;
+}
+// smart basket: words -> themes and tickers -> the largest liquid companies -> amounts
+const SK_WORDS = [
+  ["semis", /\b(semi ?conductors?|semis|chips?|chipmakers?|foundr(y|ies))\b/], ["ai", /\b(a\.?i\.?|artificial intelligence|machine learning|llm)\b/],
+  ["tech", /\b(tech|technology|software|big tech|magnificent|mag ?7)\b/], ["internet", /\b(internet|social media|streaming|media)\b/],
+  ["finance", /\b(banks?|banking|financials?|finance|insurance)\b/], ["crypto", /\b(crypto|bitcoin|btc|blockchain|digital assets?)\b/],
+  ["health", /\b(health ?care|healthcare|health|pharma|biotech|medical|drugs?)\b/], ["energy", /\b(energy|oil|gas|petroleum)\b/],
+  ["consumer", /\b(consumer|retail|brands?|shopping)\b/], ["ev", /\b(ev|evs|electric vehicles?|autos?|cars?)\b/],
+  ["index", /\b(s ?& ?p|sp ?500|s&p ?500|index|indices|nasdaq|the market|broad market|etfs?)\b/], ["gold", /\b(gold|silver|commodit(y|ies)|metals?)\b/],
+  ["bonds", /\b(bonds?|treasur(y|ies)|fixed income|safe)\b/]];
+function skParse(text) {
+  const t = " " + String(text || "").toLowerCase().replace(/[’']/g, "") + " ";
+  let amt = null; const m = t.match(/\$\s*([\d,]+(?:\.\d+)?)\s*(k|m)?\b|\b([\d,]+(?:\.\d+)?)\s*(k|m)?\s*(?:usd|usdc|dollars?|\$)/);
+  if (m) { const v = parseFloat((m[1] || m[3]).replace(/,/g, "")), u = m[2] || m[4]; amt = v * (u === "k" ? 1e3 : u === "m" ? 1e6 : 1); }
+  if (amt == null) { const n = t.match(/\b(\d{2,7})\b/); if (n) amt = +n[1]; }
+  const themes = SK_WORDS.filter(([, re]) => re.test(t)).map(([k]) => k);
+  const known = new Set(ocRows().map(x => x.ticker)), tick = [...String(text || "").matchAll(/\b[A-Z]{2,5}\b/g)].map(x => x[0]).filter(x => known.has(x) && !["AI", "EV", "ETF", "USD", "THE"].includes(x));
+  const nm = t.match(/\btop\s+(\d{1,2})\b|\b(\d{1,2})\s+(?:stocks|names|companies|positions)\b/); const n = nm ? Math.min(12, Math.max(1, +(nm[1] || nm[2]))) : null;
+  return { amt, themes, tick: [...new Set(tick)], n };
+}
+function skPick(p, weight) {
+  const R = ocRows(), best = {};
+  R.forEach(x => { if (!best[x.ticker] || (x.liq || 0) > (best[x.ticker].liq || 0)) best[x.ticker] = x; });            // one token per company: the deeper one
+  const pool = Object.values(best), amt = p.amt || 500;
+  const n = p.n || Math.max(p.tick.length, Math.min(5, Math.max(3, p.themes.length * 2)));
+  const each = amt / n, okLiq = x => (x.liq || 0) >= Math.max((S.oc.rules || {}).min_liq || 50000, each * 25);  // an order is at most ~4% of the pool
+  const size = x => x.stock_mcap || (x.liq || 0) * 1e3;
+  const picks = [], seen = new Set();
+  p.tick.forEach(tk => { const x = best[tk]; if (x && !seen.has(tk)) { picks.push({ x, theme: "named" }); seen.add(tk); } });
+  const lists = p.themes.map(th => pool.filter(x => (x.themes || []).includes(th) && okLiq(x)).sort((a, b) => size(b) - size(a)).map(x => ({ x, theme: th })));
+  for (let k = 0; picks.length < n && lists.some(l => l.length); k++) { const l = lists[k % lists.length]; while (l.length) { const c = l.shift(); if (!seen.has(c.x.ticker)) { picks.push(c); seen.add(c.x.ticker); break; } } }
+  let w = picks.map(c => weight === "size" ? size(c.x) : 1); const tot = w.reduce((a, b) => a + b, 0) || 1; w = w.map(v => v / tot);
+  if (weight === "size") { for (let it = 0; it < 5; it++) { let ex = 0; w = w.map(v => { if (v > 0.4) { ex += v - 0.4; return 0.4; } return v; }); const free = w.filter(v => v < 0.4).reduce((a, b) => a + b, 0) || 1; w = w.map(v => v < 0.4 ? v + ex * v / free : v); } }
+  return picks.map((c, i) => ({ ...c, w: w[i], usd: amt * w[i] }));
+}
+function renderBasket() {
+  if (S.oc === undefined) { loadOnchain(); return; }
+  const ex = $("#skEx");
+  if (!ex.dataset.done) { ex.dataset.done = 1;
+    ["$500 into semiconductors and tech", "$1,000 into AI leaders", "$250 into crypto stocks", "$2,000 into the S&P 500 and gold", "$750 NVDA TSLA AAPL"].forEach(q => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "sk-chip"; b.textContent = q; b.onclick = () => { $("#skQ").value = q; skRun(); }; ex.append(b); });
+    $("#skForm").onsubmit = e => { e.preventDefault(); skRun(); };
+    $$("#skW button").forEach(b => b.onclick = () => { S.skW = b.dataset.v; $$("#skW button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); skRun(true); });
+    $("#skBuy").onclick = skCheckout; $("#skCopy").onclick = skCopy; }
+  if (!ocRows().length) { $("#skUnderstood").textContent = "On-chain stock data is published with the next refresh."; return; }
+  if (S.skLast) skRun(true);
+}
+function skRun(keep) {
+  const t0 = performance.now(), text = $("#skQ").value.trim(); if (!text) { $("#skQ").focus(); return; }
+  const p = skParse(text), TH = (S.oc && S.oc.themes) || {};
+  if (!p.themes.length && !p.tick.length) { $("#skUnderstood").textContent = "Tell me a theme or a ticker, for example: semiconductors, tech, AI, crypto stocks, banks, health care, energy, EVs, the S&P 500, gold, bonds, or NVDA TSLA."; $("#skResult").hidden = true; return; }
+  const picks = skPick(p, S.skW || "equal"); S.skLast = { p, picks, text };
+  $("#skUnderstood").textContent = `Understood: ${fUsd(p.amt || 500)}${p.amt ? "" : " (no amount given, so $500)"} into ${[...p.themes.map(k => (TH[k] || {}).label || k), ...p.tick].join(" + ")}.`;
+  $("#skResult").hidden = false; $("#skCheckout").hidden = true;
+  const amt = p.amt || 500, imp = picks.reduce((a, c) => a + c.w * Math.min(100, 100 * c.usd / Math.max(1, (c.x.liq || 0) / 2)), 0);
+  const day = picks.reduce((a, c) => a + c.w * (isNum(c.x.stock_chg) ? c.x.stock_chg : c.x.chg24 || 0), 0);
+  $("#skResH").textContent = picks.length ? `Your ${[...p.themes.map(k => ((TH[k] || {}).label || k).toLowerCase()), ...p.tick].join(" + ")} basket` : "No basket";
+  $("#skResN").textContent = picks.length ? `${picks.length} verified tokens on Solana` : "";
+  mbSet("skAmt", fUsd(amt)); $("#skAmtN").textContent = "in USDC, Solana";
+  mbSet("skPos", String(picks.length)); $("#skPosN").textContent = (S.skW || "equal") === "size" ? "weighted by company size, 40% cap" : "equal weights";
+  mbSet("skImp", picks.length ? fN(imp, 2) + "%" : "—", imp > 1.5 ? "neg" : ""); mbSet("skDay", picks.length ? fPct(day, 2) : "—", cls(day)); $("#skDayN").textContent = "the basket's stocks, today";
+  const body = $("#skBody"); body.replaceChildren();
+  picks.forEach(c => { const x = c.x, t = document.createElement("tr");
+    const nm = document.createElement("span"); nm.className = "oc-nm"; const b = document.createElement("b"); b.textContent = x.ticker; const sm = document.createElement("small"); sm.textContent = ocShort(x.name); nm.append(b, sm);
+    const tk = document.createElement("a"); tk.href = jupLink(x.mint); tk.target = "_blank"; tk.rel = "noopener noreferrer"; tk.textContent = x.symbol; tk.title = (OC_ISS[x.issuer] || x.issuer) + " · mint " + x.mint;
+    const im = 100 * c.usd / Math.max(1, (x.liq || 0) / 2);
+    t.append(tdNode(nm), tdNode(chip(c.theme === "named" ? "You named it" : (TH[c.theme] || {}).label || c.theme, "neutral")), tdNode(tk), td(fPx(x.price), "num"), td(isNum(x.premium_pct) ? fPct(x.premium_pct, 2) : "—", "num"),
+      td(fN(100 * c.w, 1) + "%", "num"), td(fUsd2(c.usd), "num"), td(x.price ? fN(c.usd / x.price, 4) : "—", "num"), td(fUsd(x.liq), "num"), td(fN(im, 2) + "%", "num" + (im > 2 ? " neg" : "")));
+    body.append(t); });
+  if (!picks.length) body.innerHTML = `<tr><td colspan="10" class="empty">No token in ${p.themes.map(k => (TH[k] || {}).label || k).join(", ")} has enough on-chain liquidity for this order yet. Try a smaller amount or another theme.</td></tr>`;
+  $("#skBuy").disabled = !picks.length;
+  $("#skTime").textContent = picks.length ? `Basket built in ${Math.max(1, Math.round(performance.now() - t0))} ms from prices ${mbAgo(S.oc.generated_utc)}` : "";
+  if (!keep) $("#skResult").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function skCheckout() {
+  const L = S.skLast; if (!L || !L.picks.length) return; const box = $("#skCheckout"); box.hidden = false; box.replaceChildren();
+  const h = document.createElement("h3"); h.textContent = "Checkout"; const p1 = document.createElement("p"); p1.className = "note";
+  p1.textContent = "One-click wallet checkout (connect a Solana wallet, approve one transaction for the whole basket) is the next build step. Until then each order opens on Jupiter with the right token, where you enter the amount, review the route and sign in your own wallet. We never hold your funds or keys.";
+  const ol = document.createElement("ol"); ol.className = "sk-steps";
+  L.picks.forEach(c => { const li = document.createElement("li"), a = document.createElement("a"); a.href = jupLink(c.x.mint); a.target = "_blank"; a.rel = "noopener noreferrer"; a.className = "btn small";
+    a.textContent = `Buy ${fUsd2(c.usd)} of ${c.x.symbol} ›`; const sm = document.createElement("small"); sm.textContent = ` ${ocShort(c.x.name)} · mint ${c.x.mint.slice(0, 6)}…${c.x.mint.slice(-4)}`; li.append(a, sm); ol.append(li); });
+  box.append(h, p1, ol); box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+function skCopy() {
+  const L = S.skLast; if (!L) return;
+  const txt = [`Basket: ${L.text}`, ...L.picks.map(c => `${c.x.symbol} (${c.x.ticker}) ${fUsd2(c.usd)} · ${fN(100 * c.w, 1)}% · mint ${c.x.mint}`)].join("\n");
+  (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => { $("#skTime").textContent = "Basket copied."; }, () => { $("#skTime").textContent = "Copy is not available in this browser."; });
+}
+function initOnchain() {
+  $("#ocQ").addEventListener("input", () => renderOnchain()); $("#ocTrad").addEventListener("change", () => renderOnchain());
+  $$("#ocIss button").forEach(b => b.onclick = () => { S.ocIss = b.dataset.v; $$("#ocIss button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); renderOnchain(); });
 }
 // ---------- World markets (data/world.json, refreshed hourly; loaded when the tab opens)
 let wdLoading = null;
@@ -3946,16 +4154,17 @@ const fUsd2 = v => isNum(v) ? (v < 0 ? "−$" : "$") + Math.abs(v).toLocaleStrin
 // ---------- routing + controls
 const VIEWS = ["me", "overview", "world", "bot", "mmbee", "lab", "highlights", "screener", "watchlist", "signals", "listings", "stocks", "pair"];
 // sub-sections inside a tab (#bot/record, #signals/library ...); old tab names still open the right place
-const SUBS = { bot: ["portfolio", "each", "record", "fade"], signals: ["latest", "library"], mmbee: ["bots", "live", "livu", "backtest"] };
+const SUBS = { bot: ["portfolio", "each", "record", "fade"], signals: ["latest", "library"], mmbee: ["bots", "live", "livu", "backtest"], stocks: ["basket", "onchain", "binance"] };
 const ALIAS = { top50: ["overview", "t50"], record: ["bot", "record"], library: ["signals", "library"] };
-S.sub = { bot: "portfolio", signals: "latest", mmbee: "bots" };
+S.sub = { bot: "portfolio", signals: "latest", mmbee: "bots", stocks: "basket" };
 function setSub(view, sub) {
   const list = SUBS[view]; if (!list) return;
   if (!list.includes(sub) || (view === "bot" && sub === "fade" && $("#botNavFade").hidden)) sub = list[0];
   S.sub[view] = sub;
   $$('.sub-nav[data-for="' + view + '"] button').forEach(b => { const on = b.dataset.s === sub; b.setAttribute("aria-selected", String(on)); if (on && !$("#v-" + view).hidden) b.scrollIntoView({ block: "nearest", inline: "nearest" }); });
   $$("#v-" + view + " > .sub-panel").forEach(x => { x.hidden = x.dataset.s !== sub; });
-  ({ bot: { portfolio: renderBot, each: renderBot, record: renderRecord, fade: renderBot }, signals: { latest: renderSignals, library: renderLibrary }, mmbee: { bots: renderMMBots, live: renderMMBee, livu: renderLiveU, backtest: renderMBBacktest } })[view][sub]();
+  ({ bot: { portfolio: renderBot, each: renderBot, record: renderRecord, fade: renderBot }, signals: { latest: renderSignals, library: renderLibrary }, mmbee: { bots: renderMMBots, live: renderMMBee, livu: renderLiveU, backtest: renderMBBacktest },
+    stocks: { basket: renderBasket, onchain: renderOnchain, binance: renderStocks } })[view][sub]();
 }
 $$(".sub-nav button").forEach(b => b.onclick = () => { location.hash = b.closest(".sub-nav").dataset.for + "/" + b.dataset.s; });
 function show(v) {
@@ -3972,7 +4181,7 @@ function show(v) {
   $$("nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.view === v ? "page" : "false"));
   ({ me: () => { renderMe(); if (!ME.user && AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); }, overview: () => { renderOverview(); renderTop50(); if (focus === "t50") setTimeout(() => $("#t50Card").scrollIntoView({ behavior: "smooth", block: "start" }), 150); },
     bot: () => { $("#botNavFade").hidden = !S.p4; subCounts(); setSub("bot", S.sub.bot); }, mmbee: () => { renderMMHead(); setSub("mmbee", S.sub.mmbee); }, lab: renderLab, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch,
-    signals: () => { subCounts(); setSub("signals", S.sub.signals); }, listings: renderListings, stocks: renderStocks, pair: renderPair, world: renderWorld })[v](); }
+    signals: () => { subCounts(); setSub("signals", S.sub.signals); }, listings: renderListings, stocks: () => setSub("stocks", S.sub.stocks), pair: renderPair, world: renderWorld })[v](); }
 function subCounts() {
   const R = S.bot, PF = R && R.portfolio, fill = (view, sub, n, title) => { const b = $('.sub-nav[data-for="' + view + '"] button[data-s="' + sub + '"]'); if (!b) return; b.querySelector("i").textContent = n ? String(n) : ""; b.title = title || ""; };
   fill("bot", "portfolio", R && R.bots ? R.bots.length : 0, "bots");
@@ -4419,7 +4628,7 @@ addEventListener("resize", navFade);
     $("#freshPill").style.cursor = "pointer"; $("#freshPill").onclick = () => location.reload();
     const probe = setInterval(async () => { try { const r = await fetch("data/overview.json", { cache: "no-store" }); if (r.ok) { clearInterval(probe); $("#freshText").textContent = "Connection back · tap to refresh"; $("#freshPill").className = "pill ok"; } } catch (e) {} }, 20000);
   }
-  navFade(); setTimeout(navFade, 500); initStocks(); loadBackground();
+  navFade(); setTimeout(navFade, 500); initStocks(); initOnchain(); loadBackground();
   if ("serviceWorker" in navigator && isSecureContext) navigator.serviceWorker.register("sw.js").catch(() => {}); initScreenerControls(); if (S.pubSL) $("#hlNavSL").hidden = false; initShortlist(); show(location.hash.slice(1)); authInit(); })();
 })();
 </script>

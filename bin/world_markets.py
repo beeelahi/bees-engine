@@ -140,7 +140,7 @@ SECTOR_FIX = {
     "smh": {"add": ["NASDAQ:AMAT", "NASDAQ:LRCX", "NASDAQ:KLAC", "NASDAQ:ASML"]},
     "xli": {"drop": ["AMAT", "LRCX", "KLAC", "SHOP", "ASML"]},
     "xly": {"drop": ["WMT", "COST"]},
-    "xlp": {"add": ["NYSE:WMT", "NASDAQ:COST"]},
+    "xlp": {"add": ["NASDAQ:WMT", "NYSE:WMT", "NASDAQ:COST"]},     # Walmart moved its listing to Nasdaq in Dec 2025
 }
 CO_COLS = ["name", "description", "close", "change", "Perf.W", "Perf.1M", "Perf.YTD", "market_cap_basic", "industry", "sector", "exchange"]
 FNG = "https://api.alternative.me/fng/?limit=8"
