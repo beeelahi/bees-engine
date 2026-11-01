@@ -541,5 +541,25 @@ if __name__ == "__main__":
         tags()
     elif "--status" in sys.argv:
         status()
+        for sym, v, nat in (("XMRUSDT", "kucoin", "XMR-USDT"), ("WAVESUSDT", "mexc", "WAVESUSDT"), ("DATAUSDT", "kucoin", "DATA-USDT"),
+                            ("WANUSDT", "kucoin", "WAN-USDT"), ("LITUSDT", "mexc", "LITUSDT"), ("BTTUSDT", "gate", "BTT_USDT"), ("UPUSDT", "kucoin", "UP-USDT")):
+            try:
+                con = sqlite3.connect(f"file:{BINANCE_DB}?mode=ro", uri=True)
+                st = con.execute("SELECT status, delisted_on FROM pairs WHERE symbol=?", (sym,)).fetchone()
+                last = con.execute("SELECT date, close FROM daily WHERE symbol=? ORDER BY date DESC LIMIT 1", (sym,)).fetchone()
+                con.close()
+                import venues as V
+                V.EXTERNAL[sym], V.NATIVE[sym] = v, nat
+                k = []
+                if last:
+                    t = int(datetime.strptime(last[0], "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp() * 1000)
+                    try:
+                        k = V.klines(None, {"symbol": sym, "interval": "1d", "startTime": t, "endTime": t, "limit": 1})
+                    except Exception as e:
+                        k = [str(e)[:80]]
+                V.EXTERNAL.pop(sym, None)
+                print(f"why {sym}: binance {st} last {last}; {v} that day: {k[:1]}")
+            except Exception as e:
+                print(f"why {sym}: {e}")
     else:
         build()
