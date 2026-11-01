@@ -129,7 +129,8 @@ class DeadBinanceSymbolTest(unittest.TestCase):
         con = sqlite3.connect(self.bdb)
         con.executescript("CREATE TABLE pairs(symbol TEXT, token TEXT, status TEXT); CREATE TABLE daily(symbol TEXT, date TEXT, close REAL);")
         con.executemany("INSERT INTO pairs VALUES(?,?,?)", [("XMRUSDT", "XMR", "BREAK"), ("LITUSDT", "LIT", "BREAK"), ("BTCUSDT", "BTC", "TRADING")])
-        con.executemany("INSERT INTO daily VALUES(?,?,?)", [("XMRUSDT", "2024-02-19", 120.0), ("LITUSDT", "2024-03-01", 0.9)])
+        con.executemany("INSERT INTO daily VALUES(?,?,?)", [("XMRUSDT", "2024-02-19", 120.0), ("XMRUSDT", "2024-02-20", 95.0),   # halted mid-day
+                                                            ("LITUSDT", "2024-02-29", 0.9), ("LITUSDT", "2024-03-01", 0.9)])
         con.commit()
         con.close()
         self.old = V.default_fetch
@@ -146,7 +147,7 @@ class DeadBinanceSymbolTest(unittest.TestCase):
         self.V.default_fetch = self.old
 
     def test_same_coin_continues_different_coin_refused(self):
-        self.assertEqual(L.continues_binance("XMRUSDT", "kucoin", "XMR-USDT", db=self.bdb), "2024-02-19")
+        self.assertEqual(L.continues_binance("XMRUSDT", "kucoin", "XMR-USDT", db=self.bdb), "2024-02-20")   # compared on the 19th
         self.assertIsNone(L.continues_binance("LITUSDT", "kucoin", "LIT-USDT", db=self.bdb))
         self.assertIsNone(L.continues_binance("BTCUSDT", "kucoin", "BTC-USDT", db=self.bdb))   # still trading on Binance
         self.assertNotIn("XMRUSDT", self.V.EXTERNAL)                   # the check leaves the live mapping untouched
@@ -161,5 +162,5 @@ class DeadBinanceSymbolTest(unittest.TestCase):
                 out_lib=os.path.join(d, "lib.json"), out_caps=os.path.join(d, "c.json"), totals=totals, binance_db=self.bdb)
         with open(ext_file) as f:
             ext = json.load(f)
-        self.assertEqual(ext["XMRUSDT"]["continues_binance_after"], "2024-02-19")
+        self.assertEqual(ext["XMRUSDT"]["continues_binance_after"], "2024-02-20")
         self.assertNotIn("LITUSDT", ext)

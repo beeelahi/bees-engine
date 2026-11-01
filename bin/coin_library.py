@@ -244,22 +244,24 @@ def match(rows, books):
 
 def continues_binance(sym, venue, native, db=BINANCE_DB):
     """A Binance pair that stopped trading may be the same coin another exchange still trades (XMR) or a different coin
-    that reused the ticker (Binance's old LIT was Litentry). Same coin when the other exchange's close on Binance's last
-    trading day is within 3% of Binance's. Returns that day, or None (different coin, or not checkable)."""
+    that reused the ticker (Binance's old LIT was Litentry). Same coin when the other exchange's close is within 3% of
+    Binance's on Binance's last FULL day (the final candle is usually cut short by the halt). Returns Binance's last day,
+    or None (different coin, or not checkable)."""
     import venues as V
     try:
         con = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=60)
         st = con.execute("SELECT status FROM pairs WHERE symbol=?", (sym,)).fetchone()
-        last = con.execute("SELECT date, close FROM daily WHERE symbol=? ORDER BY date DESC LIMIT 1", (sym,)).fetchone()
+        two = con.execute("SELECT date, close FROM daily WHERE symbol=? ORDER BY date DESC LIMIT 2", (sym,)).fetchall()
         con.close()
     except sqlite3.Error:
         return None
-    if not st or st[0] == "TRADING" or not last or not last[1]:
+    if not st or st[0] == "TRADING" or len(two) < 2 or not two[1][1]:
         return None
+    last, full = two[0], two[1]
     old = (V.EXTERNAL.get(sym), V.NATIVE.get(sym))
     V.EXTERNAL[sym], V.NATIVE[sym] = venue, native
     try:
-        t = int(datetime.strptime(last[0], "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp() * 1000)
+        t = int(datetime.strptime(full[0], "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp() * 1000)
         k = V.klines(None, {"symbol": sym, "interval": "1d", "startTime": t, "endTime": t, "limit": 1})
     except Exception:
         k = []
@@ -268,7 +270,7 @@ def continues_binance(sym, venue, native, db=BINANCE_DB):
             V.EXTERNAL.pop(sym, None), V.NATIVE.pop(sym, None)
         else:
             V.EXTERNAL[sym], V.NATIVE[sym] = old
-    if k and k[0][0] == t and abs(float(k[0][4]) / last[1] - 1) <= 0.03:
+    if k and k[0][0] == t and abs(float(k[0][4]) / full[1] - 1) <= 0.03:
         return last[0]
     return None
 
@@ -546,7 +548,7 @@ if __name__ == "__main__":
             try:
                 con = sqlite3.connect(f"file:{BINANCE_DB}?mode=ro", uri=True)
                 st = con.execute("SELECT status, delisted_on FROM pairs WHERE symbol=?", (sym,)).fetchone()
-                last = con.execute("SELECT date, close FROM daily WHERE symbol=? ORDER BY date DESC LIMIT 1", (sym,)).fetchone()
+                last = (con.execute("SELECT date, close FROM daily WHERE symbol=? ORDER BY date DESC LIMIT 2", (sym,)).fetchall() or [None])[-1]
                 con.close()
                 import venues as V
                 V.EXTERNAL[sym], V.NATIVE[sym] = v, nat
@@ -558,7 +560,7 @@ if __name__ == "__main__":
                     except Exception as e:
                         k = [str(e)[:80]]
                 V.EXTERNAL.pop(sym, None)
-                print(f"why {sym}: binance {st} last {last}; {v} that day: {k[:1]}")
+                print(f"why {sym}: binance {st} last full day {last}; {v} that day: {k[:1]}; verdict {continues_binance(sym, v, nat)}")
             except Exception as e:
                 print(f"why {sym}: {e}")
     else:
