@@ -32,6 +32,15 @@ class StocksTest(unittest.TestCase):
         self.assertEqual(uni, {"BNBUSDT", "ARBUSDT", "HYPEUSDT", "NEWBUSDT"})
         self.assertEqual(B.stock_tokens(sqlite3.connect(":memory:")), set())     # no pairs table: nothing, no error
 
+    def test_tracked_pair_stays_on_quiet_days(self):
+        self.con.execute("INSERT INTO pairs(symbol, token, status, first_seen, backfilled, first_candle) VALUES('ZIGUSDT','ZIG','TRADING','2026-01-01',1,'2024-01-01')")
+        self.con.execute("INSERT INTO ticker_snapshots VALUES('2026-10-30','ZIGUSDT',0.04,50000,'t')")          # under the $100K floor
+        self.con.execute("INSERT INTO pairs(symbol, token, status, first_seen, backfilled, first_candle) VALUES('QUIETUSDT','QUIET','TRADING','2026-01-01',1,'2024-01-01')")
+        self.con.execute("INSERT INTO ticker_snapshots VALUES('2026-10-30','QUIETUSDT',1.0,50000,'t')")
+        uni = {s for (s,) in self.con.execute(B.FILTERED_SQL)}
+        self.assertIn("ZIGUSDT", uni)
+        self.assertNotIn("QUIETUSDT", uni)
+
 
 if __name__ == "__main__":
     unittest.main()

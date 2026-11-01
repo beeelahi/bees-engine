@@ -488,7 +488,7 @@ def run_sync(con, force):
 
 
 # ---------------------------------------------------------------- circulating supply (for estimated market cap)
-ENGINE_VERSION = "23"     # bump when engine/bot/export code changes so the next hourly run rebuilds once
+ENGINE_VERSION = "24"     # bump when engine/bot/export code changes so the next hourly run rebuilds once
 SUPPLY_URL = "https://www.binance.com/bapi/asset/v2/public/asset-service/product/get-products?includeEtf=false"
 
 
@@ -566,7 +566,8 @@ FILTERED_SQL = f"""
 SELECT p.symbol FROM pairs p
 JOIN ticker_snapshots t ON t.symbol = p.symbol
  AND t.snap_date = (SELECT MAX(snap_date) FROM ticker_snapshots)
-WHERE p.status = 'TRADING' AND t.quote_volume_24h >= {MIN_VOL_USDT}
+WHERE p.status = 'TRADING' AND (t.quote_volume_24h >= {MIN_VOL_USDT}
+       OR p.symbol IN ({",".join("'" + x + "'" for x in sorted(venues.EXTERNAL)) or "''"}))   -- pairs tracked on purpose (ZIG) stay in, quiet days too
   AND p.token NOT IN ({",".join("'" + b + "'" for b in sorted(STABLE_BASES))})
   AND NOT {STOCK_SQL}
 """

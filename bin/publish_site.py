@@ -69,14 +69,16 @@ def auth_config(path=AUTH_CFG):
 
 def csp_for(page, extra_connect=None):
     """Strict Content-Security-Policy: only this page's own inline script (pinned by hash), the pinned
-    chart library from unpkg, Google Fonts, and same-origin data files. No other script, frame,
-    form target or connection can load."""
+    chart library from unpkg, Google Fonts, and same-origin data files. One frame source only: TradingView's
+    embedded chart (the Pair chart's drawing view), which runs inside its own frame and cannot touch this page.
+    No other script, frame, form target or connection can load."""
     hashes = []
     for m in re.finditer(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", page, re.S):
         hashes.append("'sha256-" + base64.b64encode(hashlib.sha256(m.group(1).encode("utf-8")).digest()).decode() + "'")
     return ("default-src 'none'; script-src https://unpkg.com " + " ".join(hashes) + "; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; "
             "img-src 'self' data:; connect-src 'self'" + (" " + extra_connect if extra_connect else "") +
+            "; frame-src https://s.tradingview.com https://www.tradingview-widget.com"
             "; worker-src 'self'; base-uri 'none'; form-action 'none'; manifest-src 'none'")
 
 

@@ -144,6 +144,8 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .lu-row { cursor: pointer; } .lu-row:hover td { background: var(--hover, rgba(127,127,127,.06)); }
 .lu-row.sel td { background: var(--accent-soft); } .lu-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .st-tbl th:nth-child(-n+2), .st-tbl td:nth-child(-n+2) { text-align: left; }
+.tv-box { height: 640px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; } .tv-box iframe { width: 100%; height: 100%; border: 0; display: block; }
+@media (max-width: 640px) { .tv-box { height: 520px; } }
 .sg-grid { margin: 0 0 20px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); }
 .sg-card .hx-metrics small { display: block; margin-top: 2px; } .sg-card { cursor: pointer; } .sg-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; } .sg-top b { font-size: 15px; }
 .sg-ch { margin: 8px 0 2px; } .sg-svg { width: 100%; height: 70px; display: block; } .sg-alloc { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 12px; }
@@ -1449,6 +1451,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
   <section class="view" id="v-pair" hidden>
     <div class="controls">
       <select id="pairSel" aria-label="Pair"></select>
+      <div class="seg" id="pairView" title="TradingView: the full TradingView chart with drawing tools and indicators"><button type="button" data-v="ours" aria-pressed="true">Our chart</button><button type="button" data-v="tv" aria-pressed="false">TradingView · draw</button></div>
       <button class="star" id="pairStar" type="button" aria-pressed="false" hidden>☆ Add to my coins</button>
       <div class="seg" id="pairTf"><button type="button" data-tf="1h" aria-pressed="false">1H</button><button type="button" data-tf="4h" aria-pressed="false">4H</button><button type="button" data-tf="1d" aria-pressed="true">Daily</button><button type="button" data-tf="1w" aria-pressed="false">Weekly</button><button type="button" data-tf="1M" aria-pressed="false">Monthly</button></div>
       <button class="toggle" type="button" data-o="ema" aria-pressed="true">EMA 21/50/200</button>
@@ -1464,6 +1467,8 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <div class="pair-head"><h2 id="pairName">—</h2><span class="px" id="pairPx">—</span><span id="pairChg"></span><span style="margin-left:auto; display:inline-flex; gap:8px"><button class="btn small" id="pairLink" type="button" title="Copy a link straight to this chart">Copy link</button><button class="btn small primary" id="pairApprove" type="button" hidden>Add to Bee's Shortlist</button></span></div>
       <div class="stat-row" id="pairStats" style="margin:12px 0"></div>
       <div class="legend" id="pairLegend"></div>
+      <div id="tvBox" class="tv-box" hidden></div>
+      <p class="note" id="tvNote" hidden>TradingView's chart with its drawing tools (left toolbar) and indicators. Drawings stay while the chart is open; saving them to your profile needs TradingView's licensed library, which we have applied for. Chart by TradingView.</p>
       <div id="cMain" class="chart-main"></div>
       <div class="label" style="margin-top:8px">RSI 14</div>
       <div id="cRsi" class="chart-sub"></div>
@@ -3945,6 +3950,25 @@ function chartMarkers(times) {
   // one marker per candle, side and label (repeated events on the same candle only stack and overlap)
   return out.sort((a, b) => key(a.time) - key(b.time)).filter(m => { const k = m.time + "|" + m.position + "|" + m.text; if (seen.has(k)) return false; seen.add(k); return true; });
 }
+// TradingView's embedded chart (drawing tools); a frame from TradingView only, no script of theirs runs on this page
+const TV_INT = { "1h": "60", "4h": "240", "1d": "D", "1w": "W", "1M": "M" };
+function tvSymbol(sym) { const v = venueOf(sym); return (v ? v.toUpperCase() : "BINANCE") + ":" + sym; }
+function pairViewSet() {
+  const tv = S.pairView === "tv";
+  $$("#pairView button").forEach(b => b.setAttribute("aria-pressed", String((b.dataset.v === "tv") === tv)));
+  ["#cMain", "#cRsi", "#cMacd", "#pairLegend"].forEach(id => { const e = $(id); if (e) e.hidden = tv; });
+  $$("#v-pair .card .label").forEach(e => { if (/RSI|MACD/.test(e.textContent)) e.hidden = tv; });
+  $$('#v-pair > .controls .toggle').forEach(b => { b.hidden = tv; });
+  $("#tvBox").hidden = !tv; $("#tvNote").hidden = !tv;
+  if (!tv) { $("#tvBox").replaceChildren(); return; }
+  const src = "https://s.tradingview.com/widgetembed/?" + new URLSearchParams({ symbol: tvSymbol(S.pair), interval: TV_INT[S.pairTf] || "D", hidesidetoolbar: "0", symboledit: "1",
+    saveimage: "1", toolbarbg: "0b1739", theme: "dark", style: "1", timezone: "Etc/UTC", withdateranges: "1", hideideas: "1", locale: "en" }).toString();
+  const box = $("#tvBox"), cur = box.querySelector("iframe");
+  if (cur && cur.dataset.src === src) return;
+  const f = document.createElement("iframe"); f.src = src; f.dataset.src = src; f.title = "TradingView chart for " + S.pair; f.setAttribute("allowfullscreen", ""); f.loading = "lazy"; f.referrerPolicy = "no-referrer-when-downgrade";
+  box.replaceChildren(f);
+}
+$$("#pairView button").forEach(b => b.onclick = () => { S.pairView = b.dataset.v; store.set("pairView", S.pairView); pairViewSet(); });
 function renderPairProfile(r) {
   const sym = S.pair, box = $("#pairProf"), body = $("#pairProfBody"); box.replaceChildren(); body.replaceChildren();
   const T = (S.bot && S.bot.top50 && S.bot.top50.rows) || [], t50 = T.find ? T.find(x => (x.symbol || x[1]) === sym) : null;
@@ -3974,6 +3998,8 @@ async function renderPair() {
   if (!sel.options.length) S.scr.map(r => r.symbol).sort().forEach(s => sel.add(new Option(s.replace(/USDT$/, "/USDT"), s)));
   if (!S.pair) S.pair = store.get("pair") && S.index[store.get("pair")] ? store.get("pair") : (S.index.BTCUSDT ? "BTCUSDT" : sel.options[0]?.value);
   sel.value = S.pair; $$("#pairTf button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tf === S.pairTf)));
+  if (S.pairView === undefined) S.pairView = store.get("pairView") === "tv" ? "tv" : "ours";
+  pairViewSet();
   $$("[data-o]").forEach(b => b.setAttribute("aria-pressed", String(S.ov_on.has(b.dataset.o))));
   syncPairHash();
   const r = S.scr.find(x => x.symbol === S.pair), p = { "1h": "d", "4h": "d", "1d": "d", "1w": "w", "1M": "m" }[S.pairTf];
