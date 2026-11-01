@@ -39,7 +39,7 @@ ISSUERS = {
     "xstocks": {"name": "xStocks (Backed)", "suffix": "x", "tag": "xstocks", "ok": lambda m: m.startswith("Xs")},
     "ondo": {"name": "Ondo Global Markets", "suffix": "on", "tag": "ondo", "ok": lambda m: m.endswith("ondo")},
 }
-MIN_LIQ = 50_000            # a basket only uses tokens with at least this much on-chain liquidity (USD)
+MIN_LIQ = 25_000            # "liquid": at least this much on-chain liquidity (USD); a basket also needs 200x the order (about 1% impact)
 # tickers searched one by one when the issuer listings miss some (the largest US companies are added from the World data)
 EXTRA = ["SPY", "QQQ", "IWM", "VTI", "DIA", "GLD", "SLV", "USO", "TLT", "IBIT", "SMH", "SOXL", "TQQQ", "XLK", "XLF", "XLE", "XLV",
          "NVDA", "AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "AVGO", "AMD", "TSM", "INTC", "MU", "QCOM", "ARM", "ASML", "AMAT", "LRCX",
@@ -53,7 +53,9 @@ THEMES = {
              "tickers": ["XLK", "QQQ", "TQQQ"]},
     "ai": {"label": "AI leaders", "tickers": ["NVDA", "MSFT", "GOOGL", "GOOG", "META", "AMD", "AVGO", "TSM", "PLTR", "ORCL", "SMCI", "ARM", "AMZN", "DELL", "CRWV", "APP"]},
     "internet": {"label": "Internet & media", "industries": ["Internet Software/Services", "Internet Retail", "Movies/Entertainment", "Cable/Satellite TV"]},
-    "finance": {"label": "Banks & finance", "sectors": ["Finance"], "not_industries": ["Real Estate Investment Trusts"], "tickers": ["XLF"]},
+    "finance": {"label": "Banks & finance", "industries": ["Major Banks", "Regional Banks", "Savings Banks", "Financial Conglomerates", "Finance/Rental/Leasing",
+                                                         "Property/Casualty Insurance", "Life/Health Insurance", "Multi-Line Insurance", "Insurance Brokers/Services",
+                                                         "Investment Managers"], "tickers": ["XLF", "JPM", "GS", "MS", "BAC", "V", "MA"], "not_tickers": ["COIN", "HOOD", "MSTR", "CRCL"]},
     "crypto": {"label": "Crypto stocks", "tickers": ["COIN", "MSTR", "HOOD", "CRCL", "GLXY", "MARA", "RIOT", "CLSK", "IBIT", "BMNR", "SBET", "CIFR", "IREN", "BTGO"]},
     "health": {"label": "Health care", "sectors": ["Health Technology", "Health Services"], "tickers": ["XLV"]},
     "energy": {"label": "Energy", "sectors": ["Energy Minerals"], "tickers": ["XLE", "USO"]},
@@ -180,8 +182,7 @@ def stock_info(tickers, fetch=fetch):
     tl = sorted({t.replace(".", ".") for t in tickers})
     for i in range(0, len(tl), 150):
         q = {"filter": [{"left": "name", "operation": "in_range", "right": tl[i:i + 150]},
-                        {"left": "exchange", "operation": "in_range", "right": ["NYSE", "NASDAQ", "AMEX", "CBOE"]},
-                        {"left": "is_primary", "operation": "equal", "right": True}],
+                        {"left": "exchange", "operation": "in_range", "right": ["NYSE", "NASDAQ", "AMEX", "CBOE"]}],   # US listings, ADRs included
              "columns": cols, "range": [0, 400], "markets": ["america"]}
         st, body = fetch(US_SCAN, data=q, timeout=25)
         if st != 200:
@@ -202,6 +203,8 @@ def stock_info(tickers, fetch=fetch):
 def themes_for(tk, info):
     out = []
     for k, th in THEMES.items():
+        if tk in th.get("not_tickers", []):
+            continue
         if tk in th.get("tickers", []):
             out.append(k)
             continue
