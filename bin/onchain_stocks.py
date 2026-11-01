@@ -27,6 +27,8 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from world_markets import fetch, clean, US_SCAN  # noqa: E402
 
+O_FETCH = fetch                # the real fetcher (tests pass their own, which never waits)
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DB = os.path.join(ROOT, "data", "onchain.db")
 OUT = os.path.join(ROOT, "web_export", "onchain.json")
@@ -66,6 +68,7 @@ CREATE TABLE IF NOT EXISTS tokens(mint TEXT PRIMARY KEY, issuer TEXT, symbol TEX
 CREATE TABLE IF NOT EXISTS quotes(mint TEXT PRIMARY KEY, data TEXT, utc TEXT);
 CREATE TABLE IF NOT EXISTS hourly(mint TEXT, utc TEXT, price REAL, liq REAL, PRIMARY KEY(mint, utc));
 CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT);
+CREATE TABLE IF NOT EXISTS searched(q TEXT PRIMARY KEY, t INTEGER);
 """
 
 
@@ -95,9 +98,16 @@ def underlying(sym, issuer):
     return sym[: -len(ISSUERS[issuer]["suffix"])].upper()
 
 
-def jup_list(url, fetch=fetch):
-    st, body = fetch(url, timeout=20)
-    if st != 200:
+def jup_list(url, fetch=fetch, tries=3):
+    """A Jupiter token list; waits and retries when rate-limited (HTTP 429) or briefly unavailable."""
+    for k in range(tries):
+        st, body = fetch(url, timeout=20)
+        if st == 200:
+            break
+        if st not in (429, 500, 502, 503, 0) or k == tries - 1:
+            return []
+        time.sleep(6 * (k + 1) if fetch is O_FETCH else 0)
+    else:
         return []
     try:
         d = json.loads(body)
@@ -119,14 +129,18 @@ def discover(con, fetch=fetch, candidates=(), log=print):
                 if issuer_of(t) == k:
                     found[t["id"]] = (k, t)
     have = {underlying(t["symbol"], k) + "|" + k for k, t in found.values()}
+    known = {u + "|" + i for u, i in con.execute("SELECT underlying, issuer FROM tokens")}
+    recent = {q for (q,) in con.execute("SELECT q FROM searched WHERE t > ?", (int(time.time()) - 7 * 86400,))}
     for tk in candidates:
         for k, iss in ISSUERS.items():
-            if f"{tk}|{k}" in have:
-                continue
-            for t in jup_list(JUP_SEARCH + tk.replace(".", "") + iss["suffix"], fetch):
+            q = tk.replace(".", "") + iss["suffix"]
+            if f"{tk}|{k}" in have or f"{tk.replace('.', '')}|{k}" in known or q in recent:
+                continue                                   # already known, or searched without a hit this week
+            for t in jup_list(JUP_SEARCH + q, fetch):
                 if issuer_of(t) == k and underlying(t["symbol"], k) == tk.replace(".", ""):
                     found[t["id"]] = (k, t)
-            time.sleep(0.25)
+            con.execute("INSERT OR REPLACE INTO searched VALUES(?,?)", (q, int(time.time())))
+            time.sleep(1.1 if fetch is O_FETCH else 0)     # Jupiter's free tier: about one request a second
     stamp = now_iso()
     for mint, (k, t) in found.items():
         con.execute("INSERT INTO tokens VALUES(?,?,?,?,?,?,?) ON CONFLICT(mint) DO UPDATE SET last_seen=excluded.last_seen, name=excluded.name",
@@ -141,11 +155,11 @@ def quotes(con, fetch=fetch):
     """Price, liquidity, market cap and 24h stats for every known token (Jupiter, 50 mints a request)."""
     mints = [m for (m,) in con.execute("SELECT mint FROM tokens")]
     got = {}
-    for i in range(0, len(mints), 50):
-        for t in jup_list(JUP_SEARCH + ",".join(mints[i:i + 50]), fetch):
+    for i in range(0, len(mints), 25):
+        for t in jup_list(JUP_SEARCH + ",".join(mints[i:i + 25]), fetch):
             if t.get("id") in mints and issuer_of(t):
                 got[t["id"]] = t
-        time.sleep(0.3)
+        time.sleep(1.1 if fetch is O_FETCH else 0)
     stamp, hour = now_iso(), now_iso()[:13]
     for m, t in got.items():
         s24 = t.get("stats24h") or {}
