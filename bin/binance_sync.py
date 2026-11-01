@@ -562,11 +562,15 @@ def refresh_fear_greed(con, today):
 
 
 # ---------------------------------------------------------------- exports
+# Pairs tracked from another venue on purpose (venues.EXTERNAL, e.g. ZIG on MEXC) are always in the universe while they
+# trade: the volume floor is read from ONE 24h snapshot a day (00:03 UTC), so a quiet day (a weekend) or a missing
+# snapshot used to drop ZIG from the live prices and the 4h / 1h charts for a whole day (1 Nov 2026).
+EXTERNAL_SQL = ",".join("'" + s.replace("'", "") + "'" for s in sorted(venues.EXTERNAL)) or "''"
 FILTERED_SQL = f"""
 SELECT p.symbol FROM pairs p
-JOIN ticker_snapshots t ON t.symbol = p.symbol
+LEFT JOIN ticker_snapshots t ON t.symbol = p.symbol
  AND t.snap_date = (SELECT MAX(snap_date) FROM ticker_snapshots)
-WHERE p.status = 'TRADING' AND t.quote_volume_24h >= {MIN_VOL_USDT}
+WHERE p.status = 'TRADING' AND (t.quote_volume_24h >= {MIN_VOL_USDT} OR p.symbol IN ({EXTERNAL_SQL}))
   AND p.token NOT IN ({",".join("'" + b + "'" for b in sorted(STABLE_BASES))})
   AND NOT {STOCK_SQL}
 """
