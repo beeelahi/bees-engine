@@ -162,6 +162,10 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 @media (max-width: 1100px) { .wx-pulse { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .wx-pulse { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .wx-t { border-radius: 12px; padding: 10px 12px; border: 1px solid var(--line); min-width: 0; position: relative; overflow: hidden; }
+.wx-t.pick { cursor: pointer; transition: border-color .15s, transform .15s; } .wx-t.pick:hover { border-color: rgba(255,255,255,0.35); transform: translateY(-1px); }
+.wx-t.pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; } .wx-t.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.wx-cos-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; } .wx-cos-h h3 { margin: 0 0 8px; }
+.wx-clear { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 12px; cursor: pointer; } .wx-clear:hover { color: var(--fg); }
 .wx-t .n { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wx-t .p { font-family: var(--font-num); font-size: 17px; font-weight: 600; margin-top: 2px; color: var(--text); white-space: nowrap; }
 .wx-t .c { font-family: var(--font-num); font-size: 13px; font-weight: 600; margin-top: 1px; }
@@ -536,14 +540,15 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
         <h3>US sectors</h3>
         <div class="wx-heat" id="wdHeat"></div>
         <p class="note" style="margin:10px 0 14px" id="wdSecLead"></p>
-        <h3>Largest US companies</h3>
+        <div class="wx-cos-h"><h3 id="wxCosH">Largest US companies</h3><button type="button" class="wx-clear" id="wxCosAll" hidden>All sectors ×</button></div>
         <div class="wx-cos" id="wxCos"></div>
+        <p class="note" id="wxCosNote" style="margin:8px 0 0"></p>
       </div>
     </div>
-    <details class="hx-more" style="margin-top:20px"><summary>Economic calendar · the week's high and medium impact events</summary>
+    <details class="hx-more" style="margin-top:20px"><summary id="wdCalSum">Economic calendar · this week and next, high and medium impact events</summary>
       <div class="hx-more-in"><div class="card">
         <div class="tbl-wrap" style="max-height:70vh"><table class="wx-cal"><thead><tr><th>Time</th><th>Country</th><th>Event</th><th class="wd-act">Actual</th><th>Forecast</th><th>Previous</th></tr></thead><tbody id="wdCal"></tbody></table></div>
-        <p class="note">Your local time. Source: Forex Factory.</p>
+        <p class="note" id="wdCalNote">Your local time.</p>
       </div></div>
     </details>
     <p class="note" style="margin-top:14px" id="wdCredits"></p>
@@ -2435,7 +2440,7 @@ function wxTint(el, k) {
   const a = 0.05 + 0.3 * Math.min(1, Math.abs(k));
   el.style.background = k > 0.02 ? `rgba(0,206,182,${a})` : k < -0.02 ? `rgba(255,107,107,${a})` : "rgba(255,255,255,0.03)";
 }
-function wxTile(x, per, cls) {
+function wxTile(x, per, cls) {        // a sector tile with companies is a button (S.wdSec)
   const [t, k, v] = wxChg(x, per), el = hxEl("div", "wx-t" + (cls ? " " + cls : "")); wxTint(el, k);
   el.title = x.label + " · " + x.ticker + (x.delayed ? " (delayed)" : "");
   const left = hxEl("div", ""); left.append(hxEl("div", "n", x.label), hxEl("div", "p", wdPx(x)));
@@ -2491,10 +2496,23 @@ function renderWorld() {
     B.append(c); });
   // sectors + companies
   const H = $("#wdHeat"); H.replaceChildren();
-  (G.Sectors || []).slice().sort((a, b) => (b[per] ?? -1e9) - (a[per] ?? -1e9)).forEach(x => H.append(wxTile(x, per)));
+  const SC = D.sector_companies || {};
+  (G.Sectors || []).slice().sort((a, b) => (b[per] ?? -1e9) - (a[per] ?? -1e9)).forEach(x => { const t = wxTile(x, per);
+    if (SC[x.id]) { t.classList.add("pick"); t.tabIndex = 0; t.setAttribute("role", "button"); t.setAttribute("aria-pressed", String(S.wdSec === x.id)); t.title = `Show the largest ${x.label.toLowerCase()} companies`;
+      if (S.wdSec === x.id) t.classList.add("on");
+      const go = () => { S.wdSec = S.wdSec === x.id ? null : x.id; renderWorld(); }; t.onclick = go; t.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } }; }
+    H.append(t); });
   const lead = (SM.sector_leaders || [])[0], lag = (SM.sector_laggards || [])[0];
   $("#wdSecLead").textContent = lead ? `Today ${lead.replace(/ [+−-][\d.]+%$/, "")} leads and ${lag.replace(/ [+−-][\d.]+%$/, "")} lags. Over the month: ${(SM.sector_month_leaders || [])[0] || "—"} on top.` : "";
-  const CO = $("#wxCos"); CO.replaceChildren(); (G.Companies || []).slice().sort((a, b) => (b[per] ?? -1e9) - (a[per] ?? -1e9)).forEach(x => CO.append(wxTile(x, per, "row")));
+  const CO = $("#wxCos"); CO.replaceChildren();
+  const sec = S.wdSec && SC[S.wdSec] ? (G.Sectors || []).find(x => x.id === S.wdSec) : null;
+  const short = n => String(n || "").replace(/,? (Inc\.?|Corporation|Corp\.?|Company|Co\.|Holdings?|Ltd\.?|plc|N\.V\.|S\.A\.|Incorporated|Group|Class [A-C]|\(The\))$/i, "").replace(/,? (Inc\.?|Corporation|Corp\.?)$/i, "").trim();
+  const cos = sec ? SC[S.wdSec].map(c => ({ id: c.sym, label: short(c.name), ticker: c.ticker, price: c.price, unit: "$", d1: c.d1, w1: c.w1, m1: c.m1, ytd: c.ytd, y1: null, mcap: c.mcap, industry: c.industry }))
+    : (G.Companies || []).slice().sort((a, b) => (b[per] ?? -1e9) - (a[per] ?? -1e9));
+  $("#wxCosH").textContent = sec ? `Largest in ${sec.label.toLowerCase()}` : "Largest US companies"; $("#wxCosAll").hidden = !sec;
+  $("#wxCosAll").onclick = () => { S.wdSec = null; renderWorld(); };
+  cos.slice(0, 10).forEach(x => { const t = wxTile(x, per === "y1" && sec ? "ytd" : per, "row"); if (x.mcap) t.title = `${x.label} · ${x.ticker} · ${x.industry || ""} · market cap ${fUsd(x.mcap)}`; CO.append(t); });
+  $("#wxCosNote").textContent = sec ? `By market cap, NYSE and Nasdaq listings (TradingView's sector classification). ${per === "y1" ? "Showing year to date. " : ""}Tap the sector again for all.` : "Tap a sector to see its largest companies.";
   // calendar
   const C = $("#wdCal"); C.replaceChildren(); let dayK = null;
   const hasAct = (D.calendar || []).some(e => e.actual); $$(".wd-act").forEach(x => x.hidden = !hasAct);
@@ -2505,6 +2523,9 @@ function renderWorld() {
     tr.append(td(d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }), "num"), td(e.country, ""), cell, td(e.actual || "—", "num"), td(e.forecast || "—", "num"), td(e.previous || "—", "num"));
     if (!hasAct) tr.children[3].hidden = true; C.append(tr); });
   if (!C.children.length) C.innerHTML = '<tr><td colspan="6" class="empty">No events published yet.</td></tr>';
+  { const cal = D.calendar || [], wk2 = (D.calendar_from || 0) + 7 * 86400, n1 = cal.filter(e => e.t < wk2).length, n2 = cal.length - n1;
+    $("#wdCalSum").textContent = `Economic calendar · this week (${n1}) and next week (${n2}), high and medium impact events`;
+    $("#wdCalNote").textContent = `Your local time. Source: ${D.calendar_source || "Forex Factory"}.`; }
   renderWorldNews();
   const so = D.sources || {};
   $("#wdCredits").textContent = (D.credits || "") + ` Last refresh: ${so.prices_ok}/${so.prices_total} prices, ${(so.news_feeds_ok || []).length}/${so.news_feeds_total} news feeds. Information only, not advice.`;

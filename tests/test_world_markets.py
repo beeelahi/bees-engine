@@ -37,7 +37,22 @@ def scan_reply(tickers):
     return {"totalCount": len(data), "data": data}
 
 
-def fake(url, timeout=15, data=None, jar=None):
+def tv_cal():
+    a = W.week_start(NOW)
+    ev = lambda k, d, imp, ccy, title: {"id": str(k), "title": title, "currency": ccy, "importance": imp, "forecast": 0.3, "previous": 0.4, "unit": "%",  # noqa: E731
+                                         "date": datetime.fromtimestamp(a + d * 86400 + 13 * 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")}
+    return {"status": "ok", "result": [ev(1, 2, 1, "USD", "CPI MoM"), ev(2, 9, 1, "USD", "Nonfarm Payrolls"), ev(3, 10, 0, "EUR", "ECB speech"),
+                                       ev(4, 3, -1, "JPY", "Low one")]}
+
+
+def fake(url, timeout=15, data=None, jar=None, tv=False):
+    if url.startswith(W.CAL_TV):
+        return (200, json.dumps(tv_cal())) if tv else (403, "no origin")
+    if url == W.US_SCAN:
+        flt = json.dumps(data)
+        rows = [{"s": "NASDAQ:NVDA", "d": ["NVDA", "NVIDIA Corporation", 180.0, 1.2, 3.0, 5.0, 40.0, 4.4e12, "Semiconductors", "Electronic Technology", "NASDAQ"]},
+                {"s": "NASDAQ:AVGO", "d": ["AVGO", "Broadcom Inc.", 340.0, -0.5, 1.0, 2.0, 30.0, 1.6e12, "Semiconductors", "Electronic Technology", "NASDAQ"]}]
+        return 200, json.dumps({"data": rows if "Semiconductors" in flt else rows[:1]})
     if url == W.SCAN:
         return 200, json.dumps(scan_reply(data["symbols"]["tickers"]))
     if "news.google.com" in url and "markets" not in url and "stock" in url:
@@ -82,7 +97,25 @@ class WorldTest(unittest.TestCase):
         wheat = next(r for r in g["Commodities"] if r["id"] == "wheat")
         self.assertEqual(wheat["unit"], "$")
         self.assertLess(wheat["price"], 5)                          # quoted in cents (100+), shown in dollars
-        self.assertEqual([c["title"] for c in d["calendar"]], ["CPI m/m"])   # holidays and low impact left out
+        self.assertEqual([c["title"] for c in d["calendar"]], ["CPI MoM", "Nonfarm Payrolls", "ECB speech"])   # TradingView: two weeks, low impact left out
+        self.assertEqual(d["calendar_source"], "TradingView")
+        self.assertGreaterEqual(d["calendar"][1]["t"] - d["calendar_from"], 7 * 86400)                       # next week is covered
+        self.assertEqual(d["calendar"][0]["forecast"], "0.3%")
+        self.assertEqual([r["sym"] for r in d["sector_companies"]["smh"]], ["NVDA", "AVGO"])
+        self.assertEqual(d["sector_companies"]["smh"][0]["name"], "NVIDIA Corporation")
+        self.assertEqual(len(d["sector_companies"]), len(W.SECTOR_COS))
+
+    def test_calendar_falls_back_to_forex_factory(self):
+        W.refresh(force=True, log=lambda *a: None, fetch=lambda u, **k: (500, "") if u.startswith(W.CAL_TV) else fake(u, **k), out=self.out, db=self.db)
+        d = json.load(open(self.out))
+        self.assertEqual(d["calendar_source"], "Forex Factory")
+        self.assertEqual([c["title"] for c in d["calendar"]], ["CPI m/m"])
+
+    def test_week_start_is_sunday(self):
+        t = W.week_start(datetime(2026, 11, 4, 15, tzinfo=timezone.utc).timestamp())          # a Wednesday
+        self.assertEqual(datetime.fromtimestamp(t, timezone.utc).strftime("%a %Y-%m-%d %H"), "Sun 2026-11-01 00")
+        t = W.week_start(datetime(2026, 11, 1, 2, tzinfo=timezone.utc).timestamp())           # Sunday itself
+        self.assertEqual(datetime.fromtimestamp(t, timezone.utc).strftime("%Y-%m-%d"), "2026-11-01")
 
     def test_news_hygiene_scoring_and_dedupe(self):
         self.run_()

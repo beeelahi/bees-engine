@@ -112,7 +112,29 @@ FEEDS = [  # (name, url)
     ("Google News: trade & geopolitics", "https://news.google.com/rss/search?q=tariffs+OR+sanctions+OR+%22trade+war%22+when:2d&hl=en-US&gl=US&ceid=US:en"),
 ]
 CALENDAR = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
-CALENDAR_NEXT = "https://nfs.faireconomy.media/ff_calendar_nextweek.json"
+CALENDAR_NEXT = "https://nfs.faireconomy.media/ff_calendar_nextweek.json"      # 404 since Oct 2026: kept as a fallback only
+CAL_TV = "https://economic-calendar.tradingview.com/events"                      # this week and next (any range)
+CAL_COUNTRIES = "US,EU,GB,JP,CN,DE,FR,IT,CA,AU,NZ,CH,IN"
+US_SCAN = "https://scanner.tradingview.com/america/scan"
+# the largest US-listed companies in each sector tile (TradingView's own classification, refreshed with the prices)
+SECTOR_COS = {
+    "xlk": {"sector": ["Electronic Technology", "Technology Services"], "not_industry": ["Internet Software/Services"]},
+    "smh": {"industry": ["Semiconductors"]},
+    "xlc": {"sector": ["Communications"], "industry_or": ["Internet Software/Services", "Cable/Satellite TV", "Movies/Entertainment",
+                                                          "Broadcasting", "Advertising/Marketing Services", "Publishing: Newspapers"]},
+    "xly": {"sector": ["Retail Trade", "Consumer Durables", "Consumer Services"], "not_industry": ["Food Retail", "Drugstore Chains", "Movies/Entertainment",
+                                                                                                  "Broadcasting", "Cable/Satellite TV"]},
+    "xlf": {"sector": ["Finance"], "not_industry": ["Real Estate Investment Trusts", "Real Estate Development"]},
+    "xlv": {"sector": ["Health Technology", "Health Services"]},
+    "xli": {"sector": ["Producer Manufacturing", "Industrial Services", "Transportation", "Commercial Services"],
+            "not_industry": ["Oil & Gas Pipelines", "Contract Drilling", "Oilfield Services/Equipment"]},
+    "xle": {"sector": ["Energy Minerals"], "industry_or": ["Oil & Gas Pipelines", "Oilfield Services/Equipment", "Contract Drilling"]},
+    "xlb": {"sector": ["Non-Energy Minerals", "Process Industries"]},
+    "xlp": {"sector": ["Consumer Non-Durables"], "industry_or": ["Food Retail", "Drugstore Chains"]},
+    "xlu": {"sector": ["Utilities"]},
+    "xlre": {"industry": ["Real Estate Investment Trusts", "Real Estate Development"]},
+}
+CO_COLS = ["name", "description", "close", "change", "Perf.W", "Perf.1M", "Perf.YTD", "market_cap_basic", "industry", "sector", "exchange"]
 FNG = "https://api.alternative.me/fng/?limit=8"
 
 # headline tags and how much each says about market impact (the highest tag wins, words add a little)
@@ -136,9 +158,12 @@ HOT = r"\b(surge|plunge|crash|soar|slump|tumble|record|emergency|unexpected|shoc
 
 
 # ------------------------------------------------------------------ fetching
-def fetch(url, timeout=15, data=None, jar=None):
-    """GET (or POST `data` as JSON) a public URL with curl (no credentials ever). Returns (status, body text)."""
+def fetch(url, timeout=15, data=None, jar=None, tv=False):
+    """GET (or POST `data` as JSON) a public URL with curl (no credentials ever). Returns (status, body text).
+    tv=True sends TradingView's origin on a GET too (its public calendar asks for it)."""
     cfg = f'url = "{url}"\nheader = "User-Agent: {UA}"\nheader = "Accept: */*"\n'
+    if tv and data is None:
+        cfg += 'header = "Origin: https://www.tradingview.com"\nheader = "Referer: https://www.tradingview.com/"\n'
     if data is not None:
         cfg += 'header = "Content-Type: application/json"\nheader = "Origin: https://www.tradingview.com"\n' \
                'header = "Referer: https://www.tradingview.com/"\n'
@@ -252,6 +277,7 @@ def norm_key(title):
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS hourly(id TEXT, utc TEXT, price REAL, PRIMARY KEY(id, utc));
 CREATE TABLE IF NOT EXISTS daily(id TEXT, date TEXT, close REAL, PRIMARY KEY(id, date));
+CREATE TABLE IF NOT EXISTS sector_cos(id TEXT PRIMARY KEY, data TEXT, fetched_utc TEXT);
 CREATE TABLE IF NOT EXISTS last(id TEXT PRIMARY KEY, label TEXT, grp TEXT, ticker TEXT, unit TEXT, data TEXT, fetched_utc TEXT);
 CREATE TABLE IF NOT EXISTS news(key TEXT PRIMARY KEY, t INTEGER, title TEXT, link TEXT, source TEXT, via TEXT, tags TEXT, score INTEGER, first_seen_utc TEXT);
 CREATE TABLE IF NOT EXISTS calendar(key TEXT PRIMARY KEY, t INTEGER, country TEXT, title TEXT, impact TEXT, forecast TEXT, previous TEXT, actual TEXT, updated_utc TEXT);
@@ -260,6 +286,85 @@ CREATE TABLE IF NOT EXISTS calendar(key TEXT PRIMARY KEY, t INTEGER, country TEX
 
 def now_iso():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def sector_query(spec, n=12):
+    """TradingView screener request for one sector tile: primary listings on NYSE / Nasdaq / NYSE American, by market cap."""
+    base = [{"left": "type", "operation": "equal", "right": "stock"}, {"left": "is_primary", "operation": "equal", "right": True},
+            {"left": "exchange", "operation": "in_range", "right": ["NYSE", "NASDAQ", "AMEX"]}]
+    if spec.get("industry"):
+        base.append({"left": "industry", "operation": "in_range", "right": spec["industry"]})
+    if spec.get("not_industry"):
+        base.append({"left": "industry", "operation": "not_in_range", "right": spec["not_industry"]})
+    q = {"columns": CO_COLS, "sort": {"sortBy": "market_cap_basic", "sortOrder": "desc"}, "range": [0, n], "markets": ["america"]}
+    if spec.get("sector") and spec.get("industry_or"):
+        q["filter"] = base
+        q["filter2"] = {"operator": "and", "operands": [{"operation": {"operator": "or", "operands": [
+            {"expression": {"left": "sector", "operation": "in_range", "right": spec["sector"]}},
+            {"expression": {"left": "industry", "operation": "in_range", "right": spec["industry_or"]}}]}}]}
+    else:
+        if spec.get("sector"):
+            base.append({"left": "sector", "operation": "in_range", "right": spec["sector"]})
+        q["filter"] = base
+    return q
+
+
+def sector_companies(fetch=fetch, n=12):
+    """{sector id: [company rows]} for every sector tile (sectors that fail are left out)."""
+    out = {}
+    for sid, spec in SECTOR_COS.items():
+        st, body = fetch(US_SCAN, data=sector_query(spec, n), timeout=20)
+        if st != 200:
+            continue
+        try:
+            rows = []
+            for d in json.loads(body).get("data", []):
+                v = dict(zip(CO_COLS, d["d"]))
+                if v.get("close") is None:
+                    continue
+                rows.append({"sym": d["s"].split(":")[-1], "ticker": d["s"], "name": clean(v.get("description") or v.get("name"), 60),
+                             "price": float(f"{float(v['close']):.6g}"), "d1": _f(v.get("change")), "w1": _f(v.get("Perf.W")), "m1": _f(v.get("Perf.1M")),
+                             "ytd": _f(v.get("Perf.YTD")), "mcap": v.get("market_cap_basic"), "industry": clean(v.get("industry"), 50)})
+            if rows:
+                out[sid] = rows
+        except (ValueError, KeyError, TypeError):
+            continue
+        time.sleep(0.3)
+    return out
+
+
+def week_start(now=None):
+    """00:00 UTC of the Sunday that starts this calendar week (Forex Factory's weeks run Sunday to Saturday)."""
+    d = datetime.fromtimestamp(now or time.time(), timezone.utc)
+    d = d.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=(d.weekday() + 1) % 7)
+    return int(d.timestamp())
+
+
+def tv_calendar(fetch=fetch, now=None):
+    """High and medium impact events from TradingView's public calendar for this week and next: [(key, t, ccy, ...)]."""
+    a = week_start(now)
+    frm = datetime.fromtimestamp(a, timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    to = datetime.fromtimestamp(a + 14 * 86400, timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    st, body = fetch(f"{CAL_TV}?from={frm}&to={to}&countries={CAL_COUNTRIES}", timeout=20, tv=True)
+    if st != 200:
+        return None
+    try:
+        res = json.loads(body).get("result") or []
+    except (ValueError, AttributeError):
+        return None
+    out = []
+    for e in res:
+        imp = {1: "High", 0: "Medium"}.get(e.get("importance"))
+        if not imp or not e.get("date"):
+            continue
+        try:
+            t = int(datetime.fromisoformat(e["date"].replace("Z", "+00:00")).timestamp())
+        except ValueError:
+            continue
+        ccy = clean(e.get("currency") or e.get("country"), 8)
+        num = lambda k: "" if e.get(k) is None else clean(f"{e[k]}{e.get('unit') or ''}" if isinstance(e[k], (int, float)) else e[k], 20)  # noqa: E731
+        out.append((f"tv|{e.get('id') or (ccy + str(t) + str(e.get('title')))}", t, ccy, clean(e.get("title"), 120), imp, num("forecast"), num("previous"), num("actual")))
+    return out
 
 
 def catalogue():
@@ -348,6 +453,11 @@ def refresh(force=False, log=print, fetch=fetch, out=OUT, db=DB):
                         (norm_key(n["title"]), n["t"], n["title"], n["link"], n["source"], n["via"], json.dumps(tags), sc, now_iso()))
     con.commit()
     cal_ok = False
+    tvc = tv_calendar(fetch)
+    if tvc:
+        con.execute("DELETE FROM calendar WHERE key LIKE 'tv|%' AND t >= ?", (week_start(),))
+        con.executemany("INSERT OR REPLACE INTO calendar VALUES(?,?,?,?,?,?,?,?,?)", [r + (now_iso(),) for r in tvc])
+        cal_ok = True
     for url in (CALENDAR, CALENDAR_NEXT):
         st, body = fetch(url)
         if st != 200:
@@ -363,6 +473,10 @@ def refresh(force=False, log=print, fetch=fetch, out=OUT, db=DB):
         except (ValueError, KeyError, TypeError):
             pass
         time.sleep(1)
+    con.commit()
+    cos = sector_companies(fetch)
+    for sid, rows in cos.items():
+        con.execute("INSERT OR REPLACE INTO sector_cos VALUES(?,?,?)", (sid, json.dumps(rows), now_iso()))
     con.commit()
     fng = None
     st, body = fetch(FNG)
@@ -409,14 +523,19 @@ def build(con, cat, fng):
         news.append({"title": t, "link": lk, "source": s_, "t": tt, "tags": json.loads(tg), "score": sc,
                      "major": bool(re.search(MAJOR, (s_ or "").strip().lower()))})
     news = news[:300]
-    cal = [{"t": t, "country": c, "title": ti, "impact": im, "forecast": f, "previous": p, "actual": a}
-           for t, c, ti, im, f, p, a in con.execute(
-               "SELECT t, country, title, impact, forecast, previous, actual FROM calendar WHERE t>=? AND t<=? AND impact IN ('High','Medium') ORDER BY t",
-               (now - 2 * 86400, now + 9 * 86400))]
+    a = week_start(now)                          # this week and next, Sunday to Saturday
+    tvn = con.execute("SELECT COUNT(*) FROM calendar WHERE key LIKE 'tv|%' AND t>=? AND t<?", (a, a + 14 * 86400)).fetchone()[0]
+    src = "key LIKE 'tv|%'" if tvn else "key NOT LIKE 'tv|%'"        # one source at a time: the two name events differently
+    cal = [{"t": t, "country": c, "title": ti, "impact": im, "forecast": f, "previous": p, "actual": a_}
+           for t, c, ti, im, f, p, a_ in con.execute(
+               f"SELECT t, country, title, impact, forecast, previous, actual FROM calendar WHERE t>=? AND t<? AND impact IN ('High','Medium') AND {src} ORDER BY t",
+               (a, a + 14 * 86400))]
+    cos = {sid: json.loads(d) for sid, d in con.execute("SELECT id, data FROM sector_cos")}
     return {"generated_utc": now_iso(), "groups": groups, "summary": summary(by_id, groups.get("Sectors", [])),
-            "news": news, "news_count": len(news), "calendar": cal, "fear_greed": fng,
+            "news": news, "news_count": len(news), "calendar": cal, "calendar_from": a, "calendar_source": "TradingView" if tvn else "Forex Factory",
+            "sector_companies": cos, "fear_greed": fng,
             "credits": "Prices: TradingView screener (some delayed up to 15 min). News: publishers' public RSS feeds and Google News. "
-                       "Calendar: Forex Factory. Crypto sentiment: alternative.me."}
+                       "Calendar: TradingView (Forex Factory as a fallback). Crypto sentiment: alternative.me."}
 
 
 def summary(by, sectors):
@@ -473,6 +592,18 @@ def probe():
     for name, url in (("calendar", CALENDAR), ("next week", CALENDAR_NEXT), ("fear&greed", FNG)):
         st, body = fetch(url)
         print(f"  {name:12s} http {st} bytes {len(body)}")
+    tvc = tv_calendar()
+    print(f"  TradingView calendar (this week + next): {len(tvc) if tvc is not None else 'FAILED'} high/medium events")
+    for r in (tvc or [])[:4]:
+        print("     ", datetime.fromtimestamp(r[1], timezone.utc).strftime("%a %m-%d %H:%M"), r[2], r[3], r[4], r[5], r[6])
+    if tvc:
+        days = sorted({datetime.fromtimestamp(r[1], timezone.utc).strftime("%m-%d") for r in tvc})
+        print("      days covered:", days[0], "to", days[-1])
+    st, body = fetch(US_SCAN, data=sector_query(SECTOR_COS["xlk"], 3), timeout=20)
+    print(f"  sector scan http {st}: {body[:300]}")
+    cos = sector_companies(n=5)
+    for sid in SECTOR_COS:
+        print(f"  {sid:5s} " + (", ".join(f"{r['sym']} ({r['industry']})" for r in cos.get(sid, [])) or "NONE"))
 
 
 if __name__ == "__main__":
