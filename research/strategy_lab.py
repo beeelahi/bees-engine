@@ -6,7 +6,9 @@ Binance history, long or cash only (no leverage, no shorting), against simply ho
   universe   BTC alone, and a basket of 10 large coins (each joins once it has 200 days of history; the list is
              today's large coins, so the basket results carry survivorship bias: read them as optimistic)
   periods    2018 to now; split up to 2021 (the strategies' rules were not fitted on crypto at all) and 2022 on
-  trading    decide on the daily close, trade at the next close, 0.10% cost a side on every change of weight
+  trading    decide on the daily close, trade at the next close, 0.10% cost a side on every change of weight; positions
+             drift with prices: trades happen when the target changes by 10%+ (or the coins held change), or when one
+             position has drifted 15+ points from its target
   verdict    "works" only when the strategy beats holding on return per unit of risk (Sharpe) by 0.05+ in BOTH
              periods and has a smaller worst drawdown; "defensive" when its worst drawdown is 15+ points smaller and
              it beat holding (Sharpe) from 2022 on; else "no edge"
@@ -157,7 +159,7 @@ def s_vol_target_momentum(c, k):
 
 STRATS = [  # (id, name, quants.md source, universe, how it trades, function)
     ("hold_btc", "Hold BTC", None, "BTC", "Buy and hold Bitcoin (benchmark)", s_hold_btc),
-    ("hold_basket", "Hold the 10-coin basket", None, "Basket", "Equal weights, rebalanced monthly (benchmark)", monthly(s_hold_basket)),
+    ("hold_basket", "Hold the 10-coin basket", None, "Basket", "Equal weights, rebalanced when a coin drifts 15+ points from its share (benchmark)", monthly(s_hold_basket)),
     ("trend_50_200", "SMA 50/200 trend", "W01 Daily SMA Trend", "BTC", "Hold BTC while its 50-day average is above its 200-day average, else cash", trend_cross(50, 200)),
     ("trend_20_50", "SMA 20/50 cross", "O01 / O18 SMA cross", "BTC", "Hold BTC while its 20-day average is above its 50-day average, else cash", trend_cross(20, 50)),
     ("macd", "MACD trend", "W22 MACD Trend", "BTC", "Hold BTC while MACD is above its signal line, else cash", s_macd),
@@ -184,15 +186,21 @@ class Ctx:
         return [s for s in self.px if k - self.first[s] >= 200 and self.px[s][k]]
 
 
+BAND, DRIFT = 0.10, 0.15   # trade when the target changes by 10%+ (or the coins held change), or one position drifts 15+ points
+
+
 def run(c, f, k0):
-    eq, w, out, inmkt, trades = 1.0, {}, [], 0, 0
+    eq, w, out, inmkt, trades, last = 1.0, {}, [], 0, 0, None
     for k in range(k0, len(c.dates) - 1):
         nw = {s: x for s, x in f(c, k).items() if x > 1e-9}
         turn = sum(abs(nw.get(s, 0) - w.get(s, 0)) for s in set(nw) | set(w))
-        if turn > 1e-9:
+        changed = last is None or set(nw) != set(last) or any(abs(nw[s] - last[s]) > 1e-9 for s in nw)
+        drift = max([abs(nw.get(s, 0) - w.get(s, 0)) for s in set(nw) | set(w)] or [0])
+        if turn > 1e-9 and ((changed and (set(nw) != set(w) or turn > BAND)) or drift > DRIFT):
             trades += 1
-        eq *= 1 - COST * turn
-        w = nw
+            eq *= 1 - COST * turn
+            w = nw
+        last = nw
         r = sum(x * (c.ret[s][k + 1] or 0) for s, x in w.items())
         eq *= 1 + r
         inmkt += 1 if w else 0

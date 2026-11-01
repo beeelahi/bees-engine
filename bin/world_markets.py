@@ -229,6 +229,9 @@ def safe_link(u):
     return u if re.match(r"^https?://[^\s<>\"']+$", u) and len(u) < 600 else None
 
 
+JUNK = re.compile(r"(?i)\bstock price,? news,? quote\b|\bquote and history\b|\bprice chart\b|\blive (price|chart)s?\b|^\s*\S+ \(\S+=\S\)")   # quote pages, not news
+
+
 def parse_feed(body, source):
     """RSS or Atom -> [{"title", "link", "t" (unix), "source"}]."""
     out = []
@@ -261,7 +264,7 @@ def parse_feed(body, source):
         if "source" in f and f["source"].text:            # Google News names the real publisher
             src = clean(f["source"].text, 60)
             title = re.sub(r"\s+-\s+" + re.escape(src) + r"$", "", title)
-        if title and link and when:
+        if title and link and when and not JUNK.search(title):
             out.append({"title": title, "link": link, "t": int(when), "source": src, "via": source})
     return out
 

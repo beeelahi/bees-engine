@@ -16,6 +16,7 @@ RFC = lambda t: datetime.fromtimestamp(t, timezone.utc).strftime("%a, %d %b %Y %
 RSS = f"""<?xml version="1.0"?><rss version="2.0"><channel><title>x</title>
 <item><title>Fed holds rates, Powell signals &lt;b&gt;patience&lt;/b&gt;</title><link>https://example.com/a</link><pubDate>{RFC(NOW - 600)}</pubDate></item>
 <item><title>Oil prices surge as OPEC cuts output</title><link>https://example.com/b</link><pubDate>{RFC(NOW - 1200)}</pubDate></item>
+<item><title>Crude Oil Dec 26 (CL=F) stock price, news, quote and history</title><link>https://example.com/q</link><pubDate>{RFC(NOW - 700)}</pubDate></item>
 <item><title>Bad link</title><link>javascript:alert(1)</link><pubDate>{RFC(NOW - 60)}</pubDate></item>
 <item><title>Old story about stocks</title><link>https://example.com/old</link><pubDate>{RFC(NOW - 5 * 86400)}</pubDate></item>
 </channel></rss>"""
@@ -122,6 +123,7 @@ class WorldTest(unittest.TestCase):
         n = json.load(open(self.out))["news"]
         titles = [x["title"] for x in n]
         self.assertNotIn("Bad link", titles)                       # javascript: link dropped
+        self.assertFalse(any("quote and history" in t for t in titles))    # quote pages are not news
         self.assertNotIn("Old story about stocks", titles)         # older than 48 h
         self.assertTrue(all(x["link"].startswith("https://") for x in n))
         self.assertTrue(all("<" not in x["title"] for x in n))

@@ -144,7 +144,8 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .lu-row { cursor: pointer; } .lu-row:hover td { background: var(--hover, rgba(127,127,127,.06)); }
 .lu-row.sel td { background: var(--accent-soft); } .lu-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .st-tbl th:nth-child(-n+2), .st-tbl td:nth-child(-n+2) { text-align: left; }
-.sg-grid { margin: 0 0 20px; } .sg-card { cursor: pointer; } .sg-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; } .sg-top b { font-size: 15px; }
+.sg-grid { margin: 0 0 20px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); }
+.sg-card .hx-metrics small { display: block; margin-top: 2px; } .sg-card { cursor: pointer; } .sg-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; } .sg-top b { font-size: 15px; }
 .sg-ch { margin: 8px 0 2px; } .sg-svg { width: 100%; height: 70px; display: block; } .sg-alloc { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 12px; }
 .sg-tbl th:nth-child(-n+3), .sg-tbl td:nth-child(-n+3) { text-align: left; }
 .sk-hero { background: radial-gradient(120% 140% at 0% 0%, rgba(4,183,248,.16), transparent 60%), linear-gradient(180deg, rgba(16, 32, 74, 0.55), rgba(11, 23, 57, 0.92)); }
@@ -1273,7 +1274,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <div class="sk-checkout" id="sgGoBox" hidden></div>
     </div>
     <div class="card"><div class="card-head"><h3>Every strategy, side by side</h3><span class="note" id="sgTblN"></span></div>
-      <div class="tbl-wrap"><table class="sg-tbl"><thead><tr><th>Strategy</th><th>Trades</th><th>Verdict</th><th title="Yearly return, whole period">CAGR</th><th title="Return per unit of risk">Sharpe</th><th title="Worst fall from a peak">Max drawdown</th><th title="Up to 2021">Sharpe to 2021</th><th title="2022 on">Sharpe 2022+</th><th title="2022 on">CAGR 2022+</th><th>Invested</th></tr></thead><tbody id="sgBody"></tbody></table></div>
+      <div class="tbl-wrap"><table class="sg-tbl"><thead><tr><th>Strategy</th><th>Universe</th><th>Verdict</th><th title="Yearly return, whole period">CAGR</th><th title="Return per unit of risk">Sharpe</th><th title="Worst fall from a peak">Max drawdown</th><th title="Up to 2021">Sharpe to 2021</th><th title="2022 on">Sharpe 2022+</th><th title="2022 on">CAGR 2022+</th><th>Invested</th></tr></thead><tbody id="sgBody"></tbody></table></div>
       <p class="note" id="sgFoot" style="margin-top:10px"></p></div>
   </section>
 
@@ -2558,7 +2559,7 @@ function renderStrategies() {
     top.append(nm, chip(v[0], v[1])); c.append(top, hxEl("div", "hx-note", x.rules));
     const m = hxEl("div", "hx-metrics"); [["Yearly return", fPct(x.full.cagr, 1), cls(x.full.cagr), "holding " + fPct(b.full.cagr, 1)], ["Sharpe", fN(x.full.sharpe, 2), x.full.sharpe > b.full.sharpe ? "pos" : "", "holding " + fN(b.full.sharpe, 2)],
       ["Worst drawdown", fPct(x.full.max_dd, 0), "neg", "holding " + fPct(b.full.max_dd, 0)], ["Since 2022", fPct(x.oos.cagr, 1) + " a year", cls(x.oos.cagr), "holding " + fPct(b.oos.cagr, 1)]]
-      .forEach(([l, val, cl, sub]) => { const d = hxEl("div"); d.append(hxEl("span", "", l), hxEl("b", cl, val), hxEl("small", "", sub)); m.append(d); }); c.append(m);
+      .forEach(([l, val, cl, sub]) => { const d = hxEl("div"); d.append(hxEl("span", "", l), hxEl("b", cl, val), hxEl("small", "", sub.replace(/^holding /, "holding: "))); m.append(d); }); c.append(m);
     const ch = hxEl("div", "sg-ch"); ch.append(sgSvg(x.curve, b.curve)); c.append(ch);
     const f = hxEl("div", "hx-foot"); f.append(hxEl("span", "", `in the market ${fN(x.in_market_pct, 0)}% of days · ${fN(x.trades_per_year, 0)} trades a year`), hxEl("span", "hx-go", x.verdict === "no edge" ? "Details ›" : "Allocate ›")); c.append(f);
     c.tabIndex = 0; c.setAttribute("role", "button"); const go = () => sgOpen(x.id); c.onclick = go; c.onkeydown = e => { if (e.key === "Enter") go(); }; g.append(c); });
