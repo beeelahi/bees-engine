@@ -992,6 +992,12 @@ def main():
             light_publish = True
     except Exception as e:
         log.warning(f"Strategy lab skipped: {e}")
+    try:                                       # ZIG archive: MEXC trades, order book, 15m candles, ticker (data/zig.db)
+        import zig_archive
+        if zig_archive.refresh(log=log.info):
+            light_publish = True
+    except Exception as e:
+        log.warning(f"ZIG archive skipped: {e}")
     try:                                       # Stocks tab: tokenized stocks on Solana (xStocks, Ondo), hourly
         import onchain_stocks
         if onchain_stocks.refresh(log=log.info):

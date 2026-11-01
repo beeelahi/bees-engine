@@ -1476,6 +1476,20 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <div id="cMacd" class="chart-sub"></div>
       <p class="note" id="pairNote"></p>
     </div>
+    <div class="card" id="zigCard" hidden>
+      <div class="card-head"><h2>ZIG on MEXC: order flow and liquidity</h2><span class="note" id="zigAsOf"></span></div>
+      <div class="grid-kpi">
+        <div class="card kpi"><div class="label">Spread</div><div class="v" id="zgSpread">—</div><div class="note" id="zgSpreadN">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Resting within 2%</div><div class="v" id="zgDepth">—</div><div class="note" id="zgDepthN">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Last 24h: taker buys vs sells</div><div class="v" id="zgFlow">—</div><div class="note" id="zgFlowN">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Trades, last 24h</div><div class="v" id="zgTrades">—</div><div class="note" id="zgTradesN">&nbsp;</div></div>
+      </div>
+      <div class="label" style="margin-top:12px">Net taker flow per hour, USDT (buyers minus sellers who crossed the spread)</div>
+      <div class="chart-sub" id="zgFlowC"></div>
+      <div class="label" style="margin-top:8px">Order book: USDT resting within 2% of the price (hourly)</div>
+      <div class="chart-sub" id="zgDepthC"></div><div class="legend" id="zgDepthL"></div>
+      <p class="note" id="zgNote"></p>
+    </div>
     <div class="card"><div class="card-head"><h2>This coin on the dashboard</h2><span class="note" id="pairProfNote"></span></div><div class="stat-row" id="pairProf"></div>
       <div class="tbl-wrap" style="margin-top:12px; max-height: 40vh"><table><thead><tr><th>Date</th><th>What</th><th>Detail</th><th>Result</th></tr></thead><tbody id="pairProfBody"></tbody></table></div></div>
     <div class="card"><div class="card-head"><h2>Recent events for this pair</h2></div><div class="tbl-wrap" style="max-height: 40vh"><table><thead><tr><th>Candle</th><th>Signal</th><th>Direction</th><th>Volume</th><th>State</th></tr></thead><tbody id="pairSig"></tbody></table></div></div>
@@ -3969,6 +3983,33 @@ function pairViewSet() {
   box.replaceChildren(f);
 }
 $$("#pairView button").forEach(b => b.onclick = () => { S.pairView = b.dataset.v; store.set("pairView", S.pairView); pairViewSet(); });
+// ZIG archive (data/zig.json): MEXC order flow, order book and 15m candles we keep ourselves
+let zgLoading = null, zgCharts = [];
+function renderZig() {
+  const card = $("#zigCard"); if (!card) return;
+  card.hidden = S.pair !== "ZIGUSDT"; if (card.hidden) return;
+  if (S.zg === undefined) { if (!zgLoading) zgLoading = j("data/zig.json").then(d => { S.zg = d; }, () => { S.zg = null; }).then(() => { zgLoading = null; renderZig(); }); return; }
+  const D = S.zg; if (!D) { $("#zgNote").textContent = "The ZIG archive is published with the next refresh."; return; }
+  const b = D.now.book, dy = D.now.day, a = D.archive, usd0 = v => "$" + Math.round(v || 0).toLocaleString("en-US");
+  if (b) { mbSet("zgSpread", fN(b[3], 1) + " bp"); $("#zgSpreadN").textContent = `bid ${b[1]} · ask ${b[2]}`;
+    mbSet("zgDepth", usd0(b[5] + b[8])); $("#zgDepthN").textContent = `bids ${usd0(b[5])} · asks ${usd0(b[8])}`; }
+  const net = dy.buy_usdt - dy.sell_usdt; mbSet("zgFlow", (net >= 0 ? "+" : "−") + usd0(Math.abs(net)).slice(1).replace(/^/, "$"), cls(net));
+  $("#zgFlowN").textContent = `buys ${usd0(dy.buy_usdt)} · sells ${usd0(dy.sell_usdt)}`;
+  mbSet("zgTrades", fQ(dy.trades)); $("#zgTradesN").textContent = `biggest ${usd0(dy.big_usdt)} · ${dy.hours} complete hours`;
+  $("#zigAsOf").textContent = "updated " + mbAgo(D.generated_utc);
+  zgCharts.forEach(c => c.remove()); zgCharts = [];
+  if (typeof LightweightCharts !== "undefined") {
+    const fc = mbChartMake($("#zgFlowC")); zgCharts.push(fc);
+    fc.addHistogramSeries({ priceFormat: { type: "custom", formatter: v => (v >= 0 ? "+" : "−") + "$" + Math.abs(Math.round(v)).toLocaleString("en-US"), minMove: 1 } })
+      .setData(D.flow.map(r => ({ time: r[0] / 1000, value: r[2] - r[3], color: r[2] >= r[3] ? css("--up") : css("--down") })));
+    fc.timeScale().fitContent();
+    const dc = mbChartMake($("#zgDepthC")); zgCharts.push(dc); const f2 = { type: "custom", formatter: v => "$" + Math.round(v).toLocaleString("en-US"), minMove: 1 };
+    dc.addLineSeries({ color: css("--up"), lineWidth: 2, priceLineVisible: false, priceFormat: f2 }).setData(D.book.map(r => ({ time: r[0], value: r[5] })));
+    dc.addLineSeries({ color: css("--down"), lineWidth: 2, priceLineVisible: false, priceFormat: f2 }).setData(D.book.map(r => ({ time: r[0], value: r[8] })));
+    dc.timeScale().fitContent(); mbLegend("zgDepthL", [[css("--up"), "Bids within 2%"], [css("--down"), "Asks within 2%"]]);
+  }
+  $("#zgNote").textContent = `Our own archive of MEXC's public data for ZIGUSDT: 15-minute candles since ${(a.k15_from || "—").slice(0, 10)} (${fQ(a.k15_bars)} bars), every trade since ${(a.flow_from || "—").slice(0, 10)} summarised by hour (${fQ(a.trades)} trades), and ${fQ(a.book_snaps)} order-book snapshots (one every 15 minutes). Daily, 4-hour and 1-hour candles and every indicator are on the chart above.`;
+}
 function renderPairProfile(r) {
   const sym = S.pair, box = $("#pairProf"), body = $("#pairProfBody"); box.replaceChildren(); body.replaceChildren();
   const T = (S.bot && S.bot.top50 && S.bot.top50.rows) || [], t50 = T.find ? T.find(x => (x.symbol || x[1]) === sym) : null;
@@ -3999,7 +4040,7 @@ async function renderPair() {
   if (!S.pair) S.pair = store.get("pair") && S.index[store.get("pair")] ? store.get("pair") : (S.index.BTCUSDT ? "BTCUSDT" : sel.options[0]?.value);
   sel.value = S.pair; $$("#pairTf button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tf === S.pairTf)));
   if (S.pairView === undefined) S.pairView = store.get("pairView") === "tv" ? "tv" : "ours";
-  pairViewSet();
+  pairViewSet(); renderZig();
   $$("[data-o]").forEach(b => b.setAttribute("aria-pressed", String(S.ov_on.has(b.dataset.o))));
   syncPairHash();
   const r = S.scr.find(x => x.symbol === S.pair), p = { "1h": "d", "4h": "d", "1d": "d", "1w": "w", "1M": "m" }[S.pairTf];

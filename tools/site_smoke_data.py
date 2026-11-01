@@ -73,6 +73,7 @@ def main(out):
     paper_mm(E.OUT)
     world(E.OUT)
     onchain(E.OUT)
+    zig(E.OUT)
     import subprocess                                    # the Strategies tab: the strategy lab on the synthetic history
     subprocess.run([sys.executable, os.path.join(HERE, "..", "research", "strategy_lab.py"), db, os.path.join(E.OUT, "strategies.json")], check=True, capture_output=True)
     with open(os.path.join(HERE, "..", "web", "index.html"), encoding="utf-8") as f:
@@ -117,6 +118,15 @@ def onchain(out_data):
     import onchain_stocks as O
     from tests.test_onchain_stocks import fake
     O.refresh(force=True, log=print, fetch=fake, out=os.path.join(out_data, "onchain.json"), db=os.path.join(tempfile.mkdtemp(), "onchain.db"), cands=[])
+
+
+def zig(out_data):
+    """The ZIG archive card's data from canned MEXC replies (the unit tests' fake)."""
+    import tempfile
+    sys.path.insert(0, os.path.join(HERE, ".."))
+    import zig_archive as Z
+    from tests.test_zig_archive import fake, NOW
+    Z.refresh(force=True, log=print, fetch=fake, out=os.path.join(out_data, "zig.json"), db=os.path.join(tempfile.mkdtemp(), "zig.db"), now=NOW)
 
 
 def paper_mm(out_data):
