@@ -325,6 +325,35 @@ def global_history(con, log=print):
     return len(rows)
 
 
+def sector_stats(rows, cols):
+    """Each sector's market cap and its moves (the change in its total market cap, and the median coin), BTC and ETH left out so
+    they don't swamp Layer 1. Leaders = the sector's best 7-day movers among coins worth $50M+."""
+    ix = {c: i for i, c in enumerate(cols)}
+    by = {}
+    for r in rows:
+        if r[ix["symbol"]] in ("BTC", "ETH") or not r[ix["mcap"]]:
+            continue
+        by.setdefault(r[ix["sector"]], []).append(r)
+    out = []
+    for sec, rs in by.items():
+        cap = sum(r[ix["mcap"]] for r in rs)
+
+        def w(k):                              # change in the sector's total market cap (each coin weighted by its size at the
+            xs = [(r[ix["mcap"]], r[ix[k]]) for r in rs if r[ix[k]] is not None and r[ix[k]] > -100]   # start, so a new coin up
+            now, then = sum(m for m, _ in xs), sum(m / (1 + v / 100) for m, v in xs)                      # 1,000x can't dominate)
+            return 100 * (now / then - 1) if then else None
+
+        def med(k):
+            xs = sorted(r[ix[k]] for r in rs if r[ix[k]] is not None)
+            return xs[len(xs) // 2] if xs else None
+        up7 = [r for r in rs if r[ix["ch7"]] is not None]
+        lead = sorted((r for r in up7 if r[ix["mcap"]] >= 5e7), key=lambda r: -r[ix["ch7"]])[:3]
+        out.append({"sector": sec, "n": len(rs), "mcap": cap, "ch24": w("ch24"), "ch7": w("ch7"), "ch30": w("ch30"),
+                    "med7": med("ch7"), "med30": med("ch30"), "up7_pct": 100 * sum(1 for r in up7 if r[ix["ch7"]] > 0) / len(up7) if up7 else None,
+                    "leaders": [[r[ix["symbol"]], r[ix["ch7"]], r[ix["pair"]]] for r in lead]})
+    return sorted(out, key=lambda x: -x["mcap"])
+
+
 def caps_export(con, now_utc):
     g = [list(r) for r in con.execute("SELECT ts, total, btc, eth, stable, other, volume FROM global_daily ORDER BY ts")]
     a = [list(r) for r in con.execute("SELECT ts, idx FROM altseason ORDER BY ts")]
@@ -446,6 +475,7 @@ def build(log=print, db=DB, now=None, rows=None, books=None, tr=None, ext_file=E
                            "added", "chain", "venues", "primary", "pair", "venue_vol24", "trending"],
                "rows": lib, "excluded": excluded}
     caps = caps_export(con, now_utc)
+    caps["sectors"] = sector_stats(lib, lib_out["columns"])
     con.close()
     for path, d in ((out_lib, lib_out), (out_caps, caps)):
         os.makedirs(os.path.dirname(path), exist_ok=True)

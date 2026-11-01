@@ -98,6 +98,16 @@ class LibraryTest(unittest.TestCase):
         self.assertEqual(c["d7"]["total"], 1032.0)
         self.assertEqual(c["altseason"]["now"], 69.0)
         self.assertEqual(len(c["series"]), 40)
+        sec = {x["sector"]: x for x in c["sectors"]}
+        self.assertNotIn("BTC", [l[0] for x in c["sectors"] for l in x["leaders"]])   # BTC / ETH left out of sectors
+        self.assertEqual(sum(x["n"] for x in c["sectors"]), 7)          # the 8 kept coins minus BTC
+        self.assertIn("Other", sec)
+        rows = [[1, 1, "BIG", "Big", "big", "Meme", 1, 900.0, 0, 0, 0, -10.0, 0, 0, "", "", "", "", None, 0, 0],
+                [2, 2, "NEW", "New", "new", "Meme", 1, 100.0, 0, 0, 0, 99900.0, 0, 0, "", "", "", "", None, 0, 0]]
+        cols = ["rank", "cmc_id", "symbol", "name", "slug", "sector", "price", "mcap", "fdv", "vol24", "ch24", "ch7", "ch30", "ch1y", "added", "chain",
+                "venues", "primary", "pair", "venue_vol24", "trending"]
+        m = L.sector_stats(rows, cols)[0]                              # 900 was 1,000; 100 was 0.1: total 1,000.1 -> 1,000
+        self.assertAlmostEqual(m["ch7"], 100 * (1000 / 1000.1 - 1), places=6)
 
     def test_global_history_rejects_parts_not_adding_up(self):
         con = sqlite3.connect(":memory:")

@@ -47,6 +47,23 @@ def exists(con, name):
     return bool(con.execute("SELECT 1 FROM sqlite_master WHERE name=?", (name,)).fetchone())
 
 
+def fill_mcap(t):
+    """Where Binance gives no supply (pairs from other exchanges), CoinMarketCap's market cap from the coin library."""
+    try:
+        with open(os.path.join(OUT, "library.json")) as f:
+            lib = json.load(f)
+        ix = {c: i for i, c in enumerate(lib["columns"])}
+        cmc = {r[ix["pair"]]: r[ix["mcap"]] for r in lib["rows"] if r[ix["pair"]] and r[ix["mcap"]]}
+        c = t["columns"]
+        si, mi = c.index("symbol"), c.index("mcap_est")
+        for r in t["rows"]:
+            if r[mi] is None and r[si] in cmc:
+                r[mi] = cmc[r[si]]
+    except (OSError, ValueError, KeyError):
+        pass
+    return t
+
+
 def write(path, obj):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = path + ".tmp"
@@ -481,10 +498,11 @@ def run(con=None):
 
     if exists(con, "supply"):
         # ESTIMATED market cap = last close x today's circulating supply (Binance). Approximate by design.
-        write(os.path.join(OUT, "screener.json"), table(con, """SELECT l.*, l.last_close * s.circulating AS mcap_est
-              FROM latest l LEFT JOIN supply s ON s.token = l.token WHERE l.in_universe=1 ORDER BY l.symbol"""))
+        scr = table(con, """SELECT l.*, l.last_close * s.circulating AS mcap_est
+              FROM latest l LEFT JOIN supply s ON s.token = l.token WHERE l.in_universe=1 ORDER BY l.symbol""")
     else:
-        write(os.path.join(OUT, "screener.json"), table(con, "SELECT * FROM latest WHERE in_universe=1 ORDER BY symbol"))
+        scr = table(con, "SELECT l.*, NULL AS mcap_est FROM latest l WHERE in_universe=1 ORDER BY symbol")
+    write(os.path.join(OUT, "screener.json"), fill_mcap(scr))
     try:                                         # parallel channels, daily + 4h (research add-on, never blocks the export)
         import chan
         channels = chan.run(con)

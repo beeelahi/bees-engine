@@ -44,6 +44,10 @@ header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; 
 nav.tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
 nav.tabs a { padding: 9px 14px 10px; color: var(--muted); text-decoration: none; font-weight: 500; border-bottom: 2px solid transparent; white-space: nowrap; }
 nav.tabs a[aria-current="page"] { color: var(--fg); border-bottom-color: var(--accent); text-shadow: 0 0 18px rgba(4, 183, 248, 0.45); }
+@media (max-width: 640px) { header nav.tabs a { padding: 9px 7px 10px; font-size: 14px; } header nav.tabs .badge { margin-left: 3px; } }
+nav.gnav { display: flex; gap: 6px; margin: 2px 0 14px; border: 0; overflow-x: auto; }
+nav.gnav a { padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; color: var(--muted); background: rgba(255,255,255,0.03); text-shadow: none; }
+nav.gnav a[aria-current="page"] { color: var(--fg); border-color: var(--accent); background: rgba(4, 183, 248, 0.12); text-shadow: none; }
 nav.tabs .badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 5px; border-radius: 999px; background: var(--accent); color: #081028; font-size: 11px; font-weight: 700; text-align: center; }
 main { padding-block: 20px 60px; }
 section.view { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
@@ -62,6 +66,17 @@ h2 { font-size: 15px; margin: 0; font-weight: 600; text-wrap: balance; }
 .cp-ctl { display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between; align-items: center; margin: 12px 0 6px; }
 .chart-cp { height: 280px; }
 @media (max-width: 640px) { .cp-grid { grid-template-columns: 1fr 1fr; gap: 8px; } .cp-tile .v { font-size: 17px; } .chart-cp { height: 230px; } }
+.read { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 12px 0 4px; background: rgba(4, 183, 248, 0.05); }
+.read h3 { margin: 0 0 6px; font-size: 14px; } .read ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.read li { display: flex; gap: 8px; align-items: baseline; font-size: 13.5px; line-height: 1.45; } .read li i { flex: 0 0 8px; height: 8px; border-radius: 50%; background: var(--muted); transform: translateY(-1px); }
+.read li i.up { background: var(--up); } .read li i.down { background: var(--down); } .read li i.warn { background: var(--warn); } .read .note { margin: 8px 0 0; font-size: 11.5px; }
+.sec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.sec-tile { text-align: left; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: rgba(255,255,255,0.03); color: var(--fg); cursor: pointer; font: inherit; min-width: 0; }
+.sec-tile:hover { border-color: var(--accent); }
+.sec-tile .t { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; } .sec-tile .t b { font-variant-numeric: tabular-nums; }
+.sec-tile .m { font-size: 11.5px; color: var(--muted); margin: 3px 0 6px; } .sec-tile .l { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sec-bar { height: 4px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; margin-top: 6px; } .sec-bar i { display: block; height: 100%; background: var(--up); }
+@media (max-width: 640px) { .sec-grid { grid-template-columns: 1fr 1fr; gap: 8px; } }
 .cn-ctl { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 4px 0 12px; }
 .cn-ctl select { background: rgba(255,255,255,0.04); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; font-size: 12.5px; }
 .cn-tbl td.nm { max-width: 220px; } .cn-tbl td.nm .n { display: block; color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -468,27 +483,20 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <button type="button" role="menuitem" data-go="me-settings">Settings</button>
       <button type="button" role="menuitem" id="meSignOut">Sign out</button>
     </div>
-    <nav class="tabs" aria-label="Views">
-      <a href="#me" data-view="me" id="navMe" hidden>★ My dashboard</a>
-      <a href="#overview" data-view="overview">Overview</a>
-      <a href="#world" data-view="world">World</a>
-      <a href="#coins" data-view="coins">Coins</a>
-      <a href="#highlights" data-view="highlights">Trade Ideas<span class="badge" id="hlBadge" hidden></span></a>
-      <a href="#bot" data-view="bot">Trading bots</a>
-      <a href="#strategies" data-view="strategies">Strategies</a>
-      <a href="#mmbee" data-view="mmbee">MM-Bee</a>
-      <a href="#screener" data-view="screener">Screener</a>
-      <a href="#watchlist" data-view="watchlist">Watchlist</a>
-      <a href="#signals" data-view="signals">Signals</a>
-      <a href="#listings" data-view="listings">Listings</a>
-      <a href="#stocks" data-view="stocks">Stocks</a>
-      <a href="#pair" data-view="pair">Pair chart</a>
-      <a href="#lab" data-view="lab">Setup Lab</a>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#me" data-group="me" id="navMe" hidden>★ My dashboard</a>
+      <a href="#overview" data-group="overview">Home</a>
+      <a href="#world" data-group="markets">Markets</a>
+      <a href="#coins" data-group="coins">Coins</a>
+      <a href="#highlights" data-group="ideas">Ideas<span class="badge" id="hlBadge" hidden></span></a>
+      <a href="#bot" data-group="bots">Bots</a>
+      <a href="#pair" data-group="chart">Chart</a>
     </nav>
   </div>
 </header>
 
 <main class="wrap">
+  <nav class="tabs gnav" id="gNav" aria-label="Pages in this section" hidden></nav>
   <section class="view" id="v-overview">
     <div class="card market" id="mkCard">
       <div class="card-head"><h2>Market today</h2><span class="note" id="mkAsOf"></span></div>
@@ -505,6 +513,11 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
         <div class="seg" data-k="rng"><button type="button" data-v="365" aria-pressed="true">1Y</button><button type="button" data-v="0" aria-pressed="false">All</button></div></div>
       <div class="chart-cp" data-k="chart"></div><div class="legend" data-k="lg"></div>
       <p class="note" data-k="foot"></p>
+    </div>
+    <div class="card" id="secCard" hidden>
+      <div class="card-head"><h2>Crypto sectors: where the money is moving</h2><div class="seg" id="secPer"><button type="button" data-v="ch24" aria-pressed="false">24h</button><button type="button" data-v="ch7" aria-pressed="true">7d</button><button type="button" data-v="ch30" aria-pressed="false">30d</button></div></div>
+      <div class="sec-grid" id="secGrid"></div>
+      <p class="note" id="secNote" style="margin-top:10px"></p>
     </div>
     <div class="card today" id="todayCard">
       <div class="card-head"><h2>What matters today</h2><span class="note" id="todayAsOf"></span></div>
@@ -637,7 +650,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <div class="card">
         <div class="card-head"><h2>The bots</h2><span class="note" id="pNote"></span></div>
         <div class="tbl-wrap"><table><thead><tr><th>Bot</th><th>Status</th><th>Capital</th><th>Equity</th><th>P&amp;L</th><th>Open</th><th>Closed</th><th>Next open</th><th>Tested 2022+: win</th><th>Per year</th><th>Max drawdown</th><th>Profit factor</th></tr></thead><tbody id="pBots"></tbody></table></div>
-        <p class="note">Proven: passed on data it was never tuned on (2022 onwards). Experimental: your ideas, running on paper to be proven or retired on live results. Each bot has its own slice of the $100,000 and its own record.</p>
+        <p class="note">Backtested: designed on 2018–2021 and then run on 2022 onwards (Leaders' volume filter, v3, was added on 25 Oct 2026 after the 2022+ results had been seen, so for Leaders that period is not fully unseen). The live paper record is the real test. Experimental: your ideas, running on paper to be proven or retired on live results. Each bot has its own slice of the $100,000 and its own record.</p>
       </div>
       <div class="card">
         <div class="card-head"><h2>Portfolio evidence: all bots together</h2><span class="note" id="pBtNote"></span></div>
@@ -824,7 +837,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
             <div class="card-head"><h2>Long-term channel breakouts</h2><span class="note" id="ltNoteH"></span></div>
             <p class="note" style="margin:0 0 12px" id="ltIntroH"></p>
             <div class="card-head" style="margin-top:4px"><h2 style="font-size:1rem">Track record</h2></div>
-            <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Grade</th><th>Cases 2022+</th><th>Price 90 days later (median)</th><th>Higher after 90 days</th><th title="Within 180 days">Gained 50%+</th><th title="Within 180 days">Doubled</th><th title="Median best gain within 180 days">Best gain (median)</th><th title="Median drawdown before the peak">Drawdown first</th><th>Up to 2021: median 90d · doubled</th></tr></thead><tbody id="ltStats"></tbody></table></div>
+            <div class="tbl-wrap" style="margin-bottom:12px"><table><thead><tr><th>Grade</th><th>Cases 2022+</th><th>Price 90 days later (median)</th><th>Higher after 90 days</th><th title="Median 90-day result minus the median liquid coin's over the same days">vs market, 90d</th><th title="At its best point within 180 days (not where it ended)">Reached +50%</th><th title="At its best point within 180 days (not where it ended)">Reached 2×</th><th title="Median best gain within 180 days">Best gain (median)</th><th title="Median drawdown before the peak">Drawdown first</th><th>Up to 2021: median 90d · doubled</th></tr></thead><tbody id="ltStats"></tbody></table></div>
             <div class="tbl-wrap" style="max-height: 70vh"><table><thead><tr><th>Grade</th><th>Pair</th><th>Broke out</th><th>Long-term channel</th><th title="The three checks that separated winners from losers in testing">Graded checks</th><th title="The first weekly close after the breakout must stay above the line">Weekly close</th><th title="From the breakout close: now, and the best so far">Since breakout · best</th><th>Top line now</th><th title="Channel width projected above the top line">Width target</th><th title="Since 2022, breakouts with this grade: median 90-day result, share that gained 50%+ and that doubled within 180 days">History of this grade</th></tr></thead><tbody id="ltBodyH"></tbody></table></div>
           </div>
         </div>
@@ -979,7 +992,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <div class="card mb-row mbx-hero">
         <div class="mbx-eyebrow">MM Bots · market making on coins you already hold</div>
         <h2 class="mbx-title">Your coins can earn while you hold them.</h2>
-        <p class="mbx-lead">A market-making bot puts a slice of a coin you hold up for sale a little above the price, buys it back a little lower, and repeats. Every completed round banks the difference in USDT, and you end up holding the same coins. Below: how it works, what our bots would have earned on ZIG had they gone live 15 days ago and over the past year, and how the same idea did on 15 other coins.</p>
+        <p class="mbx-lead">A market-making bot puts a slice of a coin you hold up for sale a little above the price, buys it back a little lower, and repeats. Every completed round banks the difference in USDT, and you end up holding the same coins. Below: how it works, what a backtest of our bots on ZIG shows for the last 15 days and the past year (the backtest assumes an order fills whenever the price trades through it; live paper trading has filled less, so read the Live Paper tabs first), and how the same idea did on 15 other coins.</p>
         <div class="mbx-steps">
           <div class="mbx-step"><span class="mbx-n">1</span><b>Sell a slice higher</b><span>Sell orders rest above the price: a slice of your coins, a few % up, step by step.</span></div>
           <div class="mbx-step"><span class="mbx-n">2</span><b>Buy it back lower</b><span>When a sell fills, the same amount is bought back a few % lower.</span></div>
@@ -1292,11 +1305,11 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
   <section class="view" id="v-strategies" hidden>
     <div class="card sk-hero">
       <div class="mbx-eyebrow">Strategy library · tested on crypto</div>
-      <h2 class="sk-title">Proven strategies, re-tested on our own data before they reach you.</h2>
+      <h2 class="sk-title">Published strategies, re-tested on our own data before they reach you.</h2>
       <p class="note" style="max-width:100ch;margin:0" id="sgLead"></p>
       <div class="grid-kpi" style="margin-top:14px">
         <div class="card kpi"><div class="label">Strategies tested</div><div class="v" id="sgN">—</div><div class="note" id="sgNN">&nbsp;</div></div>
-        <div class="card kpi"><div class="label">Beat holding</div><div class="v" id="sgW">—</div><div class="note">better risk-adjusted return in both periods</div></div>
+        <div class="card kpi"><div class="label">Better than holding, risk-adjusted</div><div class="v" id="sgW">—</div><div class="note">more return per unit of risk in both periods (not always more return)</div></div>
         <div class="card kpi"><div class="label">Safer than holding</div><div class="v" id="sgD">—</div><div class="note">15+ points less drawdown, ahead since 2022</div></div>
         <div class="card kpi"><div class="label">No edge on crypto</div><div class="v" id="sgX">—</div><div class="note">shown, but not offered</div></div>
       </div>
@@ -1522,6 +1535,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
     </div>
     <div class="card">
       <div class="pair-head"><h2 id="pairName">—</h2><span class="px" id="pairPx">—</span><span id="pairChg"></span><span style="margin-left:auto; display:inline-flex; gap:8px"><button class="btn small" id="pairLink" type="button" title="Copy a link straight to this chart">Copy link</button><button class="btn small primary" id="pairApprove" type="button" hidden>Add to Bee's Shortlist</button></span></div>
+      <div class="read" id="pairRead" hidden><h3 id="readTitle"></h3><ul id="readList"></ul><p class="note" id="readNote"></p></div>
       <div class="stat-row" id="pairStats" style="margin:12px 0"></div>
       <div class="legend" id="pairLegend"></div>
       <div id="tvBox" class="tv-box" hidden></div>
@@ -1854,7 +1868,7 @@ function hlEvidence(h) {
   if (h.kind === "bot_partial") return who + `Sold ${fN(100 * d.share, 0)}% at ${fPx(d.price)} (${fUsd2(d.pnl_usd)}); stop on the rest moved to break-even. Paper trade.`;
   if (h.kind === "bot_signal") return who + `Signal close ${fPx(d.ref_close)}; stop will sit ${fN(d.stop_dist_pct)}% below the fill. Paper trade.`;
   if (h.kind === "btc_regime") return "The bot opens new longs only while BTC is above its 200-day average.";
-  if (h.kind === "ltbo") { const c = d.checks || {}, hh = d.hist; return `Grade ${d.grade} · closed ${fPx(d.close)} above the ${Math.round(d.days || 0)}-day channel's top line ${fPx(d.level)} · RSI ${c.rsi ?? "—"}${c.rsi_ok ? " ✓" : " ✗"} · ${c.flat_or_falling ? "from a range / downtrend ✓" : "uptrend channel ✗"} · ${fPct(c.ext_pct, 1)} above the line${c.not_extended ? " ✓" : " ✗"}${hh ? ` · grade ${d.grade} since 2022: median ${fPct(hh.med90, 1)} after 90 days, ${hh.p50}% gained 50%+, ${hh.x2}% doubled` : ""}. Watch the weekly close. Not advice.`; }
+  if (h.kind === "ltbo") { const c = d.checks || {}, hh = d.hist; return `Grade ${d.grade} · closed ${fPx(d.close)} above the ${Math.round(d.days || 0)}-day channel's top line ${fPx(d.level)} · RSI ${c.rsi ?? "—"}${c.rsi_ok ? " ✓" : " ✗"} · ${c.flat_or_falling ? "from a range / downtrend ✓" : "uptrend channel ✗"} · ${fPct(c.ext_pct, 1)} above the line${c.not_extended ? " ✓" : " ✗"}${hh ? ` · grade ${d.grade} since 2022: median ${fPct(hh.med90, 1)} after 90 days${isNum(hh.rel90) ? " (" + fPct(hh.rel90, 1) + " vs the market)" : ""}; at their best point within 180 days ${hh.p50}% had reached +50% and ${hh.x2}% 2×` : ""}. Watch the weekly close. Not advice.`; }
   if (h.kind === "hs_event") return `${HS_ST[d.status] || d.status} · neckline ${fPx(d.neck)} · target ${fPx(d.target)} (${fPct(d.to_target_pct, 1)}) · invalid at ${fPx(d.stop)} · close ${fPx(d.close)}. Not advice.`;
   if (h.kind === "chan_call") return `Grade ${d.grade} · ${((chanData().labels || {})[d.status] || d.status || "").toLowerCase()} in a ${Math.round(d.days || 0)}-day channel (${(d.touches || []).join("/")} touches) · ${(d.signals || []).map(k => sigLabel(k.split(":")[1], h.direction) + (k.startsWith("1w") ? " (weekly)" : "")).join(", ")} · close ${fPx(d.close)}, stop ${fPx(d.stop)}, target ${fPx(d.t1)}${isNum(d.rr) ? " (R:R " + fN(d.rr, 1) + ")" : ""}. Not advice.`;
   if (h.kind === "new_listing" || h.kind === "stopped_trading") return "";
@@ -1894,7 +1908,7 @@ function renderIdeaScore(sc) {
   const k = (label, v, vc, note) => { const d = document.createElement("div"); d.className = "mk-tile"; const l = document.createElement("div"); l.className = "label"; l.textContent = label;
     const b = document.createElement("div"); b.className = "big " + (vc || ""); b.textContent = v; const n = document.createElement("div"); n.className = "sub"; n.textContent = note; d.append(l, b, n); box.append(d); };
   k(`Past ideas · ${sc.days} days`, sc.n.toLocaleString(), "", `${sc.stopped} hit their stop · how they actually did`);
-  k("Average result", fPct(sc.avg_pct, 2), cls(sc.avg_pct), `${fN(sc.win_pct, 0)}% in profit · entry next open, no fees`);
+  k("Average result", fPct(sc.avg_pct, 2), cls(sc.avg_pct), `${fN(sc.win_pct, 0)}% in profit · entry next open, no fees, open ideas at the latest close, no market comparison`);
   if (sc.long && sc.long.n) k("Long ideas", fPct(sc.long.avg_pct, 2), cls(sc.long.avg_pct), `${sc.long.n} ideas · ${fN(sc.long.win_pct, 0)}% in profit`);
   if (sc.short && sc.short.n) k("Short ideas", fPct(sc.short.avg_pct, 2), cls(sc.short.avg_pct), `${sc.short.n} ideas · ${fN(sc.short.win_pct, 0)}% in profit`);
 }
@@ -1910,7 +1924,7 @@ function regCell(st) {
 function renderSetups() {
   const D = setupData(), K = D.kinds || {}, ru = D.rules || {}, card = $("#setupCard");
   if (!Object.keys(K).length) { card.hidden = true; return; } card.hidden = false;
-  $("#setupIntro").textContent = `Leading signals that look for exhaustion instead of following the trend: momentum fading while price makes a new extreme (RSI divergence at a 90-day or 26-week high or low), breakouts from a contained accumulation range on heavy volume, and completed head-and-shoulders tops on the daily chart (the first close below the neckline). Only the ${ru.top_n || 100} most liquid pairs count, and only one setup of a kind per pair per ${ru.dedup_days || 10} days, so these are rare by design. The track record below is recalculated from the full history on every update; tops are short setups, so a positive number means the price fell. The last column shows each setup's record only in markets like today's (${D.regime_now ? REG_NAME[D.regime_now] : "—"}: ${(D.regimes || {})[D.regime_now] || ""}). Most tops and bottoms are only pauses: use the invalidation level.`;
+  $("#setupIntro").textContent = `Leading signals that look for exhaustion instead of following the trend: momentum fading while price makes a new extreme (RSI divergence at a 90-day or 26-week high or low), breakouts from a contained accumulation range on heavy volume, and completed head-and-shoulders tops on the daily chart (the first close below the neckline). Only the ${ru.top_n || 100} most liquid pairs count, and only one setup of a kind per pair per ${ru.dedup_days || 10} days, so these are rare by design. The track record below is recalculated from the full history on every update; tops are short setups, so a positive number means the price fell. The last column shows each setup's record only in markets like today's (${D.regime_now ? REG_NAME[D.regime_now] : "—"}: ${(D.regimes || {})[D.regime_now] || ""}). Most tops and bottoms are only pauses: use the invalidation level. For comparison: since 2022 any liquid coin was lower 30 days later about ${fN((((S.hlMeta || {}).channel_calls || {}).stats || {}).baseline ? S.hlMeta.channel_calls.stats.baseline.down30 : 64, 0)}% of the time, so a top's win rate only means something above that.`;
   const BC = D.bottom_cluster, bcEl = $("#setupCluster");
   if (BC && BC.clustered && BC.clustered["30"] && BC.clustered["30"].n) { const c = BC.clustered["30"], a = BC.alone["30"] || {}; bcEl.hidden = false;
     bcEl.replaceChildren(); const b = document.createElement("b"); b.textContent = `Bottom accumulation breakouts in the last ${BC.window_days} days: ${BC.now}` + (BC.now >= BC.threshold ? " (a cluster)" : "");
@@ -1962,17 +1976,18 @@ function renderCalls(bodyId, side) {
       tdNode(sigs), td(String(x.bull_score), "num"), td(fPx(x.close), "num"), td(fPx(x.stop) + (isNum(x.risk_pct) ? " (" + fN(x.risk_pct, 1) + "%)" : ""), "num"),
       td(fPx(x.t1) + " (" + fPct(100 * (x.t1 / x.close - 1), 1) + ")", "num"),
       td(isNum(x.line_target) ? fPx(x.line_target) + (isNum(x.room_r) ? " · " + fN(x.room_r, 1) + "R" : "") : isNum(x.t2) ? fPx(x.t2) : "—", "num"),
-      x.divergence ? tdNode(chip((x.divergence.kind === "triple" ? "RSI + MACD" : "RSI") + " · " + x.divergence.date.slice(5), x.side === "long" ? "up" : "down")) : td("—", "cold"), x.hist ? td(fPct(x.hist.rel30, 1) + " · " + x.hist.beat30 + "%", "num " + cls(x.hist.rel30)) : td("—", "cold"), td("#" + x.liq_rank, "num")); frag.append(t); });
+      x.divergence ? tdNode(chip((x.divergence.kind === "triple" ? "RSI + MACD" : "RSI") + " · " + x.divergence.date.slice(5), x.side === "long" ? "up" : "down")) : td("—", "cold"), x.hist ? (() => { const sg = x.side === "long" ? 1 : -1, v = sg * x.hist.rel30, bt = x.side === "long" ? x.hist.beat30 : 100 - x.hist.beat30;
+        const c = td(fPct(v, 1) + " · " + bt + "%", "num " + cls(v)); c.title = x.side === "long" ? "Since 2022, after this channel state: the coin vs the market over 30 days (median) and how often it beat the market" : "Since 2022, after this channel state, from the short side: how far the coin lagged the market over 30 days (median; positive = lagged, good for a short) and how often it lagged"; return c; })() : td("—", "cold"), td("#" + x.liq_rank, "num")); frag.append(t); });
   body.append(frag);
   if (!rows.length) body.innerHTML = '<tr><td colspan="15" class="empty">No channel entry is confirmed by other indicators right now. That is a valid answer: nothing forced.</td></tr>';
 }
-function callIntro(C) {               // the rules in words, with their measured record (calls lab, out of sample)
+function callIntro(C) {               // the rules in words, with their measured record (calls lab; rules picked on 2022+, so in-sample)
   const R = C.rules || {}, st = C.stats || {}, L = st.long, Sh = st.short;
   if (R.version !== 2) return CALL_INTRO_V1;
   const rec = (x, w) => x ? `${w}: ${x.n} calls since 2022, ${fN(x.win, 0)}% winners, ${x.avg_r >= 0 ? "+" : ""}${fN(x.avg_r, 2)}R a call on average, profit factor ${fN(x.pf, 2)}${isNum(x.worst_year) ? ", positive every year (worst " + (x.worst_year >= 0 ? "+" : "") + fN(x.worst_year, 2) + "R)" : ""}` : "";
   return `Fewer calls, only the confident ones. A long needs price to actually touch the channel line (a low within ${R.touch_pct || 1.5}% of the bottom, or of the midline on a retest), at least one PROVEN bullish signal and a bull score of 5+. A short needs the midline lost or a rejection at the top with a PROVEN bearish signal. ` +
     `Every call: stop at most ${fN(R.max_risk_pct || 8, 0)}% away, take profit at ${fN(R.take_profit_r || 3, 0)}× the risk, and the channel's next line at least ${(R.min_room_r || {}).long || 3}R away (shorts ${(R.min_room_r || {}).short || 2.5}R), so the target has room. Grade A: a daily divergence agrees. ` +
-    `Record, every call replayed on the full history with signals chosen on data up to 2021 (out of sample): ${[rec(L, "longs"), rec(Sh, "shorts")].filter(Boolean).join("; ") || "being measured"}. Most calls still lose (about 2 in 3) and the winners pay 3R, so expect losing streaks. Checked after every daily close. Not advice.`;
+    `Record, every call replayed on 2022 onwards: ${[rec(L, "longs"), rec(Sh, "shorts")].filter(Boolean).join("; ") || "being measured"}. Honest caveat: the signals were chosen on data up to 2021, but these call rules were picked from about 5,000 variants tested on 2022 onwards, so this record is in-sample and the edge has been smaller in 2026; the live record is the real test. Most calls still lose (about 2 in 3) and the winners pay 3R, so expect losing streaks. Checked after every daily close. Not advice.`;
 }
 function renderCallsAll() {
   const C = callData(), n = (C.rows || []).length, a = (C.rows || []).filter(x => x.grade === "A").length;
@@ -2045,7 +2060,7 @@ function renderLtbo() {
   ["#ltNoteH"].forEach(id => { const e = $(id); if (e) e.textContent = note; });
   const sb = $("#ltStats"); if (sb) { sb.replaceChildren();
     ["A", "B", "C", "all"].forEach(g => { const x = L[g], y = E[g]; if (!x) return; const t = document.createElement("tr");
-      t.append(tdNode(chip(g === "all" ? "All breakouts" : "Grade " + g, g === "A" ? "up" : g === "C" ? "down" : "neutral")), td(String(x.n), "num"), td(fPct(x.med90, 1), "num " + cls(x.med90)), td(x.win90 + "%", "num"), td(x.p50 + "%", "num"), td(x.x2 + "%", "num"),
+      t.append(tdNode(chip(g === "all" ? "All breakouts" : "Grade " + g, g === "A" ? "up" : g === "C" ? "down" : "neutral")), td(String(x.n), "num"), td(fPct(x.med90, 1), "num " + cls(x.med90)), td(x.win90 + "%", "num"), td(isNum(x.rel90) ? fPct(x.rel90, 1) : "—", "num " + cls(x.rel90)), td(x.p50 + "%", "num", "Reached +50% at its best point within 180 days"), td(x.x2 + "%", "num", "Reached 2× at its best point within 180 days"),
         td(fPct(x.max180, 0), "num pos"), td(fPct(x.dd, 0), "num neg"), td(y ? fPct(y.med90, 0) + " · " + y.x2 + "%" : "—", "num")); sb.append(t); });
     const wf = L.weekly_fail; if (wf) { const t = document.createElement("tr"); t.append(tdNode(chip("Weekly close failed", "down")), td(String(wf.n), "num"), td(fPct(wf.med90, 1), "num " + cls(wf.med90)), td(wf.win90 + "%", "num"), td(wf.p50 + "%", "num"), td(wf.x2 + "%", "num"), td(fPct(wf.max180, 0), "num pos"), td(fPct(wf.dd, 0), "num neg"), td("—", "num")); sb.append(t); } }
   ltRows("ltBodyH");
@@ -2501,7 +2516,7 @@ function renderHighlights() {
     t.append(tdNode(symNode(x.symbol)), tdNode(chip((x.side === "long" ? "Long" : "Short") + " · " + x.agree, x.side === "long" ? "up" : "down")),
       tdNode(sig, "wrap"), td(rec, "wrap " + cls(x.best_edge_30d)), td(fPx(x.close), "num"),
       td(x.stop ? fPx(x.stop) + " (" + (x.side === "long" ? "−" : "+") + fN(x.stop_pct, 1) + "%)" : "—", "num"), ideaSoFar(x), tdNode(x.confluence == null ? null : chip(fN(x.confluence, 0) + "/10", x.confluence >= 8 ? "up" : x.confluence <= 2 ? "down" : "neutral")),
-      td(fN(x.rsi14), "num"), td(fUsd(x.mcap_est), "num", "Estimate: price × today's circulating supply"), td("#" + x.liq_rank, "num"));
+      td(fN(x.rsi14), "num"), td(fUsd(x.mcap_est), "num", "Estimate: price × today's circulating supply (CoinMarketCap's figure for coins from other exchanges)"), td("#" + x.liq_rank, "num"));
     frag.append(t); });
   body.append(frag);
   if (!rows.length) body.innerHTML = `<tr><td colspan="11" class="empty">No ${side === "short" ? "short ideas" : side === "long" ? "long ideas" : "ideas"} in the last ${ru.days || 30} days.</td></tr>`;
@@ -3357,7 +3372,7 @@ function renderRecord() {
   R.bots.forEach(b => { const m = b.paper.metrics || {}, u = (b.backtest || {}).unseen || {}, live = 100 * (b.paper.equity / b.paper.start_equity - 1);
     const pace = isNum(u.cagr) ? 100 * (Math.pow(1 + u.cagr, days / 365.25) - 1) : null; const t = document.createElement("tr");
     t.className = "clickable"; t.onclick = () => { S.botId = b.id; store.set("botId", b.id); location.hash = "bot/each"; };
-    t.append(td(b.name, ""), tdNode(chip(b.status === "proven" ? "Proven" : "Experimental", b.status === "proven" ? "up" : "warn")), td(usd(b.capital), "num"), td(usd(b.paper.equity), "num"),
+    t.append(td(b.name, ""), tdNode(chip(b.status === "proven" ? "Backtested" : "Experimental", b.status === "proven" ? "up" : "warn")), td(usd(b.capital), "num"), td(usd(b.paper.equity), "num"),
       td(fPct(live), "num " + cls(live)), td(fPct(pace), "num cold"), td(String(m.trades || 0), "num"), td(isNum(m.win) ? fN(100 * m.win, 0) + "%" : "—", "num"),
       td(isNum(m.maxdd) ? fPct(100 * m.maxdd, 1) : "—", "num " + (m.maxdd < 0 ? "neg" : "")), td(b.paper.integrity === "ok" ? "OK" : b.paper.integrity, b.paper.integrity === "ok" ? "pos" : "neg")); tb.append(t); });
   const body = $("#rTradeBody"); body.replaceChildren();
@@ -4046,7 +4061,7 @@ $$("#pairView button").forEach(b => b.onclick = () => { S.pairView = b.dataset.v
 let capsLoading = null; const capCharts = {};
 function loadCaps() {
   if (S.caps !== undefined || capsLoading) return capsLoading;
-  capsLoading = j("data/caps.json").then(d => { S.caps = d; }, () => { S.caps = null; }).then(() => { capsLoading = null; ["capsOv", "capsWx"].forEach(id => { const c = $("#" + id); if (c && !c.closest(".view").hidden) renderCaps(id); }); });
+  capsLoading = j("data/caps.json").then(d => { S.caps = d; }, () => { S.caps = null; }).then(() => { capsLoading = null; ["capsOv", "capsWx"].forEach(id => { const c = $("#" + id); if (c && !c.closest(".view").hidden) renderCaps(id); }); if (!$("#v-overview").hidden) renderSectors(); });
   return capsLoading;
 }
 function renderCaps(id) {
@@ -4098,6 +4113,57 @@ function renderCaps(id) {
   const first = D.series.length ? new Date(D.series[0][0] * 1000).toISOString().slice(0, 10) : "";
   k("foot").textContent = `Source: CoinMarketCap's global market cap, split into Bitcoin, Ether, stablecoins and the rest (the four add up to the total). TOTAL2 = total minus BTC; TOTAL3 = total minus BTC and ETH. Daily points for the last year; before that (back to ${first}) CoinMarketCap gives about one point a week. Refreshed every 3 hours.`;
 }
+// "The read": the coin's chart today in plain words (a description, not a forecast)
+let readLibLoading = null;
+function renderRead(r) {
+  const box = $("#pairRead"); if (!box) return;
+  if (!r || !S.pair) { box.hidden = true; return; }
+  if (S.coins === undefined && !readLibLoading) readLibLoading = j("data/library.json").then(d => { S.coins = d; }, () => { S.coins = null; }).then(() => { readLibLoading = null; if (!$("#v-pair").hidden) renderRead(S.scr.find(x => x.symbol === S.pair)); });
+  if (S.caps === undefined) loadCaps();
+  const sym = S.pair.replace(/USDT$/, ""), out = [], px = r.last_close, e50 = r.d_ema50, e200 = r.d_ema200, st = r.d_st_dir, add = (t, k) => out.push([t, k]);
+  const away = v => fPct(100 * (px / v - 1), 1);
+  if (isNum(e200) && isNum(e50)) {
+    if (px > e50 && px > e200 && st > 0) add(`Uptrend: above its 50-day (${fPx(e50)}) and 200-day (${fPx(e200)}) averages, Supertrend up.`, "up");
+    else if (px < e50 && px < e200 && st < 0) add(`Downtrend: below its 50-day (${fPx(e50)}) and 200-day (${fPx(e200)}) averages, Supertrend down.`, "down");
+    else add(`Mixed trend: ${px > e200 ? "above" : "below"} the 200-day average (${fPx(e200)}, ${away(e200)}), ${px > e50 ? "above" : "below"} the 50-day (${fPx(e50)}), Supertrend ${st > 0 ? "up" : st < 0 ? "down" : "—"}.`, "warn");
+  } else if (isNum(e50)) add(`Under 200 days of history, so no long-term trend yet; price is ${px > e50 ? "above" : "below"} its 50-day average (${fPx(e50)}).`, px > e50 ? "up" : "down");
+  else add("Too little history for trend readings yet.", "");
+  const rsi = r.d_rsi14, mh = r.d_macd_hist;
+  if (isNum(rsi)) add(`Momentum ${rsi >= 70 ? "stretched" : rsi <= 30 ? "oversold" : rsi >= 55 ? "positive" : rsi <= 45 ? "weak" : "neutral"} (RSI ${rsi.toFixed(0)})` + (isNum(mh) ? `, MACD ${mh > 0 ? "above" : "below"} its signal line.` : "."), rsi >= 70 || rsi <= 30 ? "warn" : rsi >= 55 ? "up" : rsi <= 45 ? "down" : "");
+  if (isNum(r.d_rs30) && S.pair !== "BTCUSDT") add(`${r.d_rs30 >= 0 ? "Beat" : "Lagged"} Bitcoin by ${Math.abs(r.d_rs30).toFixed(1)}% over the last 30 days.`, r.d_rs30 >= 0 ? "up" : "down");
+  if (isNum(r.d_rvol20)) { const v = r.d_rvol20; if (v >= 2) add(`Volume ${v.toFixed(1)}× its 20-day normal: unusual interest.`, "warn"); else if (v <= 0.6) add(`Quiet: volume ${v.toFixed(1)}× its 20-day normal.`, ""); }
+  if (isNum(r.d_dist_hi_1y) && isNum(r.d_dist_lo_1y)) add(`${Math.abs(r.d_dist_hi_1y).toFixed(0)}% below its 1-year high, ${r.d_dist_lo_1y.toFixed(0)}% above its 1-year low` + (isNum(r.w_dist_ath) ? `; ${Math.abs(r.w_dist_ath).toFixed(0)}% under its all-time high.` : "."), "");
+  const news = coinNews(S.pair);
+  if (news.length) news.slice(0, 4).forEach(([t, k]) => add("Live on the dashboard: " + t + (/H&S/.test(t) ? " (chart context: head-and-shoulders have shown no edge over the market since 2022)" : "") + ".", k === "neutral" ? "" : k));
+  else add("No live setup on this coin today (calls, breakouts, patterns, divergences).", "");
+  const L = S.coins, cx = [];
+  if (L && L.rows) { const ix = Object.fromEntries(L.columns.map((c, i) => [c, i])), c = L.rows.find(x => x[ix.pair] === S.pair);
+    if (c) { cx.push("#" + c[ix.rank] + " on CoinMarketCap", c[ix.sector]); const sec = ((S.caps || {}).sectors || []).find(x => x.sector === c[ix.sector]);
+      if (sec && isNum(sec.ch7)) cx.push(`its sector ${fPct(sec.ch7, 1)} this week`);
+      const v = String(c[ix.venues] || "").split("").map(k => CN_V[k]).filter(Boolean); if (v.length) cx.push("trades on " + v.join(", ")); } }
+  if (cx.length) add(cx.join(" · ") + ".", "");
+  $("#readTitle").textContent = "The read on " + sym + " (daily chart, last close " + (S.ov && S.ov.last_date || "") + ")";
+  const ul = $("#readList"); ul.replaceChildren(...out.map(([t, k]) => { const li = document.createElement("li"), i = document.createElement("i"); if (k) i.className = k; li.append(i, document.createTextNode(t)); return li; }));
+  $("#readNote").textContent = "A plain description of the chart today, built from the same data as the chart and tiles below. Not a forecast and not advice.";
+  box.hidden = false;
+}
+function renderSectors() {
+  const card = $("#secCard"); if (!card) return;
+  const D = S.caps, X = D && D.sectors; if (!X || !X.length) { card.hidden = true; return; } card.hidden = false;
+  const per = S.secPer || "ch7", lab = { ch24: "24 hours", ch7: "7 days", ch30: "30 days" }[per];
+  $$("#secPer button").forEach(b => { b.setAttribute("aria-pressed", String(b.dataset.v === per)); b.onclick = () => { S.secPer = b.dataset.v; renderSectors(); }; });
+  const g = $("#secGrid"); g.replaceChildren();
+  const rows = X.filter(x => x.n >= 3).slice().sort((a, b) => (b[per] ?? -1e9) - (a[per] ?? -1e9)), mx = Math.max(...rows.map(x => Math.abs(x[per] || 0)), 1);
+  rows.forEach(x => { const t = document.createElement("button"); t.type = "button"; t.className = "sec-tile"; const v = x[per];
+    t.style.background = `linear-gradient(90deg, ${v >= 0 ? "rgba(63,182,139," : "rgba(240,85,85,"}${(0.06 + 0.22 * Math.abs(v || 0) / mx).toFixed(3)}), rgba(255,255,255,0.02))`;
+    t.innerHTML = '<div class="t"><span></span><b></b></div><div class="m"></div><div class="l"></div><div class="sec-bar"><i></i></div>';
+    t.querySelector(".t span").textContent = x.sector; const bv = t.querySelector(".t b"); bv.textContent = fPct(v, 1); bv.className = cls(v);
+    t.querySelector(".m").textContent = fUsd(x.mcap) + " · " + x.n + " coins · " + (isNum(x.up7_pct) ? Math.round(x.up7_pct) + "% up this week" : "");
+    t.querySelector(".l").textContent = x.leaders.length ? "Leaders 7d: " + x.leaders.map(l => l[0] + " " + fPct(l[1], 0)).join(" · ") : "";
+    t.querySelector(".sec-bar i").style.width = (x.up7_pct || 0) + "%"; t.title = "Open the " + x.sector + " coins";
+    t.onclick = () => { S.cnSec = x.sector; S.cnKey = "ch7"; S.cnAsc = false; S.cnN = 100; location.hash = "#coins"; }; g.append(t); });
+  $("#secNote").textContent = `Change in each sector's total market cap over ${lab} (each coin counts by its size at the start, so a tiny coin that multiplied can't distort it) for the coins in the library (CoinMarketCap's top 1,000 without stablecoins and tokenized assets), grouped by sector; Bitcoin and Ether are left out so they don't swamp Layer 1. The bar shows how many of the sector's coins rose this week. Tap a sector for its coins.`;
+}
 function mbLegendIn(lg, items) { lg.replaceChildren(); items.forEach(([col, t]) => { const sp = document.createElement("span"), i = document.createElement("i"); i.style.background = col; sp.append(i, document.createTextNode(t)); lg.append(sp); }); }
 
 // ---------- coin library (data/library.json)
@@ -4124,6 +4190,7 @@ function renderCoins() {
     $("#cnHotOnly").onclick = () => { S.cnHot = !S.cnHot; S.cnN = 100; renderCoins(); };
     $$(".cn-tbl th[data-k]").forEach(th => th.onclick = () => { const key = th.dataset.k; S.cnAsc = S.cnKey === key ? !S.cnAsc : ["rank", "symbol", "sector"].includes(key); S.cnKey = key; renderCoins(); });
     $("#cnMore").onclick = () => { S.cnN = (S.cnN || 100) + 200; renderCoins(); }; }
+  sel.value = S.cnSec || "";
   $$("#cnVenue button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === (S.cnVen || ""))));
   $("#cnHotOnly").setAttribute("aria-pressed", String(!!S.cnHot));
   const q = S.cnQ || "", sec = S.cnSec || "", ven = S.cnVen || "", key = S.cnKey || "rank", asc = S.cnKey ? !!S.cnAsc : true;
@@ -4228,6 +4295,7 @@ async function renderPair() {
      ["RVOL 20", fX(g("rvol20"))], ["From ATH", fPct(g("dist_ath"))], ["Hist. vol", isNum(g("hv")) ? g("hv").toFixed(0) + "%" : "—"], ["24h volume", fUsd(r.vol_24h_usdt)], ["Mkt cap (est.)", fUsd(r.mcap_est)],
      ...(() => { const d = S.dv && S.dv.pairs && S.dv.pairs[S.pair]; return d ? [["Funding (yearly)", fPct(d.funding_apr, 1)], ["Open interest", fUsd(d.oi_usdt) + (isNum(d.oi_chg_7d) ? " · " + fPct(d.oi_chg_7d, 0) + " 7D" : "")], ["Long / short", isNum(d.ls_ratio) ? fN(d.ls_ratio, 2) + " (" + fN(100 * d.long_pct, 0) + "% long)" : "—"]] : []; })()]
     .forEach(([k, v]) => { const d = document.createElement("div"); const l = document.createElement("span"); l.className = "label"; l.textContent = k; const b = document.createElement("b"); b.textContent = v; d.append(l, b); st.append(d); }); }
+  renderRead(r);
   const lg = $("#pairLegend"); lg.replaceChildren();
   const leg = (color, text) => { const s = document.createElement("span"); const i = document.createElement("i"); i.style.background = color; s.append(i, document.createTextNode(text)); lg.append(s); };
   if (S.ov_on.has("ema")) { leg("var(--warn)", "EMA21"); leg("var(--accent)", "EMA50"); leg("var(--muted)", "EMA200"); }
@@ -4394,7 +4462,7 @@ function btRows(body, bt) {
   row(`Design period ${bt.from} → ${bt.design_until}`, bt.design); row(`Unseen period ${bt.unseen_from} → ${bt.to}`, bt.unseen); row(`Full history`, bt.full);
   return row;
 }
-const statusChip = st => chip(st === "proven" ? "Proven" : "Experimental", st === "proven" ? "up" : "warn");
+const statusChip = st => chip(st === "proven" ? "Backtested" : "Experimental", st === "proven" ? "up" : "warn");
 function renderPaper4h() {
   const P = S.p4, card = $("#p4Card"); if (!card) return; if (!P) { card.hidden = true; return; } card.hidden = false;
   const ru = P.rules || {}, st = P.stats || {}, A = st.first_half, B = st.second_half;
@@ -4504,12 +4572,12 @@ function renderBot() {
   if (!P.closed.length) cb.innerHTML = '<tr><td colspan="13" class="empty">No closed trades yet.</td></tr>';
   const tot = P.closed.reduce((a, x) => a + x.pnl_usd, 0);
   $("#bClosedSum").textContent = P.closed.length ? `Realized ${fUsd2(tot)} · after fees and slippage` : "";
-  $("#bStratName").textContent = b.name; $("#bStratVer").textContent = (b.status === "proven" ? "Proven" : "Experimental") + " · " + b.version + " · paper trading since " + R.inception;
+  $("#bStratName").textContent = b.name; $("#bStratVer").textContent = (b.status === "proven" ? "Backtested" : "Experimental") + " · " + b.version + " · paper trading since " + R.inception;
   const rl = $("#bRules"); rl.replaceChildren(); b.strategy.rules.forEach(x => { const li = document.createElement("li"); li.textContent = x; rl.append(li); });
   const bt = b.backtest, row = btRows("#bBtBody", bt);
   Object.entries(bt.years).forEach(([y, x]) => x.trades || x.cagr ? row("  " + y, x) : null);
   $("#bBtNote").textContent = `BTC buy-and-hold: ${fPct(100 * pbt.benchmark_btc.cagr, 1)} per year, max drawdown ${fPct(100 * pbt.benchmark_btc.maxdd, 1)}`;
-  $("#bBtExplain").textContent = "Rules were chosen on the design period only and then run unchanged on the unseen period. Every trade pays fees and slippage; stops fill at the stop price or worse; nothing uses information from after the signal's close. Includes pairs that were later delisted. Trend-following bots typically win 30–40% of trades: profits come from winners being several times larger than losers. Past results do not guarantee future results.";
+  $("#bBtExplain").textContent = "Rules were designed on 2018–2021 and run unchanged on 2022 onwards (exception: Leaders' volume filter, v3, added on 25 Oct 2026 after the 2022+ results had been seen). Every trade pays fees and slippage; stops fill at the stop price or worse; nothing uses information from after the signal's close. Includes pairs that were later delisted. Trend-following bots typically win 30–40% of trades: profits come from winners being several times larger than losers. Past results do not guarantee future results.";
   $("#bBtCount").textContent = bt.trades.length + " trades, newest first";
   const tb = $("#bBtTrades"); tb.replaceChildren(); const frag = document.createDocumentFragment();
   [...bt.trades].reverse().slice(0, 1500).forEach(x => { const t = document.createElement("tr"); t.append(tdNode(symNode(x.symbol)), td(x.entry_date, "num"), td(fPx(x.entry), "num"), td(x.exit_date, "num"), td(fPx(x.exit), "num"),
@@ -4547,8 +4615,8 @@ function show(v) {
   if (parts[0] === "pair" && parts[1]) { const sym = decodeURIComponent(parts[1]).toUpperCase(); if (S.index && S.index[sym]) S.pair = sym;
     if (["1h", "4h", "1d", "1w", "1M"].includes(parts[2])) S.pairTf = parts[2]; v = "pair"; }
   if (!VIEWS.includes(v)) v = "overview"; VIEWS.forEach(x => { $("#v-" + x).hidden = x !== v; });
-  $$("nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.view === v ? "page" : "false"));
-  ({ me: () => { renderMe(); if (!ME.user && AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); }, overview: () => { renderOverview(); renderCaps("capsOv"); renderTop50(); if (focus === "t50") setTimeout(() => $("#t50Card").scrollIntoView({ behavior: "smooth", block: "start" }), 150); },
+  setGroupNav(v);
+  ({ me: () => { renderMe(); if (!ME.user && AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); }, overview: () => { renderOverview(); renderCaps("capsOv"); renderSectors(); renderTop50(); if (focus === "t50") setTimeout(() => $("#t50Card").scrollIntoView({ behavior: "smooth", block: "start" }), 150); },
     bot: () => { $("#botNavFade").hidden = !S.p4; subCounts(); setSub("bot", S.sub.bot); }, mmbee: () => { renderMMHead(); setSub("mmbee", S.sub.mmbee); }, lab: renderLab, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch,
     signals: () => { subCounts(); setSub("signals", S.sub.signals); }, listings: renderListings, strategies: renderStrategies, stocks: () => setSub("stocks", S.sub.stocks), pair: renderPair, world: () => { renderWorld(); renderCaps("capsWx"); }, coins: renderCoins })[v](); }
 function subCounts() {
@@ -4561,7 +4629,21 @@ function subCounts() {
   $("#sigHeadNote").textContent = last ? "Daily close " + last + " (UTC)" : "";
 }
 // ---------- Back: return to the exact spot you clicked from (same page, same row), with the button or the browser
-const VIEW_NAME = { strategies: "Strategies", stocks: "Stocks", overview: "Overview", shortlist: "Bee's Shortlist", top50: "Top 50", bot: "Trading bots", record: "Trading bots", mmbee: "MM-Bee", lab: "Setup Lab", highlights: "Trade Ideas", screener: "Screener", watchlist: "Watchlist", signals: "Signals", library: "Signals", listings: "Listings", pair: "Pair chart" };
+// sections: the top bar shows six; each section's pages appear as pills under it (every old link still works)
+const GROUPS = [["me", "★ My dashboard", [["me", "My dashboard"]]], ["overview", "Home", [["overview", "Home"]]],
+  ["markets", "Markets", [["world", "World"], ["stocks", "Stocks"]]],
+  ["coins", "Coins", [["coins", "All coins"], ["screener", "Screener"], ["watchlist", "Watchlist"], ["listings", "New listings"]]],
+  ["ideas", "Ideas", [["highlights", "Trade ideas"], ["signals", "Signals"], ["lab", "Setup Lab"]]],
+  ["bots", "Bots", [["bot", "Trading bots"], ["strategies", "Strategies"], ["mmbee", "MM-Bee"]]], ["chart", "Chart", [["pair", "Pair chart"]]]];
+const groupOf = v => (GROUPS.find(g => g[2].some(x => x[0] === v)) || GROUPS[1]);
+function setGroupNav(v) {
+  const g = groupOf(v);
+  $$("header nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.group === g[0] ? "page" : "false"));
+  const n = $("#gNav"); n.hidden = g[2].length < 2;
+  if (n.dataset.g !== g[0]) { n.dataset.g = g[0]; n.replaceChildren(...g[2].map(([id, label]) => { const a = document.createElement("a"); a.href = "#" + id; a.dataset.view = id; a.textContent = label; return a; })); }
+  $$("#gNav a").forEach(a => a.setAttribute("aria-current", a.dataset.view === v ? "page" : "false"));
+}
+const VIEW_NAME = { coins: "All coins", world: "World", strategies: "Strategies", stocks: "Stocks", overview: "Overview", shortlist: "Bee's Shortlist", top50: "Top 50", bot: "Trading bots", record: "Trading bots", mmbee: "MM-Bee", lab: "Setup Lab", highlights: "Trade Ideas", screener: "Screener", watchlist: "Watchlist", signals: "Signals", library: "Signals", listings: "Listings", pair: "Pair chart" };
 const backStack = []; let lastClick = null, restoring = false;
 function spotOf(el) {
   const item = el && el.closest && el.closest("tr, .hl, .tile, li, [data-k], button, a");
