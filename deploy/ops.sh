@@ -76,7 +76,7 @@ case "$CMD" in
   strategy-lab-log) tail -n "$N" "$ROOT/logs/strategy_lab.txt" 2>/dev/null || echo "no strategy lab output yet" ;;
   zig-probe)       python3 "$ROOT/bin/zig_archive.py" --probe 2>&1 | tail -n 20 ;;
   zig-status)      python3 "$ROOT/bin/zig_archive.py" --status 2>&1 | tail -n 10 ;;
-  library-probe)   python3 "$ROOT/bin/coin_library.py" --probe 2>&1 | head -n 80 ;;
+  library-probe)   python3 "$ROOT/bin/coin_library.py" --probe 2>&1 | head -n 80; python3 "$ROOT/bin/coin_library.py" --tags 2>&1 | head -n 120 ;;
   library-refresh) python3 "$ROOT/bin/coin_library.py" 2>&1 | tail -n "$N" ;;
   library-status)  python3 "$ROOT/bin/coin_library.py" --status 2>&1 | tail -n "$N" ;;
   zig-refresh)     python3 "$ROOT/bin/zig_archive.py" 2>&1 | tail -n 10; python3 "$ROOT/bin/zig_archive.py" --status 2>&1 | tail -n 5 ;;

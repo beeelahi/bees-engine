@@ -2,6 +2,7 @@
 Coin library: the top crypto projects by market cap, stablecoins and wrapped / staked copies removed, each mapped to
 the exchanges we trust (Binance, KuCoin, Gate, MEXC). Python 3.9 stdlib only. Public data only, no keys.
 """
+import json
 import os
 import sys
 import time
@@ -13,6 +14,40 @@ from world_markets import fetch as _wfetch  # noqa: E402
 
 def fetch(url, tv=False, data=None, timeout=30):
     return _wfetch(url, timeout=timeout, data=data, tv=tv)
+
+
+CMC_LIST = ("https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing?start={start}&limit={limit}&sortBy=market_cap"
+            "&sortType=desc&convert=USD&cryptoType=all&tagType=all&audited=false&aux=tags,cmc_rank,date_added,platform,max_supply,"
+            "circulating_supply,total_supply,self_reported_circulating_supply")
+
+
+def cmc_listing(n=1000, page=200, log=print):
+    """CMC's top n by market cap (its website's public data), rank order."""
+    out = []
+    for start in range(1, n + 1, page):
+        for attempt in range(4):
+            c, b = fetch(CMC_LIST.format(start=start, limit=min(page, n - start + 1)))
+            if c == 200:
+                break
+            time.sleep(5 * (attempt + 1))
+        if c != 200:
+            raise RuntimeError(f"CMC listing from {start}: HTTP {c}")
+        out += json.loads(b)["data"]["cryptoCurrencyList"]
+        time.sleep(1.5)
+    return out
+
+
+def tags():
+    from collections import Counter
+    rows = cmc_listing(1000)
+    print("sample row:", json.dumps(rows[700])[:1500])
+    cnt = Counter(t for r in rows for t in r.get("tags", []))
+    keys = ("stable", "wrap", "stak", "tokeniz", "bridg", "peg", "gold", "commod", "stock", "treasur", "rwa", "yield", "fiat", "meme", "real-world")
+    for t, k in sorted(cnt.items(), key=lambda x: -x[1]):
+        if any(x in t for x in keys):
+            ex = [r["symbol"] for r in rows if t in r.get("tags", [])][:12]
+            print(f"{t}: {k}  e.g. {' '.join(ex)}")
+    print("most common tags:", cnt.most_common(40))
 
 
 def probe():
@@ -57,3 +92,5 @@ def probe():
 if __name__ == "__main__":
     if "--probe" in sys.argv:
         probe()
+    elif "--tags" in sys.argv:
+        tags()
