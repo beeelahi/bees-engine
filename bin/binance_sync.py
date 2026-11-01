@@ -291,7 +291,7 @@ def contiguous(dates):
     return out
 
 
-def sync_pair(con, sym, hist_start, last_day, now_ms, stamp):
+def sync_pair(con, sym, hist_start, last_day, now_ms, stamp, stopped=False):
     """Bring one pair fully up to date. Returns (rows_added, complete_bool)."""
     backfilled, first_candle = con.execute(
         "SELECT backfilled, first_candle FROM pairs WHERE symbol=?", (sym,)).fetchone()
@@ -332,7 +332,10 @@ def sync_pair(con, sym, hist_start, last_day, now_ms, stamp):
         tail_missing = [d for d in still if not latest or d > latest]
         con.commit()
         if tail_missing:
-            log.warning(f"  {sym}: no candle yet for {tail_missing[0]}..{tail_missing[-1]} (will retry)")
+            if stopped:                          # stopped trading: the final candles may simply not exist (tried for 7 days)
+                log.info(f"  {sym}: stopped trading; no candle for {tail_missing[0]}..{tail_missing[-1]}")
+            else:
+                log.warning(f"  {sym}: no candle yet for {tail_missing[0]}..{tail_missing[-1]} (will retry)")
             return added, False
     con.commit()
     return added, True
@@ -457,7 +460,7 @@ def run_sync(con, force):
             log.info(f"  {i}/{len(targets)} pairs, {added:,} rows added")
     for sym in recent_off:
         try:
-            added += sync_pair(con, sym, hist_start, last_day, now_ms, stamp)[0]
+            added += sync_pair(con, sym, hist_start, last_day, now_ms, stamp, stopped=True)[0]
         except Exception:
             con.rollback()                       # expected for removed symbols
     # Survivorship: fetch the history of halted/delisted pairs once, so backtests also see the
