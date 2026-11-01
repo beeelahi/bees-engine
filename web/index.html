@@ -144,6 +144,9 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .lu-row { cursor: pointer; } .lu-row:hover td { background: var(--hover, rgba(127,127,127,.06)); }
 .lu-row.sel td { background: var(--accent-soft); } .lu-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .st-tbl th:nth-child(-n+2), .st-tbl td:nth-child(-n+2) { text-align: left; }
+.sg-grid { margin: 0 0 20px; } .sg-card { cursor: pointer; } .sg-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; } .sg-top b { font-size: 15px; }
+.sg-ch { margin: 8px 0 2px; } .sg-svg { width: 100%; height: 70px; display: block; } .sg-alloc { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 12px; }
+.sg-tbl th:nth-child(-n+3), .sg-tbl td:nth-child(-n+3) { text-align: left; }
 .sk-hero { background: radial-gradient(120% 140% at 0% 0%, rgba(4,183,248,.16), transparent 60%), linear-gradient(180deg, rgba(16, 32, 74, 0.55), rgba(11, 23, 57, 0.92)); }
 .sk-title { font-size: clamp(20px, 2.8vw, 28px); margin: 6px 0 14px; text-wrap: balance; }
 .sk-ask { display: flex; gap: 10px; } .sk-ask input { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(4,183,248,.45); background: rgba(0,0,0,.25); color: var(--fg); }
@@ -446,6 +449,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <a href="#world" data-view="world">World</a>
       <a href="#highlights" data-view="highlights">Trade Ideas<span class="badge" id="hlBadge" hidden></span></a>
       <a href="#bot" data-view="bot">Trading bots</a>
+      <a href="#strategies" data-view="strategies">Strategies</a>
       <a href="#mmbee" data-view="mmbee">MM-Bee</a>
       <a href="#screener" data-view="screener">Screener</a>
       <a href="#watchlist" data-view="watchlist">Watchlist</a>
@@ -1239,6 +1243,38 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       </div>
       <p class="note" id="libParams"></p>
     </div>
+  </section>
+
+  <section class="view" id="v-strategies" hidden>
+    <div class="card sk-hero">
+      <div class="mbx-eyebrow">Strategy library · tested on crypto</div>
+      <h2 class="sk-title">Proven strategies, re-tested on our own data before they reach you.</h2>
+      <p class="note" style="max-width:100ch;margin:0" id="sgLead"></p>
+      <div class="grid-kpi" style="margin-top:14px">
+        <div class="card kpi"><div class="label">Strategies tested</div><div class="v" id="sgN">—</div><div class="note" id="sgNN">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Beat holding</div><div class="v" id="sgW">—</div><div class="note">better risk-adjusted return in both periods</div></div>
+        <div class="card kpi"><div class="label">Safer than holding</div><div class="v" id="sgD">—</div><div class="note">15+ points less drawdown, ahead since 2022</div></div>
+        <div class="card kpi"><div class="label">No edge on crypto</div><div class="v" id="sgX">—</div><div class="note">shown, but not offered</div></div>
+      </div>
+    </div>
+    <div class="hx-grid sg-grid" id="sgGrid"></div>
+    <div class="card" id="sgSim" hidden>
+      <div class="card-head"><h3 id="sgSimH">Allocate</h3><button type="button" class="wx-clear" id="sgSimX">Close ×</button></div>
+      <div class="controls" style="margin-bottom:12px"><span class="note">If I had put</span>
+        <input class="search" id="sgAmt" type="number" min="10" step="10" value="1000" style="width:8rem" aria-label="Amount in USD">
+        <span class="note">in on</span><select class="search" id="sgFrom" style="width:auto" aria-label="Start"></select></div>
+      <div class="grid-kpi">
+        <div class="card kpi"><div class="label">This strategy</div><div class="v" id="sgSimV">—</div><div class="note" id="sgSimVN">&nbsp;</div></div>
+        <div class="card kpi"><div class="label" id="sgSimBL">Just holding</div><div class="v" id="sgSimB">—</div><div class="note" id="sgSimBN">&nbsp;</div></div>
+        <div class="card kpi"><div class="label">Worst fall on the way</div><div class="v" id="sgSimDD">—</div><div class="note" id="sgSimDDN">&nbsp;</div></div>
+      </div>
+      <div class="chart-eq" id="sgCurve"></div><div class="legend" id="sgLegend"></div>
+      <div class="sg-alloc"><button type="button" class="btn primary" id="sgGo">Allocate funds</button><span class="note" id="sgGoN">Backtest on real Binance prices, with costs. Simulated, not a live record; past results do not guarantee future results.</span></div>
+      <div class="sk-checkout" id="sgGoBox" hidden></div>
+    </div>
+    <div class="card"><div class="card-head"><h3>Every strategy, side by side</h3><span class="note" id="sgTblN"></span></div>
+      <div class="tbl-wrap"><table class="sg-tbl"><thead><tr><th>Strategy</th><th>Trades</th><th>Verdict</th><th title="Yearly return, whole period">CAGR</th><th title="Return per unit of risk">Sharpe</th><th title="Worst fall from a peak">Max drawdown</th><th title="Up to 2021">Sharpe to 2021</th><th title="2022 on">Sharpe 2022+</th><th title="2022 on">CAGR 2022+</th><th>Invested</th></tr></thead><tbody id="sgBody"></tbody></table></div>
+      <p class="note" id="sgFoot" style="margin-top:10px"></p></div>
   </section>
 
   <section class="view" id="v-stocks" hidden>
@@ -2490,6 +2526,79 @@ function initStocks() {
   $("#stQ").addEventListener("input", () => renderStocks());
   $$("#stType button").forEach(b => b.onclick = () => { S.stType = b.dataset.v; $$("#stType button").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false")); renderStocks(); });
   $$(".st-tbl th").forEach(th => { th.style.cursor = "pointer"; th.onclick = () => { const k = th.dataset.k; S.stDir = S.stSort === k ? -(S.stDir || -1) : (k === "tk" || k === "type" ? 1 : -1); S.stSort = k; renderStocks(); }; });
+}
+// ---------- Strategies (data/strategies.json: the strategy lab, quants.md strategies rebuilt and tested on crypto)
+let sgLoading = null, sgChart = null;
+const SG_V = { works: ["Beats holding", "up"], defensive: ["Safer than holding", "warn"], "no edge": ["No edge on crypto", "neutral"], benchmark: ["Benchmark", "neutral"] };
+function loadStrategies() {
+  if (S.sg !== undefined || sgLoading) return sgLoading;
+  sgLoading = j("data/strategies.json").then(d => { S.sg = d; }, () => { S.sg = null; }).then(() => { sgLoading = null; if (!$("#v-strategies").hidden) renderStrategies(); });
+  return sgLoading;
+}
+function sgSvg(curve, bench) {                    // small growth-of-$1 chart, log scale, strategy vs its benchmark
+  const W = 300, H = 70, all = curve.concat(bench || []).map(x => Math.log(x[1])), lo = Math.min(...all), hi = Math.max(...all), n = curve.length;
+  const pt = (c, i) => `${(i / (n - 1) * W).toFixed(1)},${(H - 4 - (Math.log(c[1]) - lo) / ((hi - lo) || 1) * (H - 8)).toFixed(1)}`;
+  const ns = "http://www.w3.org/2000/svg", svg = document.createElementNS(ns, "svg"); svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("class", "sg-svg"); svg.setAttribute("preserveAspectRatio", "none");
+  [[bench, "var(--muted)", "1.2", "3 3"], [curve, "var(--accent)", "2", ""]].forEach(([c, col, w, da]) => { if (!c || c.length < 2) return; const pl = document.createElementNS(ns, "polyline");
+    pl.setAttribute("points", c.slice(0, n).map(pt).join(" ")); pl.setAttribute("fill", "none"); pl.setAttribute("stroke", col); pl.setAttribute("stroke-width", w); if (da) pl.setAttribute("stroke-dasharray", da); svg.append(pl); });
+  return svg;
+}
+function renderStrategies() {
+  if (S.sg === undefined) { loadStrategies(); $("#sgGrid").innerHTML = '<div class="hx-empty">Loading…</div>'; return; }
+  const D = S.sg; if (!D || !D.strategies) { $("#sgGrid").innerHTML = '<div class="hx-empty">The strategy results are published with the next daily run.</div>'; return; }
+  const L = D.strategies, by = Object.fromEntries(L.map(x => [x.id, x])), real = L.filter(x => x.verdict !== "benchmark");
+  const cnt = v => real.filter(x => x.verdict === v).length;
+  mbSet("sgN", String(real.length)); $("#sgNN").textContent = `from the quants.md library, ${D.from.slice(0, 4)} to ${D.to.slice(0, 4)}`;
+  mbSet("sgW", String(cnt("works")), cnt("works") ? "pos" : ""); mbSet("sgD", String(cnt("defensive"))); mbSet("sgX", String(cnt("no edge")));
+  $("#sgLead").textContent = `A friend's library of 50 published strategies (quants.md, by QuantJourney) was built and tested on US stock ETFs. We rebuilt the ${real.length} that can run on crypto, long or cash only, and tested them on Binance daily prices from ${D.from} to ${D.to} with ${fN(D.cost_pct, 2)}% costs a side, against simply holding BTC or a 10-coin basket. Each must hold up both before 2022 and from 2022 on. Only the ones that do are offered.`;
+  const order = { works: 0, defensive: 1, "no edge": 2 }, cards = real.slice().sort((a, b) => order[a.verdict] - order[b.verdict] || (b.full.sharpe - a.full.sharpe));
+  const g = $("#sgGrid"); g.replaceChildren();
+  cards.forEach(x => { const b = by[x.benchmark], v = SG_V[x.verdict] || [x.verdict, "neutral"], c = hxEl("div", "hx-card sg-card " + (x.verdict === "works" ? "up" : x.verdict === "defensive" ? "warn" : "neutral"));
+    const top = hxEl("div", "sg-top"); const nm = hxEl("div", ""); nm.append(hxEl("b", "", x.name), hxEl("div", "hx-sub", (x.universe === "BTC" ? "Bitcoin" : "10-coin basket") + (x.source ? " · from " + x.source : "")));
+    top.append(nm, chip(v[0], v[1])); c.append(top, hxEl("div", "hx-note", x.rules));
+    const m = hxEl("div", "hx-metrics"); [["Yearly return", fPct(x.full.cagr, 1), cls(x.full.cagr), "holding " + fPct(b.full.cagr, 1)], ["Sharpe", fN(x.full.sharpe, 2), x.full.sharpe > b.full.sharpe ? "pos" : "", "holding " + fN(b.full.sharpe, 2)],
+      ["Worst drawdown", fPct(x.full.max_dd, 0), "neg", "holding " + fPct(b.full.max_dd, 0)], ["Since 2022", fPct(x.oos.cagr, 1) + " a year", cls(x.oos.cagr), "holding " + fPct(b.oos.cagr, 1)]]
+      .forEach(([l, val, cl, sub]) => { const d = hxEl("div"); d.append(hxEl("span", "", l), hxEl("b", cl, val), hxEl("small", "", sub)); m.append(d); }); c.append(m);
+    const ch = hxEl("div", "sg-ch"); ch.append(sgSvg(x.curve, b.curve)); c.append(ch);
+    const f = hxEl("div", "hx-foot"); f.append(hxEl("span", "", `in the market ${fN(x.in_market_pct, 0)}% of days · ${fN(x.trades_per_year, 0)} trades a year`), hxEl("span", "hx-go", x.verdict === "no edge" ? "Details ›" : "Allocate ›")); c.append(f);
+    c.tabIndex = 0; c.setAttribute("role", "button"); const go = () => sgOpen(x.id); c.onclick = go; c.onkeydown = e => { if (e.key === "Enter") go(); }; g.append(c); });
+  const body = $("#sgBody"); body.replaceChildren();
+  L.slice().sort((a, b) => (a.verdict === "benchmark" ? -1 : 0) - (b.verdict === "benchmark" ? -1 : 0) || order[a.verdict] - order[b.verdict]).forEach(x => { const v = SG_V[x.verdict] || [x.verdict, "neutral"], t = document.createElement("tr"); t.className = "clickable"; t.onclick = () => sgOpen(x.id);
+    t.append(td(x.name, x.verdict === "benchmark" ? "cold" : ""), td(x.universe === "BTC" ? "BTC" : "Basket", ""), tdNode(chip(v[0], v[1])), td(fPct(x.full.cagr, 1), "num " + cls(x.full.cagr)), td(fN(x.full.sharpe, 2), "num"), td(fPct(x.full.max_dd, 0), "num neg"),
+      td(fN((x.pre || {}).sharpe, 2), "num"), td(fN((x.oos || {}).sharpe, 2), "num"), td(fPct((x.oos || {}).cagr, 1), "num " + cls((x.oos || {}).cagr)), td(fN(x.in_market_pct, 0) + "%", "num")); body.append(t); });
+  $("#sgTblN").textContent = `split ${D.split} · costs ${fN(D.cost_pct, 2)}% a side · updated ${D.generated_utc.slice(0, 10)}`;
+  $("#sgFoot").textContent = `Basket: ${(D.basket || []).map(s => s.replace(/USDT$/, "")).join(", ")}, each from 200 days after its listing. The basket is today's large coins, so its results are flattered (survivorship); BTC results are not. Long or cash only, no leverage. ${D.source}. Simulated backtests, not a live record. Not advice.`;
+  if (S.sgOpen) sgOpen(S.sgOpen, true);
+}
+function sgOpen(id, keep) {
+  const D = S.sg, x = D.strategies.find(s => s.id === id); if (!x) return; S.sgOpen = id; const b = D.strategies.find(s => s.id === x.benchmark), box = $("#sgSim"); box.hidden = false;
+  $("#sgSimH").textContent = x.name + (x.verdict === "no edge" ? " · no edge on crypto" : "");
+  const sel = $("#sgFrom"); if (sel.dataset.for !== id) { sel.dataset.for = id; sel.replaceChildren(); const yrs = [...new Set(x.curve.map(c => c[0].slice(0, 4)))];
+    yrs.forEach(y => { const o = document.createElement("option"); o.value = y; o.textContent = "Jan " + y; sel.append(o); }); sel.value = yrs.includes("2022") ? "2022" : yrs[0]; }
+  const go = () => { const amt = Math.max(1, +$("#sgAmt").value || 1000), from = sel.value, cs = x.curve.filter(c => c[0] >= from), bs = b.curve.filter(c => c[0] >= from);
+    if (cs.length < 2) return; const v = amt * cs[cs.length - 1][1] / cs[0][1], bv = amt * bs[bs.length - 1][1] / bs[0][1];
+    let pk = 0, dd = 0; cs.forEach(c => { pk = Math.max(pk, c[1]); dd = Math.min(dd, c[1] / pk - 1); });
+    const usd0 = n => "$" + Math.round(n).toLocaleString("en-US");
+    mbSet("sgSimV", usd0(v), v >= amt ? "pos" : "neg"); $("#sgSimVN").textContent = `${fPct(100 * (v / amt - 1), 0)} since Jan ${from}`;
+    $("#sgSimBL").textContent = b.name; mbSet("sgSimB", usd0(bv), bv >= amt ? "pos" : "neg"); $("#sgSimBN").textContent = `${fPct(100 * (bv / amt - 1), 0)} since Jan ${from}`;
+    mbSet("sgSimDD", fPct(100 * dd, 0), "neg"); $("#sgSimDDN").textContent = `${usd0(amt * (1 + dd))} at the low point (weekly)`;
+    if (sgChart) { sgChart.remove(); sgChart = null; }
+    const cb = $("#sgCurve");
+    if (typeof LightweightCharts !== "undefined") { cb.replaceChildren(); sgChart = mbChartMake(cb);
+      const fmt = { type: "custom", formatter: n => usd0(n), minMove: 1 };
+      sgChart.addAreaSeries({ lineColor: css("--accent"), topColor: css("--accent-soft"), bottomColor: "transparent", lineWidth: 2, priceLineVisible: false, priceFormat: fmt }).setData(cs.map(c => ({ time: c[0], value: amt * c[1] / cs[0][1] })));
+      sgChart.addLineSeries({ color: css("--muted"), lineWidth: 1, lineStyle: 2, priceLineVisible: false, priceFormat: fmt }).setData(bs.map(c => ({ time: c[0], value: amt * c[1] / bs[0][1] })));
+      sgChart.applyOptions({ rightPriceScale: { mode: 1 } }); sgChart.timeScale().fitContent(); mbLegend("sgLegend", [[css("--accent"), x.name], [css("--muted"), b.name]]);
+    } else { cb.replaceChildren(sgSvg(cs.map(c => [c[0], c[1]]), bs)); mbLegend("sgLegend", [[css("--accent"), x.name], [css("--muted"), b.name]]); } };
+  $("#sgAmt").oninput = go; sel.onchange = go; go();
+  $("#sgGo").disabled = x.verdict === "no edge"; $("#sgGo").textContent = x.verdict === "no edge" ? "Not offered: no edge on crypto" : "Allocate funds";
+  $("#sgGoBox").hidden = true;
+  $("#sgGo").onclick = () => { const bx = $("#sgGoBox"); bx.hidden = false; bx.replaceChildren(); const h = document.createElement("h3"); h.textContent = "Allocating to " + x.name;
+    const p = document.createElement("p"); p.className = "note"; p.textContent = "Strategy allocation runs in your own account, never with us holding your money: you connect a Binance account with an API key that can trade but not withdraw, or a Solana wallet, choose the amount, and the strategy places its trades there. This is the next build step, after the paper period every strategy goes through. Leave your email to be among the first, or talk to us now.";
+    const a = document.createElement("a"); a.className = "btn primary"; a.href = "mailto:gm@koreit.io?subject=" + encodeURIComponent("Early access: " + x.name) + "&body=" + encodeURIComponent("I'd like early access to the " + x.name + " strategy on Bee's Dashboard."); a.textContent = "Request early access";
+    bx.append(h, p, a); };
+  $("#sgSimX").onclick = () => { box.hidden = true; S.sgOpen = null; };
+  if (!keep) box.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 // ---------- On-chain stocks (data/onchain.json: verified xStocks / Ondo tokens on Solana) and the smart basket
 let ocLoading = null;
@@ -4156,7 +4265,7 @@ function renderBot() {
 const fUsd2 = v => isNum(v) ? (v < 0 ? "−$" : "$") + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
 
 // ---------- routing + controls
-const VIEWS = ["me", "overview", "world", "bot", "mmbee", "lab", "highlights", "screener", "watchlist", "signals", "listings", "stocks", "pair"];
+const VIEWS = ["me", "overview", "world", "bot", "strategies", "mmbee", "lab", "highlights", "screener", "watchlist", "signals", "listings", "stocks", "pair"];
 // sub-sections inside a tab (#bot/record, #signals/library ...); old tab names still open the right place
 const SUBS = { bot: ["portfolio", "each", "record", "fade"], signals: ["latest", "library"], mmbee: ["bots", "live", "livu", "backtest"], stocks: ["basket", "onchain", "binance"] };
 const ALIAS = { top50: ["overview", "t50"], record: ["bot", "record"], library: ["signals", "library"] };
@@ -4185,7 +4294,7 @@ function show(v) {
   $$("nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.view === v ? "page" : "false"));
   ({ me: () => { renderMe(); if (!ME.user && AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); }, overview: () => { renderOverview(); renderTop50(); if (focus === "t50") setTimeout(() => $("#t50Card").scrollIntoView({ behavior: "smooth", block: "start" }), 150); },
     bot: () => { $("#botNavFade").hidden = !S.p4; subCounts(); setSub("bot", S.sub.bot); }, mmbee: () => { renderMMHead(); setSub("mmbee", S.sub.mmbee); }, lab: renderLab, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch,
-    signals: () => { subCounts(); setSub("signals", S.sub.signals); }, listings: renderListings, stocks: () => setSub("stocks", S.sub.stocks), pair: renderPair, world: renderWorld })[v](); }
+    signals: () => { subCounts(); setSub("signals", S.sub.signals); }, listings: renderListings, strategies: renderStrategies, stocks: () => setSub("stocks", S.sub.stocks), pair: renderPair, world: renderWorld })[v](); }
 function subCounts() {
   const R = S.bot, PF = R && R.portfolio, fill = (view, sub, n, title) => { const b = $('.sub-nav[data-for="' + view + '"] button[data-s="' + sub + '"]'); if (!b) return; b.querySelector("i").textContent = n ? String(n) : ""; b.title = title || ""; };
   fill("bot", "portfolio", R && R.bots ? R.bots.length : 0, "bots");
@@ -4196,7 +4305,7 @@ function subCounts() {
   $("#sigHeadNote").textContent = last ? "Daily close " + last + " (UTC)" : "";
 }
 // ---------- Back: return to the exact spot you clicked from (same page, same row), with the button or the browser
-const VIEW_NAME = { stocks: "Stocks", overview: "Overview", shortlist: "Bee's Shortlist", top50: "Top 50", bot: "Trading bots", record: "Trading bots", mmbee: "MM-Bee", lab: "Setup Lab", highlights: "Trade Ideas", screener: "Screener", watchlist: "Watchlist", signals: "Signals", library: "Signals", listings: "Listings", pair: "Pair chart" };
+const VIEW_NAME = { strategies: "Strategies", stocks: "Stocks", overview: "Overview", shortlist: "Bee's Shortlist", top50: "Top 50", bot: "Trading bots", record: "Trading bots", mmbee: "MM-Bee", lab: "Setup Lab", highlights: "Trade Ideas", screener: "Screener", watchlist: "Watchlist", signals: "Signals", library: "Signals", listings: "Listings", pair: "Pair chart" };
 const backStack = []; let lastClick = null, restoring = false;
 function spotOf(el) {
   const item = el && el.closest && el.closest("tr, .hl, .tile, li, [data-k], button, a");

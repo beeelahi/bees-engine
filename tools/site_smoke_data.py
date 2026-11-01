@@ -73,6 +73,8 @@ def main(out):
     paper_mm(E.OUT)
     world(E.OUT)
     onchain(E.OUT)
+    import subprocess                                    # the Strategies tab: the strategy lab on the synthetic history
+    subprocess.run([sys.executable, os.path.join(HERE, "..", "research", "strategy_lab.py"), db, os.path.join(E.OUT, "strategies.json")], check=True, capture_output=True)
     with open(os.path.join(HERE, "..", "web", "index.html"), encoding="utf-8") as f:
         page = P.wrap(f.read())
     with open(os.path.join(HERE, "..", "web", "sw.js"), encoding="utf-8") as f, \

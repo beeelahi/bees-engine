@@ -7,8 +7,9 @@ Binance history, long or cash only (no leverage, no shorting), against simply ho
              today's large coins, so the basket results carry survivorship bias: read them as optimistic)
   periods    2018 to now; split up to 2021 (the strategies' rules were not fitted on crypto at all) and 2022 on
   trading    decide on the daily close, trade at the next close, 0.10% cost a side on every change of weight
-  verdict    "works" only when the strategy beats holding on return per unit of risk (Sharpe) in BOTH periods and
-             has a smaller worst drawdown; "defensive" when it cuts drawdown a lot but returns less
+  verdict    "works" only when the strategy beats holding on return per unit of risk (Sharpe) by 0.05+ in BOTH
+             periods and has a smaller worst drawdown; "defensive" when its worst drawdown is 15+ points smaller and
+             it beat holding (Sharpe) from 2022 on; else "no edge"
 
     python3 research/strategy_lab.py [DB]       (server: ops strategy-lab, read with strategy-lab-log)
 Writes web_export/strategies.json (published with the site) and data/strategy_lab.json.
@@ -248,13 +249,15 @@ def main():
             r["verdict"] = "benchmark"
             continue
         p, o, bp, bo = r["pre"], r["oos"], b["pre"], b["oos"]
-        better = all(x and y and x["sharpe"] is not None and y["sharpe"] is not None and x["sharpe"] > y["sharpe"] for x, y in ((p, bp), (o, bo)))
+        better = all(x and y and x["sharpe"] is not None and y["sharpe"] is not None and x["sharpe"] >= y["sharpe"] + 0.05 for x, y in ((p, bp), (o, bo)))
         safer = r["full"]["max_dd"] > b["full"]["max_dd"]
-        r["verdict"] = "works" if better and safer else ("defensive" if r["full"]["max_dd"] > b["full"]["max_dd"] + 20 and o["sharpe"] and o["sharpe"] > 0 else "no edge")
+        calmer = r["full"]["max_dd"] >= b["full"]["max_dd"] + 15 and o and bo and o["sharpe"] is not None and o["sharpe"] > bo["sharpe"]
+        r["verdict"] = "works" if better and safer else "defensive" if calmer else "no edge"
     out = {"generated_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "from": dates[k0], "to": dates[-1], "split": SPLIT, "cost_pct": 100 * COST,
            "basket": BASKET, "source": "Strategy rules from quants.md (QuantJourney, Apache-2.0), rebuilt for crypto and tested on Binance daily data",
            "strategies": list(res.values())}
-    for path in (os.path.join(_env.HERE, "..", "data", "strategy_lab.json"), os.path.join(_env.HERE, "..", "web_export", "strategies.json")):
+    paths = sys.argv[2:3] or (os.path.join(_env.HERE, "..", "data", "strategy_lab.json"), os.path.join(_env.HERE, "..", "web_export", "strategies.json"))
+    for path in paths:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path + ".tmp", "w") as fh:
             json.dump(out, fh, separators=(",", ":"))
