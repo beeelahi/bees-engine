@@ -1526,7 +1526,7 @@ async function cacheGet(p) { try { const c = await caches.open(DATA_CACHE), r = 
 async function j(p) {
   let err;
   for (let i = 0, n = S.netDown ? 1 : 3; i < n; i++) {     // once the network has failed this load, one try each
-    try { const r = await fetch(p, { cache: "no-store" }); if (!r.ok) throw new Error(p + " → " + r.status);
+    try { const r = await fetch(p, { cache: "no-cache" }); if (!r.ok) throw new Error(p + " → " + r.status);      // revalidate: unchanged files come back as a tiny 304
       const t = await r.text(), d = JSON.parse(t); if (/^data\//.test(p) && t.length < 8e6) cachePut(p, t); return d; }
     catch (e) { err = e; if (/→ 404$/.test(String(e.message))) break; if (i < n - 1) await new Promise(res => setTimeout(res, 700 * (i + 1) ** 2)); }
   }
@@ -1538,15 +1538,14 @@ async function j(p) {
 async function loadAll() {
   S.staleSince = null; S.netDown = false;
   try {
-    const [ov, scr, w, sig, idx, hl, lst, wk] = await Promise.all(["overview", "screener", "watch", "signals", "pairs/index", "highlights", "listings", "weekly"].map(n => j("data/" + n + ".json")));
-    S.ov = ov; S.scr = toObjs(scr); S.watch = toObjs(w); S.sig = toObjs(sig); S.index = idx; S.hl = toObjs(hl); S.hlMeta = hl; S.lst = lst; S.wk = toObjs(wk);
-    try { S.bot = await j("data/bot.json"); } catch (e) { S.bot = null; }
-    try { S.dv = await j("data/derivs.json"); } catch (e) { S.dv = null; }
-    try { S.pubSL = await j("data/shortlist.json"); } catch (e) { S.pubSL = null; }
-    try { S.px = await j("data/prices.json"); } catch (e) { S.px = null; }
-    try { S.mv = await j("data/moves.json"); } catch (e) { S.mv = null; }
-    try { S.p4 = await j("data/paper4h.json"); } catch (e) { S.p4 = null; }
-    try { S.botLive = await j("data/bot_live.json"); } catch (e) { S.botLive = null; }
+    // first paint needs only these (about a third of the data); every file is fetched at the same time
+    const opt = n => j("data/" + n + ".json").catch(() => null);
+    const [ov, scr, idx, hl, lst, wk, dv, sl, px, mv, p4, bl] = await Promise.all([
+      ...["overview", "screener", "pairs/index", "highlights", "listings", "weekly"].map(n => j("data/" + n + ".json")),
+      ...["derivs", "shortlist", "prices", "moves", "paper4h", "bot_live"].map(opt)]);
+    S.ov = ov; S.scr = toObjs(scr); S.index = idx; S.hl = toObjs(hl); S.hlMeta = hl; S.lst = lst; S.wk = toObjs(wk);
+    S.dv = dv; S.pubSL = sl; S.px = px; S.mv = mv; S.p4 = p4; S.botLive = bl;
+    S.sig = S.sig || []; S.watch = S.watch || []; if (S.bot === undefined) S.bot = null;    // the big files follow in the background
     toObjs(ov.dictionary).forEach(d => { S.dict[d.col] = d; });
   } catch (e) {
     $("#freshText").textContent = "Connecting…"; $("#freshPill").className = "pill warn";
@@ -1555,6 +1554,16 @@ async function loadAll() {
     return false;
   }
   return true;
+}
+// the large files (signals 2.7 MB, watchlist, bots) load after the first paint; the open view refreshes when they land
+let bgTimer = null;
+function rerenderSoon() { clearTimeout(bgTimer); bgTimer = setTimeout(() => { try {
+  const v = (location.hash.slice(1) || "overview").split("/")[0];
+  if (!["overview", "signals", "pair", "watchlist", "bot", "highlights", "shortlist", "top50", "record", "library", "lab"].includes(v)) return;
+  const y = scrollY; show(location.hash.slice(1)); scrollTo(0, y); } catch (e) {} }, 60); }
+function loadBackground() {
+  [["signals", d => { S.sig = toObjs(d); S.sigLoaded = true; }], ["watch", d => { S.watch = toObjs(d); S.watchLoaded = true; }], ["bot", d => { S.bot = d; }]]
+    .forEach(([n, set]) => j("data/" + n + ".json").then(d => { set(d); rerenderSoon(); }, () => { if (n === "signals") S.sigLoaded = true; if (n === "watch") S.watchLoaded = true; rerenderSoon(); }));
 }
 async function h4Rows(sym, sub = "h4") {             // intraday chart data: h4 (4-hour) or h1 (1-hour)
   S.ix = S.ix || {}; S.ish = S.ish || {};
@@ -3129,6 +3138,7 @@ function wlSorted(rows) {
 }
 function renderWatch() {
   renderWatchStats();
+  if (!S.watchLoaded) { const c = $("#wlCards"); if (c) c.innerHTML = '<div class="empty">Loading the watchlist…</div>'; return; }
   S.scrMap = Object.fromEntries(S.scr.map(r => [r.symbol, r]));
   const last = S.ov && S.ov.last_date;
   // KPIs
@@ -3211,7 +3221,7 @@ function renderSignals() {
   const rows = S.sig.filter(s => s.tf === S.sigTf && (!S.sigType || s.signal === S.sigType) && (!S.sigDir || s.direction === S.sigDir) && (!S.sigConf || s.confirmed) && (!S.sigProvenOnly || sigProven(sigStat(s))));
   $("#sigCount").textContent = rows.length + " events";
   const b = $("#sigBody"); b.replaceChildren(); const frag = document.createDocumentFragment(); rows.slice(0, 2500).forEach(s => frag.append(sigRow(s, true))); b.append(frag);
-  if (!rows.length) b.innerHTML = '<tr><td colspan="8" class="empty">No events for this selection.</td></tr>';
+  if (!rows.length) b.innerHTML = S.sigLoaded ? '<tr><td colspan="8" class="empty">No events for this selection.</td></tr>' : '<tr><td colspan="8" class="empty">Loading signals…</td></tr>';
 }
 function renderListings() {
   const L = toObjs(S.lst.listings), last = S.ov.last_date, uni = new Set(S.scr.map(r => r.symbol));
@@ -4388,7 +4398,7 @@ addEventListener("resize", navFade);
     $("#freshPill").style.cursor = "pointer"; $("#freshPill").onclick = () => location.reload();
     const probe = setInterval(async () => { try { const r = await fetch("data/overview.json", { cache: "no-store" }); if (r.ok) { clearInterval(probe); $("#freshText").textContent = "Connection back · tap to refresh"; $("#freshPill").className = "pill ok"; } } catch (e) {} }, 20000);
   }
-  navFade(); setTimeout(navFade, 500); initStocks();
+  navFade(); setTimeout(navFade, 500); initStocks(); loadBackground();
   if ("serviceWorker" in navigator && isSecureContext) navigator.serviceWorker.register("sw.js").catch(() => {}); initScreenerControls(); if (S.pubSL) $("#hlNavSL").hidden = false; initShortlist(); show(location.hash.slice(1)); authInit(); })();
 })();
 </script>
