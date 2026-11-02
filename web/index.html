@@ -2010,7 +2010,7 @@ function hsRows(body, f) {
       td(fPx(x.neck) + " (" + fPct(x.to_neck_pct, 1) + ")", "num"), td(fPx(x.target) + " (" + fPct(x.to_target_pct, 1) + ")", "num " + cls(x.to_target_pct)), td(fPx(x.stop), "num"),
       td((P.ls ? P.ls[0].slice(5) + " → " + P.head[0].slice(5) + " → " + P.rs[0].slice(5) : "") + " · " + x.days + "d", ""),
       td((x.break_date ? x.break_date.slice(5) : "—") + (x.retest_date ? " / " + x.retest_date.slice(5) : ""), "num"),
-      h ? td(fPct(h.med30, 1) + " · " + h.win30 + "% · " + fPct(h.rel30, 1) + " vs mkt", "num " + cls(h.med30)) : td("—", "cold"), td("#" + x.liq_rank, "num")); frag.append(t); });
+      h ? td(fPct(h.med30, 1) + " · " + h.win30 + "% · " + fPct(h.rel30, 1) + " vs mkt", "num " + cls(isNum(h.rel30) ? h.rel30 : h.med30), "Coloured by the result against the market (the fair test), not the raw move") : td("—", "cold"), td("#" + x.liq_rank, "num")); frag.append(t); });
   el.append(frag);
   if (!rows.length) el.innerHTML = '<tr><td colspan="11" class="empty">No pattern matches this filter right now.</td></tr>';
 }
@@ -2449,7 +2449,7 @@ function renderPtTable(name, rows) {
       td(fPx(x.line) + " (" + fPct(x.to_line_pct, 1) + ")", "num"), td(fPx(x.target) + " (" + fPct(x.to_target_pct, 1) + ")", "num " + cls(x.to_target_pct)), td(fPx(x.stop), "num"),
       td((P.a ? P.a[0].slice(2) + " → " + P.z[0].slice(2) : "") + " · " + fN(x.height_pct, 0) + "%", ""),
       td((x.break_date ? x.break_date.slice(2) : "—") + (x.retest_date ? " / " + x.retest_date.slice(2) : ""), "num"),
-      h && isNum(h.med) ? td(fPct(h.med, 1) + " · beat " + h.beat + "% · target " + (isNum(h.target) ? h.target + "%" : "—"), "num " + cls(h.med)) : td("—", "cold"), td("#" + x.liq_rank, "num")); frag.append(t); });
+      h && isNum(h.med) ? td(fPct(h.med, 1) + (isNum(h.rel) ? " · " + fPct(h.rel, 1) + " vs mkt" : "") + " · beat " + h.beat + "% · target " + (isNum(h.target) ? h.target + "%" : "—"), "num " + cls(isNum(h.rel) ? h.rel : h.med), "Coloured by the result against the market (the fair test), not the raw move") : td("—", "cold"), td("#" + x.liq_rank, "num")); frag.append(t); });
   body.append(frag);
   if (!rows.length) body.innerHTML = '<tr><td colspan="12" class="empty">No pattern matches this filter right now.</td></tr>';
   const n = $("#ptNote-" + name); if (n) n.textContent = `${rows.length} listed · ${D.scanned || 0} pairs scanned`;
