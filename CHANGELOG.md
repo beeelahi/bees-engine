@@ -144,6 +144,8 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
   the exact row you clicked, scrolled into view and briefly highlighted.
 - The site header shows the latest 15-minute refresh instead of the daily rebuild time.
 - Deployment also ships `picks/`; parts missing from older releases are skipped on rollback.
+### Security
+- Data fetchers (daily check, 4 Nov): a URL that could add options to curl's stdin config (a quote, backslash or line break), or that is not http(s), is refused; curl may only follow http(s) redirects. A guard: no URL today carries outside text unescaped.
 
 ## [1.0.0] - 2026-10-26
 
