@@ -327,7 +327,8 @@ def global_history(con, log=print):
 
 def sector_stats(rows, cols):
     """Each sector's market cap and its moves (the change in its total market cap, and the median coin), BTC and ETH left out so
-    they don't swamp Layer 1. Leaders = the sector's best 7-day movers among coins worth $50M+."""
+    they don't swamp Layer 1. Leaders = the sector's best 7-day movers among coins worth $50M+. Coins CMC shows with no 24h volume
+    count in the sector's size but not in its moves: their change figures are stale or broken (DAR Open Network at +72,178% in 24h)."""
     ix = {c: i for i, c in enumerate(cols)}
     by = {}
     for r in rows:
@@ -335,8 +336,9 @@ def sector_stats(rows, cols):
             continue
         by.setdefault(r[ix["sector"]], []).append(r)
     out = []
-    for sec, rs in by.items():
-        cap = sum(r[ix["mcap"]] for r in rs)
+    for sec, every in by.items():
+        cap = sum(r[ix["mcap"]] for r in every)
+        rs = [r for r in every if r[ix["vol24"]]]          # traded coins only from here on
 
         def w(k):                              # change in the sector's total market cap (each coin weighted by its size at the
             xs = [(r[ix["mcap"]], r[ix[k]]) for r in rs if r[ix[k]] is not None and r[ix[k]] > -100]   # start, so a new coin up
@@ -348,7 +350,7 @@ def sector_stats(rows, cols):
             return xs[len(xs) // 2] if xs else None
         up7 = [r for r in rs if r[ix["ch7"]] is not None]
         lead = sorted((r for r in up7 if r[ix["mcap"]] >= 5e7), key=lambda r: -r[ix["ch7"]])[:3]
-        out.append({"sector": sec, "n": len(rs), "mcap": cap, "ch24": w("ch24"), "ch7": w("ch7"), "ch30": w("ch30"),
+        out.append({"sector": sec, "n": len(every), "mcap": cap, "ch24": w("ch24"), "ch7": w("ch7"), "ch30": w("ch30"),
                     "med7": med("ch7"), "med30": med("ch30"), "up7_pct": 100 * sum(1 for r in up7 if r[ix["ch7"]] > 0) / len(up7) if up7 else None,
                     "leaders": [[r[ix["symbol"]], r[ix["ch7"]], r[ix["pair"]]] for r in lead]})
     return sorted(out, key=lambda x: -x["mcap"])
