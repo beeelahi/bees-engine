@@ -344,7 +344,8 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .lab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 16px; }
 .lab-box { display: grid; gap: 8px; align-content: start; min-width: 0; }
 #labConds { display: grid; gap: 8px; }
-.lab-row { display: flex; align-items: center; gap: 10px; justify-content: space-between; flex-wrap: wrap; }
+.lab-row { display: flex; align-items: center; gap: 10px; justify-content: space-between; flex-wrap: wrap; min-width: 0; }
+.lab-row > select, .lab-row > input { max-width: 100%; }
 .lab-row label { color: var(--muted); font-size: 13px; }
 .lab-cond { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1.3fr) auto; gap: 6px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 10px; }
 .lab-cond select, .lab-cond input { min-width: 0; width: 100%; }
