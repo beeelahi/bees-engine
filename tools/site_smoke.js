@@ -1,5 +1,5 @@
 // Browser smoke test of the dashboard (CI): opens every tab, section and chart view of a synthetic data package
-// (tools/site_smoke_data.py) on a desktop and a phone screen, and fails on any JavaScript error, an empty view,
+// (tools/site_smoke_data.py) on a desktop, a phone and a small (320px) phone screen, and fails on any JavaScript error, an empty view,
 // or a page wider than the screen.   node tools/site_smoke.js SITE_DIR
 // The same check against the live site (daily, from the private ops repository):  node tools/site_smoke.js https://beesells.xyz/
 const http = require("http"), fs = require("fs"), path = require("path");
@@ -18,7 +18,7 @@ const ROUTES = ["overview", "world", "coins", "highlights", "highlights/setups",
   if (!LIVE) await new Promise(ok => server.listen(0, "127.0.0.1", ok));
   const base = LIVE ? arg.replace(/\/?$/, "/") + "?smoke=" + Date.now() : "http://127.0.0.1:" + server.address().port + "/";
   const b = await chromium.launch(); const fails = [];
-  for (const vp of [{ width: 1300, height: 900, n: "desktop" }, { width: 390, height: 844, n: "phone" }]) {
+  for (const vp of [{ width: 1300, height: 900, n: "desktop" }, { width: 390, height: 844, n: "phone" }, { width: 320, height: 640, n: "phone320" }]) {
     const p = await b.newPage({ viewport: vp }); let errs = [];
     p.on("pageerror", e => errs.push("pageerror: " + e.message));
     p.on("console", m => { if (m.type() === "error" && !/Failed to load resource/.test(m.text())) errs.push("console: " + m.text()); });
