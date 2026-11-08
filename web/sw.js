@@ -17,7 +17,7 @@ self.addEventListener("fetch", e => {
     const c = await caches.open(SHELL);
     try {
       const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 8000);
-      const n = await fetch(r, { cache: "no-store", signal: ctl.signal });
+      const n = await fetch(r, { cache: "no-cache", signal: ctl.signal });   // revalidate: an unchanged page comes back as a tiny 304
       clearTimeout(t);
       if (n.ok) await c.put("/", n.clone());
       return n;
