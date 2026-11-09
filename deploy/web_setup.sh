@@ -48,7 +48,20 @@ EOF
 sudo -n systemctl daemon-reload
 sudo -n systemctl enable --now bees-web-sync.timer >/dev/null
 
-echo "4/5 Caddy config (HTTPS for $DOMAIN, www redirects to it, a local check on 127.0.0.1:8088)"
+echo "4/5 Caddy config"
+# Ask for the HTTPS certificate only once the domain points here: failed tries count against Let's Encrypt's
+# limits (about 5 an hour) and would delay the certificate after the switch.
+MYIP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk "{for(i=1;i<=NF;i++) if(\$i==\"src\") print \$(i+1)}")
+sudo -n resolvectl flush-caches 2>/dev/null || true
+DNSIP=$(getent ahostsv4 "$DOMAIN" | awk 'NR==1{print $1}')
+if [ -n "$MYIP" ] && [ "$DNSIP" = "$MYIP" ]; then
+  echo "   $DOMAIN points here ($MYIP): HTTPS on"
+  PUBLIC=1
+else
+  echo "   $DOMAIN points to ${DNSIP:-nothing}, this server is ${MYIP:-unknown}: HTTPS waits (run web-setup again after the DNS change)"
+  PUBLIC=0
+fi
+if [ "$PUBLIC" = 1 ]; then
 sudo -n tee /etc/caddy/Caddyfile >/dev/null <<EOF
 {
 	acme_ca https://acme-v02.api.letsencrypt.org/directory
@@ -79,6 +92,14 @@ http://127.0.0.1:8088 {
 	file_server
 }
 EOF
+else
+sudo -n tee /etc/caddy/Caddyfile >/dev/null <<EOF
+http://127.0.0.1:8088 {
+	root * $WEB
+	file_server
+}
+EOF
+fi
 sudo -n caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile 2>&1 | tail -1
 sudo -n systemctl enable caddy >/dev/null 2>&1 || true
 sudo -n systemctl restart caddy
