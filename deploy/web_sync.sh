@@ -6,4 +6,5 @@ S=/home/bees/BinanceData/site_build
 W=/var/www/beesells
 [ -f "$S/index.html" ] && [ -f "$S/data/overview.json" ] || exit 0
 [ -d "$W" ] || exit 0
-rsync -a --delete --delay-updates --exclude '.git' --exclude '.git/' "$S/" "$W/"
+# public copy: world-readable so the web server (its own user) can read it; it holds only the public site
+rsync -rlt --delete --delay-updates --chmod=D755,F644 --exclude '.git' --exclude '.git/' "$S/" "$W/"

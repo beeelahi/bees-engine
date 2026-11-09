@@ -6,15 +6,19 @@
 # The copy is refreshed every minute by bees-web-sync.timer from ~/BinanceData/site_build.
 # Until DNS points beesells.xyz here, GitHub Pages keeps serving the site; Caddy just waits for its certificate.
 set -euo pipefail
+cd /
 ROOT=/home/bees/BinanceData
 WEB=/var/www/beesells
 DOMAIN=beesells.xyz
 
-echo "1/5 web server (Caddy, from the operating system's own packages)"
-if ! command -v caddy >/dev/null; then
-  sudo -n apt-get update -q >/dev/null
-  sudo -n DEBIAN_FRONTEND=noninteractive apt-get install -y -q caddy >/dev/null
+echo "1/5 web server (Caddy, current release from Caddy's official signed apt repository; security updates come with apt)"
+KEYRING=/usr/share/keyrings/caddy-stable-archive-keyring.gpg
+if [ ! -f /etc/apt/sources.list.d/caddy-stable.list ]; then
+  curl -fsSL https://dl.cloudsmith.io/public/caddy/stable/gpg.key | sudo -n gpg --batch --yes --dearmor -o "$KEYRING"
+  echo "deb [signed-by=$KEYRING] https://dl.cloudsmith.io/public/caddy/stable/deb/debian any-version main" | sudo -n tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null
 fi
+sudo -n apt-get update -q >/dev/null 2>&1
+sudo -n DEBIAN_FRONTEND=noninteractive apt-get install -y -q caddy >/dev/null 2>&1
 caddy version | head -1
 
 echo "2/5 public copy of the site: $WEB"
@@ -46,6 +50,9 @@ sudo -n systemctl enable --now bees-web-sync.timer >/dev/null
 
 echo "4/5 Caddy config (HTTPS for $DOMAIN, www redirects to it, a local check on 127.0.0.1:8088)"
 sudo -n tee /etc/caddy/Caddyfile >/dev/null <<EOF
+{
+	acme_ca https://acme-v02.api.letsencrypt.org/directory
+}
 $DOMAIN {
 	root * $WEB
 	encode zstd gzip
@@ -82,5 +89,5 @@ sudo -n ufw allow 80/tcp >/dev/null
 sudo -n ufw allow 443/tcp >/dev/null
 sudo -n ufw status | grep -E "^(22|80|443)" || true
 
-echo "check: $(curl -s -o /dev/null -w 'local site HTTP %{http_code}' http://127.0.0.1:8088/)"
+echo "check: $(curl -s -o /dev/null -w 'local site HTTP %{http_code}' http://127.0.0.1:8088/) | $(ls -ld "$WEB" "$WEB/index.html" 2>&1 | awk '{print $1, $NF}' | tr '\n' ' ')"
 echo "done. Next: point $DOMAIN (A record) to this server; Caddy then gets the HTTPS certificate by itself."
