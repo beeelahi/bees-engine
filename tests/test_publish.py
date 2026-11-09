@@ -53,6 +53,21 @@ class PublishTest(unittest.TestCase):
         self.assertTrue(P.run(q))                                  # full publish squashes history
         self.assertEqual(len(self.log()), 1)
 
+    def test_local_only_builds_and_pushes_nothing(self):
+        open(self.r + "/.publish_local_only", "w").close()          # site served from the server: no token needed
+        q = lambda *a: None
+        self.assertTrue(P.run(q))
+        self.assertEqual(self.log(), [])                           # nothing reached the remote
+        self.assertTrue(os.path.exists(self.r + "/site_build/index.html"))
+        self.assertTrue(os.path.exists(self.r + "/site_build/data/overview.json"))
+        open(self.r + "/web_export/prices.json", "w").write("{}")
+        self.assertTrue(P.run(q, light=True))                      # light refresh: the local copy updates
+        self.assertTrue(os.path.exists(self.r + "/site_build/data/prices.json"))
+        self.assertEqual(self.log(), [])
+        os.remove(self.r + "/.publish_local_only")                 # switched back: GitHub again
+        self.assertTrue(P.run(q))
+        self.assertEqual(len(self.log()), 1)
+
     def test_no_publish_switch(self):
         open(self.r + "/.no_publish", "w").close()
         self.assertFalse(P.run(lambda *a: None))

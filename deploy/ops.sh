@@ -30,6 +30,15 @@ case "$CMD" in
   mm-log)          sudo -n journalctl -u bees-mm --no-pager -n "$N" 2>/dev/null | scrub ;;
   mm-preflight)    python3 "$ROOT/bin/mm_preflight.py" 2>&1 | scrub ;;
   dns-check)       python3 "$ROOT/bin/dns_check.py" 2>&1 | scrub ;;
+  web-setup)       bash "$ROOT/deploy/web_setup.sh" 2>&1 | scrub ;;
+  web-status)
+    echo "caddy: $(systemctl is-active caddy 2>/dev/null) | copy timer: $(systemctl is-active bees-web-sync.timer 2>/dev/null) | publish: $([ -f "$ROOT/.publish_local_only" ] && echo 'this server only (GitHub Pages not updated)' || echo 'GitHub Pages')"
+    echo "local site: $(curl -s -o /dev/null -w 'HTTP %{http_code}' http://127.0.0.1:8088/ 2>/dev/null); data built $(python3 -c 'import json; print(json.load(open("/var/www/beesells/data/overview.json")).get("generated_utc"))' 2>/dev/null || echo '?')"
+    echo "public https: $(curl -s -o /dev/null -w 'HTTP %{http_code}' --max-time 15 --resolve beesells.xyz:443:127.0.0.1 https://beesells.xyz/ 2>/dev/null || echo 'no certificate yet')"
+    sudo -n journalctl -u caddy --no-pager -n 400 2>/dev/null | grep -iE "certificate obtained|obtain|error" | tail -n 6 | cut -c1-260 | scrub
+    ;;
+  publish-local)   touch "$ROOT/.publish_local_only" && echo "publish: this server only (GitHub Pages will no longer be updated)" ;;
+  publish-github)  rm -f "$ROOT/.publish_local_only" && echo "publish: GitHub Pages again" ;;
   world-probe)     python3 "$ROOT/bin/world_markets.py" --probe 2>&1 | scrub ;;
   world-refresh)   python3 "$ROOT/bin/world_markets.py" 2>&1 | tail -n "$N" | scrub ;;
   live-drill)      python3 "$ROOT/bin/live_engine.py" --testnet-drill 2>&1 | scrub ;;   # Binance TESTNET only (fake money)
@@ -91,5 +100,5 @@ case "$CMD" in
   bee-tune-stop)   pf="$ROOT/logs/bee_tune.pid"; if [ -f "$pf" ] && kill -- -"$(cat "$pf")" 2>/dev/null; then echo "MM-Bee tuning study stopped"; else echo "no MM-Bee tuning study running"; fi; rm -f "$pf" ;;
   bee-tune-log)    tail -n "$N" "$ROOT/logs/bee_tune.txt" 2>/dev/null || echo "no MM-Bee tuning output yet" ;;
   bee-study-log)   tail -n "$N" "$ROOT/logs/bee_study.txt" 2>/dev/null || echo "no MM-Bee study output yet" ;;
-  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status"; exit 2 ;;
+  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status web-setup web-status publish-local publish-github"; exit 2 ;;
 esac

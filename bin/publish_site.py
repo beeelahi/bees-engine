@@ -271,8 +271,9 @@ def run(log=print, light=False):
     if not os.path.exists(os.path.join(EXPORT, "overview.json")) or not os.path.exists(PAGE):
         log("publish_site: data package or page missing, skipping")
         return False
-    token = read_token()
-    if not token and remote.startswith("https://"):
+    local_only = os.path.exists(os.path.join(ROOT, ".publish_local_only"))   # served from this server: build, push nowhere
+    token = None if local_only else read_token()
+    if not token and remote.startswith("https://") and not local_only:
         raise RuntimeError("publish_site: ~/BinanceData/.github_token is missing")
     env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
     ov = json.load(open(os.path.join(EXPORT, "overview.json")))
@@ -287,6 +288,10 @@ def run(log=print, light=False):
             return False                       # nothing changed since the last publish
         git(["-c", "user.name=Bee's Dashboard", "-c", "user.email=dashboard@localhost", "commit", "-q", "-m",
              f"Refresh {stamp}: {n} file(s) - {data_msg}"], BUILD, env)
+        if local_only:
+            _status(repo, domain, ov, stamp, None)
+            log(f"publish_site: refreshed {n} file(s) locally (served from this server)")
+            return True
         try:
             _push(remote, branch, token, env, force=False)
             log(f"publish_site: refreshed {n} file(s) on {repo}")
@@ -295,7 +300,7 @@ def run(log=print, light=False):
         except RuntimeError as e:              # the site changed elsewhere or the history is gone: rebuild fully
             log(f"publish_site: light refresh rejected ({str(e)[:120]}), doing a full publish")
 
-    expires = token_expiry(token, repo) if token else None
+    expires = token_expiry(token, repo) if token and not local_only else None
     shutil.rmtree(BUILD, ignore_errors=True)
     shutil.copytree(EXPORT, os.path.join(BUILD, "data"), ignore=shutil.ignore_patterns("*.tmp"))
     _write_static(cfg, domain)
@@ -303,6 +308,10 @@ def run(log=print, light=False):
     git(["checkout", "-q", "-b", branch], BUILD, env)
     git(["add", "-A"], BUILD, env)
     git(["-c", "user.name=Bee's Dashboard", "-c", "user.email=dashboard@localhost", "commit", "-q", "-m", data_msg], BUILD, env)
+    if local_only:
+        _status(repo, domain, ov, stamp, expires)
+        log(f"publish_site: built locally ({data_msg}), served from this server" + (f" at https://{domain}" if domain else ""))
+        return True
     _push(remote, branch, token, env, force=True)
     _status(repo, domain, ov, stamp, expires)
     log(f"publish_site: pushed to {repo} ({data_msg})" + (f" -> https://{domain}" if domain else ""))
