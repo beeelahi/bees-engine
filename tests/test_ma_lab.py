@@ -118,10 +118,12 @@ class RunTest(unittest.TestCase):
         self.assertIn("ETH", r["picks_missing"])
         btc = next(c for c in r["coins"] if c["symbol"] == "BTCUSDT")
         self.assertTrue(btc["pick"])
-        self.assertEqual(len(btc["tf"]["1d"]["state"]), 3)
         b = btc["tf"]["1d"]["best"]
         self.assertEqual(len(b), 3)                                         # its own three, with evidence and today's position
-        self.assertEqual(len(b[0]), 13)
+        self.assertEqual(len(b[0]), 17)
+        self.assertIn("fresh", r)
+        cr = b[0][16]
+        self.assertTrue(cr is None or (cr[1] in (1, -1) and cr[0] >= 0))
         ns = sorted(int("".join(ch for ch in x[0] if ch.isdigit())) for x in b)
         self.assertTrue(all(ns[k + 1] / ns[k] >= 1.5 for k in range(2)))   # fast / medium / slow
         self.assertIsInstance(b[0][7], bool)

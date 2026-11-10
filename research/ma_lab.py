@@ -59,6 +59,7 @@ TF = {   # bars a year, test window (days), check window (days before the test),
     "4h": {"bars_y": 2190.0, "test_d": 365, "check_d": 730, "H": 18, "label": "4-hour", "use": "for trading ideas"},
 }
 TOUCH, HOLD_ATR, BREAK_ATR, COST = 0.25, 1.5, 0.5, 0.001
+FRESH = {"1w": 1, "1d": 1, "4h": 2}   # a cross counts as fresh within this many candles after the crossing candle
 MIN_TESTS = {"1w": 60, "1d": 300, "4h": 600}
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -253,8 +254,12 @@ def analyse(bars, tf, now):
                           "last": (days[last[0]], "support" if last[1] > 0 else "resistance", last[2]) if last and w == "test" else None}
             if m[-1] is not None and a[-1]:
                 k = len(c) - 1
+                side, jj = c[k] > m[k], k                      # when did price last cross it? candles since, direction, day
+                while jj > 0 and m[jj - 1] is not None and (c[jj - 1] > m[jj - 1]) == side:
+                    jj -= 1
+                cross = [k - jj, 1 if side else -1, days[jj]] if jj > 0 and m[jj - 1] is not None else None
                 row["now"] = {"ma": m[k], "dist": 100 * (c[k] / m[k] - 1), "atr_dist": (c[k] - m[k]) / a[k],
-                              "slope": 100 * (m[k] / m[k - 5] - 1) if k >= 5 and m[k - 5] else None}
+                              "slope": 100 * (m[k] / m[k - 5] - 1) if k >= 5 and m[k - 5] else None, "cross": cross}
             res[f"{kind}{n}"] = row
     return res, {"close": c[-1] if c else None, "last_bar": days[-1] if days else None, "bars": len(c)}
 
@@ -336,17 +341,18 @@ def universe(con, now):
     for p in PICKS:
         s = p + "USDT"
         (picks if s in allsyms and con.execute("SELECT 1 FROM daily WHERE symbol=? LIMIT 1", (s,)).fetchone() else missing).append(s if s in allsyms else p)
-    order = picks + [s for s in top if s not in picks]
+    core = picks + [s for s in top if s not in picks]            # the cross-coin ranking: picks + the 100 most traded
+    order = core + [s for s in ranked if s not in core]           # each pair's own averages: every pair on the dashboard
     rank = {s: i + 1 for i, s in enumerate(ranked)}
-    return order, set(picks), missing, rank
+    return order, set(core), set(picks), missing, rank
 
 
 def main(db, out_path, log=print):
     t_start = time.time()
     now = datetime.now(timezone.utc)
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=120)
-    syms, picks, missing, liq = universe(con, now)
-    log(f"ma lab: {len(syms)} coins ({len(picks)} picks, {len(syms) - len(picks)} from the top {TOP_N}); picks without data: {missing or 'none'}")
+    syms, core, picks, missing, liq = universe(con, now)
+    log(f"ma lab: {len(syms)} pairs; ranking across coins on {len(core)} ({len(picks)} picks + the top {TOP_N}); picks without data: {missing or 'none'}")
     out = {"generated_utc": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "method": {
         "averages": [f"{k}{n}" for k in KINDS for n in LENGTHS], "touch_atr": TOUCH, "held_atr": HOLD_ATR, "break_atr": BREAK_ATR, "cost": COST,
         "windows": {tf: {"test_days": c["test_d"], "check_days": c["check_d"], "horizon_bars": c["H"]} for tf, c in TF.items()},
@@ -361,7 +367,8 @@ def main(db, out_path, log=print):
             per_coin[s], meta[s] = analyse(bars, tf, now)
         per_tf[tf] = (per_coin, meta)
         mas = out["method"]["averages"]
-        rows = [(ma, pool(per_coin, ma, "test"), pool(per_coin, ma, "check")) for ma in mas]
+        pc_core = {s: v for s, v in per_coin.items() if s in core}
+        rows = [(ma, pool(pc_core, ma, "test"), pool(pc_core, ma, "check")) for ma in mas]
         ranked = rank_pick(rows, MIN_TESTS[tf])
         best = top3(ranked)
         sc = {r["ma"]: r for r in ranked}
@@ -373,7 +380,7 @@ def main(db, out_path, log=print):
         table.sort(key=lambda x: (x["score"] is None, -(x["score"] or 0)))
         t_ok = [r for r in table if r["test"]["tests"] >= MIN_TESTS[tf]]
         out["timeframes"][tf] = {"label": TF[tf]["label"], "use": TF[tf]["use"], "top3": [b["ma"] for b in best],
-                                 "confirmed": [b["ma"] for b in best if b["passes"]], "coins": len(per_coin), "table": table,
+                                 "confirmed": [b["ma"] for b in best if b["passes"]], "coins": len(pc_core), "pairs": len(per_coin), "table": table,
                                  "verdict": {"ranked": len(t_ok), "passed": sum(1 for r in t_ok if r["passes"]),
                                              "reaction_positive": sum(1 for r in t_ok if (r["test"]["edge"] or 0) > 0),
                                              "best_edge": max((r["test"]["edge"] for r in t_ok if r["test"]["edge"] is not None), default=None)}}
@@ -381,7 +388,7 @@ def main(db, out_path, log=print):
             + "; ".join(f"{r['ma']} edge {r['test']['edge']} split {r['test']['split']} sharpe+ {r['test']['sharpe_adv']} tests {r['test']['tests']}"
                         for r in table[:5]) + f" ({time.time() - t_start:.0f}s)")
     for s in syms:
-        cdata = {"symbol": s, "pick": s in picks, "liq_rank": liq.get(s), "tf": {}}
+        cdata = {"symbol": s, "pick": s in picks, "core": s in core, "liq_rank": liq.get(s), "tf": {}}
         for tf in TF:
             per_coin, meta = per_tf[tf]
             if s not in per_coin:
@@ -402,14 +409,10 @@ def main(db, out_path, log=print):
                 ts = stats(tr)
                 best.append([x["ma"], ts["tests"], r2(ts["held_pct"], 0), r2(ts["edge"], 0), r2(ts["sharpe_adv"], 2), r2(ts["split"], 2),
                              r2(ck["split"], 2) if ck else None, bool(x["passes"]), r2(nw.get("ma"), 8), r2(nw.get("dist"), 2),
-                             r2(nw.get("atr_dist"), 2), r2(nw.get("slope"), 2), tr["last"]])
-            state = []
-            for ma in out["timeframes"][tf]["top3"]:
-                nw, tr = res.get(ma, {}).get("now"), res.get(ma, {}).get("test")
-                if nw:
-                    state.append([ma, r2(nw["ma"], 8), r2(nw["dist"], 2), r2(nw["atr_dist"], 2), r2(nw["slope"], 2), tr["last"] if tr else None])
-            cdata["tf"][tf] = {"best": best, "state": state, "close": meta[s]["close"], "last_bar": meta[s]["last_bar"],
-                               "check": any(r[2] for r in rows)}
+                             r2(nw.get("atr_dist"), 2), r2(nw.get("slope"), 2), tr["last"],
+                             r2(100 * tr["rs"], 1) if tr["rs"] is not None else None, r2(100 * tr["rh"], 1) if tr["rh"] is not None else None,
+                             r2(tr["swy"], 1), nw.get("cross")])
+            cdata["tf"][tf] = {"best": best, "close": meta[s]["close"], "last_bar": meta[s]["last_bar"], "check": any(r[2] for r in rows)}
         if cdata["tf"]:
             out["coins"].append(cdata)
     near = []                                                  # testing one of ITS OWN best averages right now (within 0.5 ATR)
@@ -419,6 +422,14 @@ def main(db, out_path, log=print):
                 if b[10] is not None and abs(b[10]) <= 0.5:
                     near.append([cd["symbol"], tf, b[0], b[9], b[10], b[11]])
     out["testing_now"] = sorted(near, key=lambda x: (x[1] != "4h", abs(x[4])))
+    fresh = []                                                 # closed through one of its own CONFIRMED averages just now
+    for cd in out["coins"]:
+        for tf, d in cd["tf"].items():
+            for i, b in enumerate(d["best"]):
+                cr = b[16]
+                if b[7] and cr and cr[0] <= FRESH[tf]:
+                    fresh.append([cd["symbol"], tf, b[0], i + 1, cr[1], cr[0], cr[2], b[9], cd["pick"]])
+    out["fresh"] = sorted(fresh, key=lambda x: (not x[8], {"1w": 0, "1d": 1, "4h": 2}[x[1]], x[5], x[3]))
     out["runtime_s"] = round(time.time() - t_start)
     con.close()
     tmp = out_path + ".tmp"

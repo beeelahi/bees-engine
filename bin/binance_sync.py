@@ -1007,12 +1007,25 @@ def main():
             light_publish = True
     except Exception as e:
         log.warning(f"Strategy lab skipped: {e}")
-    try:                                       # Moving averages page (Ideas): the MA lab once a day, about a minute, low priority
-        mp = os.path.join(ROOT, "web_export", "ma_lab.json")
-        if not os.path.exists(mp) or time.time() - os.path.getmtime(mp) > 20 * 3600:
-            r_ = subprocess.run(["nice", "-n", "15", sys.executable, os.path.join(ROOT, "research", "ma_lab.py")], capture_output=True, text=True, timeout=900)
-            log.info("MA lab: " + (r_.stdout.strip().splitlines() or ["no output"])[-1][:160])
-            light_publish = True
+    try:                                       # Moving averages page (Ideas): the MA lab once a day, every pair, low priority,
+        mp = os.path.join(ROOT, "web_export", "ma_lab.json")     # in the background (several minutes) so the sync is not held up
+        lp, sp_ = os.path.join(ROOT, "logs", "ma_lab.launch"), os.path.join(ROOT, "logs", "ma_lab.seen")
+        os.makedirs(os.path.dirname(lp), exist_ok=True)
+        age = time.time() - os.path.getmtime(mp) if os.path.exists(mp) else 1e9
+        launched = time.time() - os.path.getmtime(lp) if os.path.exists(lp) else 1e9
+        if age > 20 * 3600 and launched > 3600:            # one run at a time: a run started within the hour is still going
+            with open(lp, "w") as f_:
+                f_.write(str(int(time.time())))
+            with open(os.path.join(ROOT, "logs", "ma_lab.txt"), "w") as lf:
+                subprocess.Popen(["nice", "-n", "15", sys.executable, os.path.join(ROOT, "research", "ma_lab.py")], stdout=lf,
+                                 stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, start_new_session=True, close_fds=True)
+            log.info("MA lab: started in the background")
+        if os.path.exists(mp):                             # a finished run goes out with the next publish
+            seen = open(sp_).read().strip() if os.path.exists(sp_) else ""
+            if seen != str(int(os.path.getmtime(mp))):
+                with open(sp_, "w") as f_:
+                    f_.write(str(int(os.path.getmtime(mp))))
+                light_publish = True
     except Exception as e:
         log.warning(f"MA lab skipped: {e}")
     try:                                       # coin library: CMC top 1,000, exchange mapping, market totals (every 3h)
