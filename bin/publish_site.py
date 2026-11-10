@@ -12,7 +12,7 @@ A full publish (after each daily rebuild) replaces the repository's content with
 repository stays the size of one data package. Between full publishes, the 15-minute refresh adds small commits
 with only the files that changed (prices, 4h charts, alerts data); the next full publish squashes them away.
 """
-import base64, hashlib, json, os, re, shutil, stat, subprocess, sys, urllib.request
+import base64, hashlib, json, os, re, shutil, stat, subprocess, sys, time, urllib.request
 from datetime import datetime, timezone
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -267,11 +267,16 @@ def run(log=print, light=False):
         return False
     cfg = json.load(open(CFG))
     repo, branch, domain = cfg["repo"], cfg.get("branch", "main"), cfg.get("domain")
+    local_only = os.path.exists(os.path.join(ROOT, ".publish_local_only"))   # served from this server: build, push nowhere
+    if light and not local_only:                     # GitHub gets a light refresh at most every LIGHT_MIN_S (30 minutes);
+        last = _last_push()                          # the changes wait and go together in the next one
+        if last is not None and time.time() - last < LIGHT_MIN_S:
+            log(f"publish_site: light refresh held ({int((time.time() - last) / 60)} min since the last push; at most every 30 min)")
+            return False
     remote = cfg.get("remote_url") or f"https://github.com/{repo}.git"
     if not os.path.exists(os.path.join(EXPORT, "overview.json")) or not os.path.exists(PAGE):
         log("publish_site: data package or page missing, skipping")
         return False
-    local_only = os.path.exists(os.path.join(ROOT, ".publish_local_only"))   # served from this server: build, push nowhere
     token = None if local_only else read_token()
     if not token and remote.startswith("https://") and not local_only:
         raise RuntimeError("publish_site: ~/BinanceData/.github_token is missing")
@@ -316,6 +321,19 @@ def run(log=print, light=False):
     _status(repo, domain, ov, stamp, expires)
     log(f"publish_site: pushed to {repo} ({data_msg})" + (f" -> https://{domain}" if domain else ""))
     return True
+
+
+LIGHT_MIN_S = 25 * 60     # with the engine's 15-minute runs this gives a GitHub push every 30 minutes
+
+
+def _last_push():
+    """Unix time of the last push to GitHub (site_status.json), or None."""
+    try:
+        with open(os.path.join(ROOT, "site_status.json")) as f:
+            s = json.load(f).get("published_utc")
+        return datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).timestamp() if s else None
+    except (OSError, ValueError, TypeError):
+        return None
 
 
 def _status(repo, domain, ov, stamp, expires):

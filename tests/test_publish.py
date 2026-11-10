@@ -41,6 +41,8 @@ class PublishTest(unittest.TestCase):
 
     def test_full_then_light(self):
         q = lambda *a: None
+        P.LIGHT_MIN_S, saved = 0, P.LIGHT_MIN_S
+        self.addCleanup(setattr, P, "LIGHT_MIN_S", saved)
         self.assertTrue(P.run(q))
         self.assertFalse(P.run(q, light=True))                    # nothing changed
         open(self.r + "/web_export/prices.json", "w").write("{}")
@@ -67,6 +69,18 @@ class PublishTest(unittest.TestCase):
         os.remove(self.r + "/.publish_local_only")                 # switched back: GitHub again
         self.assertTrue(P.run(q))
         self.assertEqual(len(self.log()), 1)
+
+    def test_light_held_within_30_minutes(self):
+        q = lambda *a: None
+        self.assertTrue(P.run(q))                                  # full publish: always goes
+        open(self.r + "/web_export/prices.json", "w").write("{}")
+        self.assertFalse(P.run(q, light=True))                     # minutes later: held
+        self.assertEqual(len(self.log()), 1)
+        st = json.load(open(self.r + "/site_status.json"))
+        st["published_utc"] = "2020-01-01T00:00:00Z"               # last push long ago: goes, with the held change
+        json.dump(st, open(self.r + "/site_status.json", "w"))
+        self.assertTrue(P.run(q, light=True))
+        self.assertIn("data/prices.json", self.files())
 
     def test_no_publish_switch(self):
         open(self.r + "/.no_publish", "w").close()

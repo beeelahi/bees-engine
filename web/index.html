@@ -5080,6 +5080,13 @@ addEventListener("resize", navFade);
     const probe = setInterval(async () => { try { const r = await fetch("data/overview.json", { cache: "no-store" }); if (r.ok) { clearInterval(probe); $("#freshText").textContent = "Connection back · tap to refresh"; $("#freshPill").className = "pill ok"; } } catch (e) {} }, 20000);
   }
   navFade(); setTimeout(navFade, 500); initStocks(); initOnchain(); loadBackground();
-  if ("serviceWorker" in navigator && isSecureContext) navigator.serviceWorker.register("sw.js").catch(() => {}); initScreenerControls(); if (S.pubSL) $("#hlNavSL").hidden = false; initShortlist(); show(location.hash.slice(1)); authInit(); })();
+  if ("serviceWorker" in navigator && isSecureContext) {
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(reg => reg.update()).catch(() => {});
+    navigator.serviceWorker.addEventListener("message", ev => {   // a newer page arrived after a saved copy was shown
+      if (!ev.data || ev.data.type !== "bee-shell-updated") return;
+      let done = false; try { done = sessionStorage.getItem("beeShellReload") === "1"; sessionStorage.setItem("beeShellReload", "1"); } catch (e) {}
+      if (!done) location.reload();                               // once per tab session, never a loop
+    });
+  } initScreenerControls(); if (S.pubSL) $("#hlNavSL").hidden = false; initShortlist(); show(location.hash.slice(1)); authInit(); })();
 })();
 </script>
