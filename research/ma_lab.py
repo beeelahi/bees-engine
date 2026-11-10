@@ -33,8 +33,9 @@ PASSES when its trend job works in the test window (split and Sharpe advantage b
 agrees on the split; passing averages are picked first (reaction is reported, not required: with a fair baseline, few
 averages beat chance as support or resistance); the three are spread fast / medium / slow (each at least 1.5x its neighbour's length, so
 they are not three copies of one line); a tie goes to the shorter average (it reacts faster).
-Per coin, the same ranking on that coin alone (at least 4 tests) gives its own best three, shown with where price
-stands against the timeframe's top three today.
+Per coin, the same ranking on that coin alone gives its OWN best three per timeframe (spread fast / medium / slow);
+"confirmed" when that coin's own earlier period agrees on the trend split. Each comes with its evidence and where price
+stands against it today. One coin's history is a small sample: an unconfirmed pick is only the best available.
 
 Output: web_export/ma_lab.json (the Moving averages page under Ideas). Research, not advice.
 """
@@ -386,32 +387,37 @@ def main(db, out_path, log=print):
             if s not in per_coin:
                 continue
             res = per_coin[s]
-            rows = [(ma, {"tests": r["test"]["tests"], "edge": 100 * (r["test"]["held"] - r["test"]["exp"]) / r["test"]["tests"] if r["test"]["tests"] else None,
-                          "held_pct": 100 * r["test"]["held"] / r["test"]["tests"] if r["test"]["tests"] else None,
-                          "sharpe_adv": (r["test"]["ss"] - r["test"]["sh"]) if r["test"]["ss"] is not None and r["test"]["sh"] is not None else None,
-                          "split": r["test"]["split"]}, None)
-                    for ma, r in res.items() if "test" in r]
-            own = top3(rank_pick(rows, 4, need_check=False))
-            own_rows = []
+            def stats(x):
+                if not x or not x.get("tests") and x.get("split") is None:
+                    return None
+                return {"tests": x["tests"], "edge": 100 * (x["held"] - x["exp"]) / x["tests"] if x["tests"] else None,
+                        "held_pct": 100 * x["held"] / x["tests"] if x["tests"] else None,
+                        "sharpe_adv": (x["ss"] - x["sh"]) if x["ss"] is not None and x["sh"] is not None else None, "split": x["split"]}
+            rows = [(ma, stats(r["test"]), stats(r.get("check"))) for ma, r in res.items() if "test" in r]
+            rows = [x for x in rows if x[1]]
+            own = top3(rank_pick(rows, 3, need_check=True))        # this coin alone; confirmed = its own earlier period agrees
+            best = []
             for x in own:
-                tr = res[x["ma"]]["test"]
-                own_rows.append([x["ma"], tr["tests"], r2(100 * tr["held"] / tr["tests"] if tr["tests"] else None, 0),
-                                 r2(100 * (tr["held"] - tr["exp"]) / tr["tests"] if tr["tests"] else None, 0),
-                                 r2(tr["ss"] - tr["sh"] if tr["ss"] is not None and tr["sh"] is not None else None, 2), r2(tr["split"], 2)])
+                tr, ck, nw = res[x["ma"]]["test"], stats(res[x["ma"]].get("check")), res[x["ma"]].get("now") or {}
+                ts = stats(tr)
+                best.append([x["ma"], ts["tests"], r2(ts["held_pct"], 0), r2(ts["edge"], 0), r2(ts["sharpe_adv"], 2), r2(ts["split"], 2),
+                             r2(ck["split"], 2) if ck else None, bool(x["passes"]), r2(nw.get("ma"), 8), r2(nw.get("dist"), 2),
+                             r2(nw.get("atr_dist"), 2), r2(nw.get("slope"), 2), tr["last"]])
             state = []
             for ma in out["timeframes"][tf]["top3"]:
                 nw, tr = res.get(ma, {}).get("now"), res.get(ma, {}).get("test")
                 if nw:
                     state.append([ma, r2(nw["ma"], 8), r2(nw["dist"], 2), r2(nw["atr_dist"], 2), r2(nw["slope"], 2), tr["last"] if tr else None])
-            cdata["tf"][tf] = {"best": own_rows, "state": state, "close": meta[s]["close"], "last_bar": meta[s]["last_bar"]}
+            cdata["tf"][tf] = {"best": best, "state": state, "close": meta[s]["close"], "last_bar": meta[s]["last_bar"],
+                               "check": any(r[2] for r in rows)}
         if cdata["tf"]:
             out["coins"].append(cdata)
-    near = []                                                  # testing a top-3 average right now (within 0.5 ATR)
+    near = []                                                  # testing one of ITS OWN best averages right now (within 0.5 ATR)
     for cd in out["coins"]:
         for tf, d in cd["tf"].items():
-            for ma, val, dist, ad, slope, last in d["state"]:
-                if ad is not None and abs(ad) <= 0.5:
-                    near.append([cd["symbol"], tf, ma, dist, ad, slope])
+            for b in d["best"]:
+                if b[10] is not None and abs(b[10]) <= 0.5:
+                    near.append([cd["symbol"], tf, b[0], b[9], b[10], b[11]])
     out["testing_now"] = sorted(near, key=lambda x: (x[1] != "4h", abs(x[4])))
     out["runtime_s"] = round(time.time() - t_start)
     con.close()

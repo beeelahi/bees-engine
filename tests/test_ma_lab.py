@@ -119,6 +119,12 @@ class RunTest(unittest.TestCase):
         btc = next(c for c in r["coins"] if c["symbol"] == "BTCUSDT")
         self.assertTrue(btc["pick"])
         self.assertEqual(len(btc["tf"]["1d"]["state"]), 3)
+        b = btc["tf"]["1d"]["best"]
+        self.assertEqual(len(b), 3)                                         # its own three, with evidence and today's position
+        self.assertEqual(len(b[0]), 13)
+        ns = sorted(int("".join(ch for ch in x[0] if ch.isdigit())) for x in b)
+        self.assertTrue(all(ns[k + 1] / ns[k] >= 1.5 for k in range(2)))   # fast / medium / slow
+        self.assertIsInstance(b[0][7], bool)
 
 
 class WeeksTest(unittest.TestCase):

@@ -74,7 +74,8 @@ h2 { font-size: 15px; margin: 0; font-weight: 600; text-wrap: balance; }
 .ma-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: rgba(4, 183, 248, 0.05); min-width: 0; }
 .ma-card .r { font-size: 11.5px; color: var(--muted); } .ma-card .n { font-size: 22px; font-weight: 700; margin: 2px 0 6px; }
 .ma-card dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; font-size: 12.5px; } .ma-card dt { color: var(--muted); } .ma-card dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
-.ma-tbl td.ma-c { white-space: nowrap; font-variant-numeric: tabular-nums; } .ma-tbl td .s { display: block; font-size: 11px; color: var(--muted); }
+.ma-tbl td.ma-c { white-space: nowrap; font-variant-numeric: tabular-nums; vertical-align: top; } .ma-tbl td.ma-c div { line-height: 1.5; }
+.ma-det { padding: 6px 2px 12px; } .ma-det-h { display: flex; gap: 10px; align-items: center; margin: 10px 0 6px; } .ma-det-h .toggle { font-size: 12px; padding: 4px 10px; } .ma-tbl td .s { display: block; font-size: 11px; color: var(--muted); }
 @media (max-width: 640px) { .ma-top { grid-template-columns: 1fr; } .ma-tbl .sm-hide, #maTf .sm-hide { display: none; } }
 .sec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
 .sec-tile { text-align: left; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: rgba(255,255,255,0.03); color: var(--fg); cursor: pointer; font: inherit; min-width: 0; }
@@ -1462,25 +1463,23 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
 
   <section class="view" id="v-ma" hidden>
     <div class="card">
-      <div class="card-head"><h2>Moving averages that work</h2><span class="note" id="maAsOf"></span></div>
+      <div class="card-head"><h2>Moving averages that work, pair by pair</h2><span class="note" id="maAsOf"></span></div>
       <p class="note" id="maLead" style="margin:0 0 12px"></p>
-      <div class="seg" id="maTf"><button type="button" data-v="1w" aria-pressed="false">Weekly<span class="sm-hide"> · views</span></button><button type="button" data-v="1d" aria-pressed="true">Daily<span class="sm-hide"> · trend</span></button><button type="button" data-v="4h" aria-pressed="false">4-hour<span class="sm-hide"> · trading ideas</span></button></div>
-      <div class="ma-top" id="maTop"></div>
-      <p class="note" id="maTopNote"></p>
-    </div>
-    <div class="card">
-      <div class="card-head"><h2 id="maCoinsH">Where each coin stands</h2><span class="note" id="maShown"></span></div>
       <div class="cn-ctl">
         <input class="search" id="maQ" type="search" placeholder="Search coin" aria-label="Search coin" autocomplete="off">
-        <div class="seg" id="maSet"><button type="button" data-v="picks" aria-pressed="true">My picks</button><button type="button" data-v="all" aria-pressed="false">Picks + top 100</button><button type="button" data-v="near" aria-pressed="false">Testing now</button></div>
+        <div class="seg" id="maSet"><button type="button" data-v="picks" aria-pressed="true">My picks</button><button type="button" data-v="all" aria-pressed="false">Picks + top 100</button><button type="button" data-v="near" aria-pressed="false">Testing one now</button></div>
+        <span class="note" id="maShown"></span>
       </div>
-      <div class="tbl-wrap"><table class="wl-tbl ma-tbl"><thead id="maHead"></thead><tbody id="maBody"></tbody></table></div>
-      <p class="note" style="margin-top:10px">Distance = close vs the average (in % and in ATRs, the coin's average daily range on that timeframe); the arrow is the average's slope over 5 candles. "Last test" = the last time price came back to that average in the test year, and what happened. "This coin's best" = the three averages that worked best on that coin alone (held rate of its tests in brackets; few tests mean little). Tap a coin to open its chart on this timeframe with these three averages drawn (the chart's "Best MAs" button).</p>
+      <div class="tbl-wrap"><table class="wl-tbl ma-tbl"><thead><tr><th>Coin</th><th>Weekly <span class="note">· views</span></th><th>Daily <span class="note">· trend</span></th><th>4-hour <span class="note">· trading ideas</span></th></tr></thead><tbody id="maBody"></tbody></table></div>
+      <p class="note" id="maKey" style="margin-top:10px"></p>
     </div>
     <div class="card">
-      <div class="card-head"><h2>All 34 averages, ranked</h2><span class="note" id="maRankNote"></span></div>
-      <div class="tbl-wrap"><table class="wl-tbl"><thead><tr><th class="num">#</th><th>Average</th><th class="num" title="Composite: trend split 40%, Sharpe vs holding 40%, reaction edge 20% (percentile among the 34)">Score</th><th class="num" title="Tests in the test window, pooled over all coins">Tests</th><th class="num" title="Held: price moved 1.5 ATR away before closing 0.5 ATR through">Held</th><th class="num" title="The same rule from any candle's close">By chance</th><th class="num" title="Held minus by chance, in points">Edge</th><th class="num" title="Long-or-flat (above the average) Sharpe minus holding's, median coin">Sharpe vs hold</th><th class="num sm-hide" title="Share of coins where long-or-flat beat holding risk-adjusted">Coins beaten</th><th class="num" title="Average forward return when above minus when below, median coin">Trend split</th><th class="num sm-hide">Switches / yr</th><th class="num" title="Edge in the earlier check period">Check edge</th><th class="num sm-hide" title="Trend split in the earlier check period">Check split</th><th title="Trend job works in the test window (split and Sharpe vs holding positive) and the check period agrees on the split">Passes</th></tr></thead><tbody id="maRank"></tbody></table></div>
-      <details style="margin-top:12px"><summary class="note">How this was tested</summary><div class="note" id="maMethod" style="margin-top:8px;line-height:1.55"></div></details>
+      <div class="card-head"><h2>Across all coins</h2><div class="seg" id="maTf"><button type="button" data-v="1w" aria-pressed="false">Weekly</button><button type="button" data-v="1d" aria-pressed="true">Daily</button><button type="button" data-v="4h" aria-pressed="false">4-hour</button></div></div>
+      <div class="ma-top" id="maTop"></div>
+      <p class="note" id="maTopNote"></p>
+      <details style="margin-top:8px"><summary class="note">All 34 averages ranked on this timeframe</summary>
+      <div class="tbl-wrap" style="margin-top:8px"><table class="wl-tbl"><thead><tr><th class="num">#</th><th>Average</th><th class="num" title="Composite: trend split 40%, Sharpe vs holding 40%, reaction edge 20% (percentile among the 34)">Score</th><th class="num" title="Tests in the test window, pooled over all coins">Tests</th><th class="num" title="Held: price moved 1.5 ATR away before closing 0.5 ATR through">Held</th><th class="num" title="The same rule from any candle's low (or high)">By chance</th><th class="num" title="Held minus by chance, in points">Edge</th><th class="num" title="Long-or-flat (above the average) Sharpe minus holding's, median coin">Sharpe vs hold</th><th class="num sm-hide" title="Share of coins where long-or-flat beat holding risk-adjusted">Coins beaten</th><th class="num" title="Average forward return when above minus when below, median coin">Trend split</th><th class="num sm-hide">Switches / yr</th><th class="num" title="Edge in the earlier check period">Check edge</th><th class="num sm-hide" title="Trend split in the earlier check period">Check split</th><th title="Trend job works in the test window (split and Sharpe vs holding positive) and the check period agrees on the split">Passes</th></tr></thead><tbody id="maRank"></tbody></table></div></details>
+      <details style="margin-top:8px"><summary class="note">How this was tested</summary><div class="note" id="maMethod" style="margin-top:8px;line-height:1.55"></div></details>
     </div>
   </section>
 
@@ -1555,7 +1554,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <button class="star" id="pairStar" type="button" aria-pressed="false" hidden>☆ Add to my coins</button>
       <div class="seg" id="pairTf"><button type="button" data-tf="1h" aria-pressed="false">1H</button><button type="button" data-tf="4h" aria-pressed="false">4H</button><button type="button" data-tf="1d" aria-pressed="true">Daily</button><button type="button" data-tf="1w" aria-pressed="false">Weekly</button><button type="button" data-tf="1M" aria-pressed="false">Monthly</button></div>
       <button class="toggle" type="button" data-o="ema" aria-pressed="true">EMA 21/50/200</button>
-      <button class="toggle" type="button" data-o="lab" aria-pressed="false" title="The three averages that tested best on this timeframe (Ideas › Moving averages)">Best MAs</button>
+      <button class="toggle" type="button" data-o="lab" aria-pressed="false" title="This pair's own three best-tested averages on this timeframe (Ideas › Moving averages)">Best MAs</button>
       <button class="toggle" type="button" data-o="bb" aria-pressed="false">Bollinger</button>
       <button class="toggle" type="button" data-o="st" aria-pressed="false">Supertrend</button>
       <button class="toggle" type="button" data-o="cloud" aria-pressed="false">Ichimoku cloud</button>
@@ -4183,7 +4182,9 @@ function renderRead(r) {
 const LAB_COL = ["#f472b6", "#a3e635", "#fde047"];   // distinct from the EMA 21/50/200 lines
 function labTop() {                       // undefined = still loading; [] = no study for this timeframe
   if (S.ma === undefined) { if (!maLoading) maLoading = j("data/ma_lab.json").then(d => { S.ma = d; }, () => { S.ma = null; }).then(() => { maLoading = null; if (!$("#v-pair").hidden) renderPair(); }); return undefined; }
-  const T = S.ma && S.ma.timeframes && S.ma.timeframes[S.pairTf]; return T ? T.top3 : [];
+  const c = S.ma && (S.ma.coins || []).find(x => x.symbol === S.pair), d = c && c.tf[S.pairTf];
+  if (d && d.best.length) { S.labOwn = true; return d.best.map(b => b[0]); }
+  S.labOwn = false; const T = S.ma && S.ma.timeframes && S.ma.timeframes[S.pairTf]; return T ? T.top3 : [];
 }
 function labMAs(chart, rows, ci, pf) {
   const L = labTop(); if (!L || !L.length) return;
@@ -4201,71 +4202,99 @@ function labMAs(chart, rows, ci, pf) {
 
 // ---------- moving-average lab (data/ma_lab.json, research/ma_lab.py)
 let maLoading = null;
+const MA_TFS = [["1w", "weekly"], ["1d", "daily"], ["4h", "4-hour"]], maName = m => m.replace(/(\d+)/, " $1");
+// best rows: [ma, tests, held%, edge, sharpe_adv, split, check_split, confirmed, value, dist%, atr_dist, slope%, last]
+function maTip(b) {
+  const lt = b[12] ? `last test ${b[12][0]}: ${b[12][1]} ${b[12][2]}` : "no test in the test window";
+  return `${maName(b[0])} at ${fPx(b[8])}; close ${fPct(b[9], 2)} from it (${isNum(b[10]) ? b[10].toFixed(1) : "—"} ATR), slope ${fPct(b[11], 2)} over 5 candles\n` +
+    `Above it vs below: next candles ${fPct(b[5], 2)}; long-above-it vs holding: ${isNum(b[4]) ? (b[4] > 0 ? "+" : "") + b[4].toFixed(2) : "—"} Sharpe\n` +
+    `Held ${isNum(b[2]) ? b[2] + "%" : "—"} of ${b[1]} tests (vs chance ${isNum(b[3]) ? (b[3] > 0 ? "+" : "") + b[3] + " pts" : "—"}); earlier period split ${fPct(b[6], 2)}; ${b[7] ? "confirmed" : "not confirmed"}; ${lt}`;
+}
+function maCell(d) {
+  const cell = document.createElement("td"); cell.className = "ma-c";
+  if (!d || !d.best.length) { cell.textContent = d ? "too little history" : "—"; cell.classList.add("cold"); return cell; }
+  const up = d.best.filter(b => isNum(b[9]) && b[9] > 0).length, hd = document.createElement("span");
+  hd.className = "s " + (up === d.best.length ? "up" : up === 0 ? "down" : "warn"); hd.textContent = `above ${up} of ${d.best.length}`; cell.append(hd);
+  d.best.forEach(b => { const ln = document.createElement("div"), nm = document.createElement("b"), v = document.createElement("span");
+    nm.textContent = maName(b[0]) + (b[7] ? " ✓" : ""); v.className = cls(b[9]);
+    v.textContent = " " + fPct(b[9], 1) + (isNum(b[11]) ? (b[11] > 0.3 ? " ↗" : b[11] < -0.3 ? " ↘" : " →") : "");
+    ln.append(nm, v); ln.title = maTip(b); cell.append(ln); });
+  return cell;
+}
+function maDetail(c) {
+  const box = document.createElement("div"); box.className = "ma-det";
+  MA_TFS.forEach(([tf, nm]) => { const d = c.tf[tf]; const h = document.createElement("div"); h.className = "ma-det-h";
+    const t = document.createElement("b"); t.textContent = nm[0].toUpperCase() + nm.slice(1) + " chart"; h.append(t);
+    if (d && d.best.length) { const a = document.createElement("button"); a.type = "button"; a.className = "toggle"; a.textContent = "Open chart with these";
+      a.onclick = ev => { ev.stopPropagation(); S.ov_on.add("lab"); location.hash = "#pair/" + c.symbol + "/" + tf; }; h.append(a); }
+    box.append(h);
+    if (!d || !d.best.length) { const p = document.createElement("p"); p.className = "note"; p.textContent = d ? "Not enough history on this timeframe yet." : "No candles on this timeframe."; box.append(p); return; }
+    const tb = document.createElement("table"); tb.className = "wl-tbl";
+    tb.innerHTML = "<thead><tr><th>#</th><th>Average</th><th class='num'>Now at</th><th class='num'>Close vs it</th><th class='num sm-hide'>In ATR</th><th class='num sm-hide'>Slope</th><th class='num' title='Next candles when above minus when below'>Trend split</th><th class='num' title='Long while above it vs holding'>Sharpe vs hold</th><th class='num' title='Bounces held / tests (vs chance)'>Held (tests)</th><th class='num sm-hide' title='Trend split in the earlier period'>Earlier split</th><th>Status</th><th class='sm-hide'>Last test</th></tr></thead>";
+    const bd = document.createElement("tbody");
+    d.best.forEach((b, i) => { const r = document.createElement("tr");
+      r.append(td("#" + (i + 1)), td(maName(b[0])), td(fPx(b[8]), "num"), td(fPct(b[9], 2), "num " + cls(b[9])), td(isNum(b[10]) ? b[10].toFixed(1) : "—", "num sm-hide"),
+        td(fPct(b[11], 2), "num sm-hide " + cls(b[11])), td(fPct(b[5], 2), "num " + cls(b[5])), td(isNum(b[4]) ? (b[4] > 0 ? "+" : "") + b[4].toFixed(2) : "—", "num " + cls(b[4])),
+        td((isNum(b[2]) ? b[2] + "%" : "—") + " (" + b[1] + ")" + (isNum(b[3]) ? " " + (b[3] > 0 ? "+" : "") + b[3] : ""), "num " + cls(b[3])), td(fPct(b[6], 2), "num sm-hide " + cls(b[6])),
+        td(b[7] ? "confirmed" : "best available", b[7] ? "up" : "warn"), td(b[12] ? `${b[12][0]} · ${b[12][1]} · ${b[12][2]}` : "—", "sm-hide"));
+      bd.append(r); });
+    tb.append(bd); const w = document.createElement("div"); w.className = "tbl-wrap"; w.append(tb); box.append(w); });
+  return box;
+}
 function renderMA() {
   if (S.ma === undefined) { if (!maLoading) maLoading = j("data/ma_lab.json").then(d => { S.ma = d; }, () => { S.ma = null; }).then(() => { maLoading = null; if (!$("#v-ma").hidden) renderMA(); }); return; }
   const D = S.ma; if (!D) { $("#maLead").textContent = "The moving-average study is published with the next refresh."; return; }
-  const tf = S.maTf || "1d", T = D.timeframes[tf], M = D.method, W = M.windows[tf], tfName = { "1w": "weekly", "1d": "daily", "4h": "4-hour" }[tf];
+  const M = D.method;
   $("#maAsOf").textContent = "updated " + mbAgo(D.generated_utc);
-  $("#maLead").textContent = `${M.averages.length} moving averages (SMA and EMA, 5 to 200) tested on ${D.coins.length} coins: your ${D.picks.length} picks and the dashboard's 100 most traded pairs. Weekly to form views, daily for the current trend, 4-hour for trading ideas. Each average is judged on two jobs against a fair baseline: does price react to it (bounce from it more often than chance), and does being above it mean the next candles go better.` + (D.picks_missing.length ? ` Not in our data: ${D.picks_missing.join(", ")}.` : "");
+  $("#maLead").textContent = `Each pair's own three best moving averages on the weekly chart (to form views), the daily (current trend) and the 4-hour (trading ideas), chosen from ${M.averages.length} SMAs and EMAs (5 to 200) on that pair's own history, and spread fast / medium / slow. For ${D.coins.length} coins: your ${D.picks.length} picks and the dashboard's 100 most traded pairs.` + (D.picks_missing.length ? ` Not in our data: ${D.picks_missing.join(", ")}.` : "");
+  $("#maKey").textContent = "Each cell: how many of the pair's three it closes above, then each average with the close's distance from it and its slope (↗ rising, ↘ falling). ✓ = confirmed: it also worked in the pair's earlier history; without ✓ it is the best this pair has, on one year (weekly: 3 years) of data. Hover for the evidence; tap a pair for the full table and its charts. They work as trend filters (above = trend up); as bounce lines they have done no better than chance across coins.";
+  const set = S.maSet || "picks", q = (S.maQ || "").toLowerCase();
+  $$("#maSet button").forEach(b => { b.setAttribute("aria-pressed", String(b.dataset.v === set)); b.onclick = () => { S.maSet = b.dataset.v; renderMA(); }; });
+  const qi = $("#maQ"); if (!qi.oninput) qi.oninput = e => { S.maQ = e.target.value.trim(); renderMA(); };
+  const near = new Set((D.testing_now || []).map(x => x[0]));
+  const list = D.coins.filter(c => (set === "all" || (set === "picks" ? c.pick : near.has(c.symbol))) && (!q || c.symbol.toLowerCase().includes(q)))
+    .sort((a, b) => (b.pick - a.pick) || ((a.liq_rank || 999) - (b.liq_rank || 999)));
+  S.maOpen = S.maOpen || new Set();
+  const body = $("#maBody"), f2 = document.createDocumentFragment();
+  list.forEach(c => { const tr = document.createElement("tr"); tr.className = "clickable"; tr.title = "Tap for the full table and charts";
+    const nm = document.createElement("span"), b = document.createElement("b"); b.textContent = c.symbol.replace(/USDT$/, ""); nm.append(c.pick ? "★ " : "", b);
+    const sub = document.createElement("span"); sub.className = "s"; sub.textContent = fPx((c.tf["1d"] || c.tf["4h"] || c.tf["1w"] || {}).close); nm.append(sub);
+    tr.append(tdNode(nm)); MA_TFS.forEach(([tf]) => tr.append(maCell(c.tf[tf])));
+    const dt = document.createElement("tr"), dc = document.createElement("td"); dc.colSpan = 4; dt.hidden = !S.maOpen.has(c.symbol);
+    tr.onclick = () => { if (S.maOpen.has(c.symbol)) S.maOpen.delete(c.symbol); else S.maOpen.add(c.symbol); dt.hidden = !S.maOpen.has(c.symbol); if (!dt.hidden && !dc.firstChild) dc.append(maDetail(c)); };
+    if (!dt.hidden) dc.append(maDetail(c)); dt.append(dc); f2.append(tr, dt); });
+  body.replaceChildren(f2); if (!list.length) body.innerHTML = '<tr><td colspan="4" class="empty">' + (set === "near" ? "No pair is within half an ATR of one of its own best averages right now." : "No coin matches.") + "</td></tr>";
+  $("#maShown").textContent = list.length + " pairs";
+  // across all coins
+  const tf = S.maTf || "1d", T = D.timeframes[tf], W = M.windows[tf], tfName = { "1w": "weekly", "1d": "daily", "4h": "4-hour" }[tf];
   $$("#maTf button").forEach(b => { b.setAttribute("aria-pressed", String(b.dataset.v === tf)); b.onclick = () => { S.maTf = b.dataset.v; renderMA(); }; });
   const rows = Object.fromEntries(T.table.map(r => [r.ma, r])), top = $("#maTop"); top.replaceChildren();
   T.top3.forEach((ma, i) => { const r = rows[ma], t = r.test, c = r.check, card = document.createElement("div"); card.className = "ma-card";
     card.innerHTML = '<div class="r"></div><div class="n"></div><dl></dl>';
-    card.querySelector(".r").textContent = `#${i + 1} on the ${tfName} chart` + (r.passes ? " · trend edge, confirmed earlier" : " · best available, not confirmed");
-    card.querySelector(".n").textContent = ma.replace(/(\d+)/, " $1");
+    card.querySelector(".r").textContent = `#${i + 1} across all coins, ${tfName}` + (r.passes ? " · confirmed earlier" : " · not confirmed");
+    card.querySelector(".n").textContent = maName(ma);
     const dl = card.querySelector("dl"), add = (k, v, cl) => { const dt = document.createElement("dt"), dd = document.createElement("dd"); dt.textContent = k; dd.textContent = v; if (cl) dd.className = cl; dl.append(dt, dd); };
-    add("Held when tested", `${fN(t.held_pct, 0)}% (chance ${fN(t.base_pct, 0)}%)`); add("Reaction edge", (t.edge > 0 ? "+" : "") + fN(t.edge, 1) + " pts", cls(t.edge));
-    add("Tests (all coins)", fQ(t.tests)); add("Long above it vs holding", (t.sharpe_adv > 0 ? "+" : "") + fN(t.sharpe_adv, 2) + " Sharpe", cls(t.sharpe_adv));
-    add("Coins where it beat holding", fN(t.beat_hold_pct, 0) + "%"); add("Above vs below, next " + W.horizon_bars + " candles", fPct(t.split, 2), cls(t.split));
-    add("Switches a year", fN(t.switches_y, 1)); add("Earlier period edge / split", (isNum(c.edge) ? (c.edge > 0 ? "+" : "") + fN(c.edge, 1) + " pts" : "—") + " / " + fPct(c.split, 2));
+    add("Above vs below, next " + W.horizon_bars + " candles", fPct(t.split, 2), cls(t.split)); add("Long above it vs holding", (t.sharpe_adv > 0 ? "+" : "") + fN(t.sharpe_adv, 2) + " Sharpe", cls(t.sharpe_adv));
+    add("Coins where it beat holding", fN(t.beat_hold_pct, 0) + "%"); add("Held when tested", `${fN(t.held_pct, 0)}% (chance ${fN(t.base_pct, 0)}%)`);
+    add("Switches a year", fN(t.switches_y, 1)); add("Earlier period split", fPct(c.split, 2), cls(c.split));
     top.append(card); });
-  const tw = W.test_days >= 1000 ? "the last 3 years" : "the last 12 months", cw = Math.round(W.check_days / 365) + " years before that";
-  const V = T.verdict || {};
-  $("#maTopNote").textContent = `Verdict on the ${tfName} chart: ${V.passed} of ${V.ranked} averages have a trend edge confirmed in the earlier period; ${V.reaction_positive} of ${V.ranked} beat chance as support or resistance (best ${isNum(V.best_edge) ? (V.best_edge > 0 ? "+" : "") + fN(V.best_edge, 1) : "—"} pts), so use them as trend filters (above = trend up), not as bounce lines. Test window: ${tw}; check window: the ${cw}. Ranking: trend split 40%, Sharpe vs holding 40%, reaction 20%; the three are spread fast / medium / slow. Research, not advice.`;
-  // ranking table
+  const V = T.verdict || {}, tw = W.test_days >= 1000 ? "the last 3 years" : "the last 12 months", cw = Math.round(W.check_days / 365) + " years before that";
+  $("#maTopNote").textContent = `On the ${tfName} chart ${V.passed} of ${V.ranked} averages have a trend edge confirmed in the earlier period; ${V.reaction_positive} of ${V.ranked} beat chance as support or resistance (best ${isNum(V.best_edge) ? (V.best_edge > 0 ? "+" : "") + fN(V.best_edge, 1) : "—"} pts). Test window: ${tw}; check: the ${cw}. Research, not advice.`;
   const rb = $("#maRank"), fr = document.createDocumentFragment(); let k = 0;
   T.table.forEach(r => { const t = r.test, c = r.check, tr = document.createElement("tr"); k++;
     if (T.top3.includes(r.ma)) tr.style.background = "rgba(4,183,248,0.08)";
-    tr.append(td(String(k), "num"), td(r.ma.replace(/(\d+)/, " $1")), td(isNum(r.score) ? fN(r.score, 0) : "—", "num"), td(fQ(t.tests), "num"), td(fN(t.held_pct, 0) + "%", "num"), td(fN(t.base_pct, 0) + "%", "num"),
+    tr.append(td(String(k), "num"), td(maName(r.ma)), td(isNum(r.score) ? fN(r.score, 0) : "—", "num"), td(fQ(t.tests), "num"), td(fN(t.held_pct, 0) + "%", "num"), td(fN(t.base_pct, 0) + "%", "num"),
       td(isNum(t.edge) ? (t.edge > 0 ? "+" : "") + fN(t.edge, 1) : "—", "num " + cls(t.edge)), td(isNum(t.sharpe_adv) ? (t.sharpe_adv > 0 ? "+" : "") + fN(t.sharpe_adv, 2) : "—", "num " + cls(t.sharpe_adv)),
       td(isNum(t.beat_hold_pct) ? fN(t.beat_hold_pct, 0) + "%" : "—", "num sm-hide"), td(fPct(t.split, 2), "num " + cls(t.split)), td(fN(t.switches_y, 1), "num sm-hide"),
       td(isNum(c.edge) ? (c.edge > 0 ? "+" : "") + fN(c.edge, 1) : "—", "num " + cls(c.edge)), td(fPct(c.split, 2), "num sm-hide " + cls(c.split)), td(r.passes ? "✓" : "—", r.passes ? "up" : "cold"));
     fr.append(tr); });
   rb.replaceChildren(fr);
-  $("#maRankNote").textContent = `${T.coins} coins · ${tfName} · test ${tw}`;
-  // coins table
-  const head = $("#maHead"); head.innerHTML = ""; const hr = document.createElement("tr");
-  ["Coin", "Close"].concat(T.top3.map(m => m.replace(/(\d+)/, " $1"))).concat(["Last test", "This coin's best"]).forEach((h, i) => { const th = document.createElement("th"); th.textContent = h; if (i === 1 || (i >= 2 && i < 2 + T.top3.length)) th.className = "num"; if (i === 1 || i === 2 + T.top3.length) th.classList.add("sm-hide"); hr.append(th); });
-  head.append(hr);
-  const set = S.maSet || "picks", q = (S.maQ || "").toLowerCase();
-  $$("#maSet button").forEach(b => { b.setAttribute("aria-pressed", String(b.dataset.v === set)); b.onclick = () => { S.maSet = b.dataset.v; renderMA(); }; });
-  const qi = $("#maQ"); if (!qi.oninput) qi.oninput = e => { S.maQ = e.target.value.trim(); renderMA(); };
-  const near = new Set((D.testing_now || []).filter(x => x[1] === tf).map(x => x[0]));
-  let list = D.coins.filter(c => c.tf[tf] && (set === "all" || (set === "picks" ? c.pick : near.has(c.symbol))) && (!q || c.symbol.toLowerCase().includes(q)));
-  list.sort((a, b) => (b.pick - a.pick) || ((a.liq_rank || 999) - (b.liq_rank || 999)));
-  const body = $("#maBody"), f2 = document.createDocumentFragment();
-  list.forEach(c => { const d = c.tf[tf], tr = document.createElement("tr"); tr.className = "clickable"; tr.title = "Open the chart on this timeframe with these averages drawn";
-    tr.onclick = () => { S.ov_on.add("lab"); location.hash = "#pair/" + c.symbol + "/" + tf; };
-    const nm = document.createElement("span"), b = document.createElement("b"); b.textContent = c.symbol.replace(/USDT$/, ""); nm.append(c.pick ? "★ " : "", b); tr.append(tdNode(nm), td(fPx(d.close), "num sm-hide"));
-    const st = Object.fromEntries(d.state.map(x => [x[0], x]));
-    T.top3.forEach(ma => { const x = st[ma]; if (!x) { tr.append(td("—", "num")); return; }
-      const cell = document.createElement("td"); cell.className = "num ma-c " + cls(x[2]); const arrow = isNum(x[4]) ? (x[4] > 0.3 ? " ↗" : x[4] < -0.3 ? " ↘" : " →") : "";
-      cell.textContent = fPct(x[2], 1) + arrow; const sub = document.createElement("span"); sub.className = "s"; sub.textContent = (isNum(x[3]) ? (x[3] > 0 ? "+" : "") + x[3].toFixed(1) + " ATR · " : "") + fPx(x[1]); cell.append(sub);
-      cell.title = `${ma} at ${fPx(x[1])}; close ${fPct(x[2], 2)} from it; slope over 5 candles ${fPct(x[4], 2)}`; tr.append(cell); });
-    const lt = d.state.map(x => x[5]).filter(Boolean).sort((a, b) => String(b[0]).localeCompare(String(a[0])))[0];
-    tr.append(td(lt ? `${lt[0]} · ${lt[1]} · ${lt[2]}` : "—", "sm-hide " + (lt ? (lt[2] === "held" ? "up" : lt[2] === "broke" ? "down" : "") : "")));
-    tr.append(td(d.best.length ? d.best.map(x => `${x[0]} (${x[2]}% of ${x[1]})`).join(" · ") : "too few tests"));
-    f2.append(tr); });
-  body.replaceChildren(f2); if (!list.length) body.innerHTML = '<tr><td colspan="7" class="empty">' + (set === "near" ? "No coin is within half an ATR of a top average on this timeframe right now." : "No coin matches.") + "</td></tr>";
-  $("#maShown").textContent = list.length + " coins";
-  $("#maCoinsH").textContent = `Where each coin stands against the ${tfName} top 3`;
   $("#maMethod").innerHTML = "";
   [`Averages: ${M.averages.join(", ")}.`,
-   `Test (reaction): the last 3 closes on one side of the average and the candle's low (or high) comes back to within ${M.touch_atr} ATR of it for the first time. Held = price then moved ${M.held_atr} ATR away from the average before any candle closed ${M.break_atr} ATR through it; a close through on the touching candle, or both on the same later candle, counts as broke; neither within the horizon = not held.`,
-   `By chance = the same rule from every candle's close in the same window, so a positive edge means price reacts to the average more than to an arbitrary price.`,
-   `Trend: long while the candle closed above the average, flat below, ${100 * M.cost}% cost per switch, compared with holding over the same window (Sharpe, annualised). Trend split = average return over the next ${W.horizon_bars} candles when above minus when below.`,
-   `Windows: daily and 4-hour tested on the last 365 days and checked on the 730 days before; weekly tested on the last 3 years (52 weekly candles are too few) and checked on the 3 years before. Weekly candles run Monday to Sunday (UTC); only completed candles are used. Minimum tests to rank: ${M.min_tests[tf]} on this timeframe.`,
-   `Coins: your picks (${D.picks.map(x => x.replace(/USDT$/, "")).join(", ")}) and the 100 pairs with the highest 30-day trading volume on the dashboard (no stablecoins or tokenized stocks). Past behaviour, not a promise; not advice.`]
+   `Trend (decides the picks): long while the candle closed above the average, flat below, ${100 * M.cost}% cost per switch, compared with holding over the same window (Sharpe, annualised); trend split = average return over the next candles (weekly ${M.windows["1w"].horizon_bars}, daily ${M.windows["1d"].horizon_bars}, 4h ${M.windows["4h"].horizon_bars}) when above minus when below. Score: split 40%, Sharpe vs holding 40%, reaction 20%. The three are spread fast / medium / slow (each at least 1.5× its neighbour's length).`,
+   `Reaction (reported): the last 3 closes on one side and the candle's low (high) comes back within ${M.touch_atr} ATR of the average for the first time; held = ${M.held_atr} ATR away before a close ${M.break_atr} ATR through it; compared with the same rule from any candle's low (high).`,
+   `Windows: daily and 4-hour tested on the last 365 days, checked on the 730 days before; weekly tested on 3 years, checked on the 3 before. A pair's pick is "confirmed" when its own earlier period agrees on the trend split. Only completed candles; weekly candles Monday to Sunday (UTC).`,
+   `Coins: your picks (${D.picks.map(x => x.replace(/USDT$/, "")).join(", ")}) and the 100 pairs with the highest 30-day trading volume (no stablecoins or tokenized stocks). Past behaviour, not a promise; not advice.`]
    .forEach(t => { const p = document.createElement("p"); p.style.margin = "0 0 6px"; p.textContent = t; $("#maMethod").append(p); });
 }
 function renderSectors() {
@@ -4420,7 +4449,7 @@ async function renderPair() {
   const lg = $("#pairLegend"); lg.replaceChildren();
   const leg = (color, text) => { const s = document.createElement("span"); const i = document.createElement("i"); i.style.background = color; s.append(i, document.createTextNode(text)); lg.append(s); };
   if (S.ov_on.has("ema")) { leg("var(--warn)", "EMA21"); leg("var(--accent)", "EMA50"); leg("var(--muted)", "EMA200"); }
-  if (S.ov_on.has("lab")) { const L = labTop(); if (L === undefined) leg("var(--muted)", "Best MAs: loading…"); else if (!L.length) leg("var(--muted)", "Best MAs: tested on weekly, daily and 4h only"); else L.forEach((m, i) => leg(LAB_COL[i], m.replace(/(\d+)/, " $1") + " (#" + (i + 1) + " " + { "1w": "weekly", "1d": "daily", "4h": "4h" }[S.pairTf] + ")")); }
+  if (S.ov_on.has("lab")) { const L = labTop(); if (L === undefined) leg("var(--muted)", "Best MAs: loading…"); else if (!L.length) leg("var(--muted)", "Best MAs: tested on weekly, daily and 4h only"); else L.forEach((m, i) => leg(LAB_COL[i], m.replace(/(\d+)/, " $1") + " (" + (S.labOwn ? S.pair.replace(/USDT$/, "") + "'s own" : "all coins'") + " #" + (i + 1) + " " + { "1w": "weekly", "1d": "daily", "4h": "4h" }[S.pairTf] + ")")); }
   if (S.ov_on.has("bb")) leg("var(--violet)", "Bollinger 20,2"); if (S.ov_on.has("st")) leg("var(--up)", "Supertrend 10,3"); if (S.ov_on.has("cloud")) leg("var(--cold)", "Ichimoku cloud A/B");
   const chAll = S.ov_on.has("ch") && (S.pairTf === "1d" || S.pairTf === "4h") ? chanAll(S.pair, S.pairTf) : [], chLs = chAll.slice(0, 2), chL = chLs[0];
   chLs.forEach((x, k) => leg(["var(--soft-blue)", "var(--violet)", "var(--cold)"][k] || "var(--muted)", "Channel " + (k + 1) + ": " + ((chanData().labels || {})[x.status] || x.status).toLowerCase() + " · " + Math.round(x.days) + " days · " + x.touches[0] + "/" + x.touches[1] + " touches"));
