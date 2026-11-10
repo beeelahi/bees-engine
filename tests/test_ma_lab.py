@@ -49,14 +49,18 @@ class ReactionTest(unittest.TestCase):
         tests, held, sides, last = self.run_case(l, h, c)
         self.assertEqual((tests, held, sides), (1, 1, [-1]))
 
-    def test_base_rate(self):
+    def test_base_rate_from_the_low(self):
         c = [100.0] * 30
-        h = [100.0] * 30
-        l = [100.0] * 30
-        h[10] = 104                                                          # one spike up 2 ATR: only bars before it can count
+        h = [100.5] * 30
+        l = [99.0] * 30                                                      # lows 1 below the close, ATR 2: target low + 3 = 102
+        h[10] = 102.2                                                        # only bars 5..9 (within 5 of bar 10) reach it
         up, dn = M.base_rate(h, l, c, [2.0] * 30, 0, 30, 5)
-        self.assertGreater(up, 0)
-        self.assertEqual(dn, 0)
+        self.assertAlmostEqual(up, 5 / 29)
+        self.assertAlmostEqual(dn, 1 / 29)                                   # bar 10 itself: its high 102.2, a low 3 below
+
+    def test_spread(self):
+        r = [{"ma": m, "passes": True} for m in ("SMA8", "SMA9", "SMA10", "EMA21", "EMA26", "EMA55")]
+        self.assertEqual([x["ma"] for x in M.top3(r)], ["SMA8", "EMA21", "EMA55"])
 
 
 class PickTest(unittest.TestCase):
@@ -67,39 +71,45 @@ class PickTest(unittest.TestCase):
                 ("SMA200", dict(good, edge=0.5), {"edge": 1, "split": 1}), ("EMA5", dict(good, tests=10), {"edge": 9, "split": 9})]
         best = [x["ma"] for x in M.top3(M.rank_pick(rows, 100))]
         self.assertEqual(best[0], "EMA20")
-        self.assertNotIn("SMA20", best)                                     # same length as EMA20
+        self.assertNotIn("SMA20", best)                                     # same length as EMA20 (spread rule)
         self.assertNotIn("EMA5", best)                                      # too few tests
         self.assertEqual(set(best), {"EMA20", "EMA50", "SMA200"})           # EMA9 fails the check period
+
+
+def make_db(db):
+    """Two coins (BTC, one of the picks, and AAA) with 1,500 daily and 3,000 4-hour candles of a slow wave."""
+    import math
+    con = sqlite3.connect(db)
+    con.executescript("""CREATE TABLE daily(symbol, date, open, high, low, close, volume_usdt);
+        CREATE TABLE candles_4h(symbol, open_ms, open, high, low, close, close_ms);
+        CREATE TABLE latest(symbol, in_universe); CREATE TABLE pairs(symbol, token);""")
+    now =datetime.now(timezone.utc)
+    for s, ph in (("BTCUSDT", 0.0), ("AAAUSDT", 1.0)):
+        con.execute("INSERT INTO latest VALUES(?,1)", (s,))
+        con.execute("INSERT INTO pairs VALUES(?,?)", (s, s[:-4]))
+        for k in range(1500, 0, -1):
+            day = (now - timedelta(days=k)).strftime("%Y-%m-%d")
+            p = 100 * (1.5 + math.sin(k / 40 + ph)) + k * 0.01
+            con.execute("INSERT INTO daily VALUES(?,?,?,?,?,?,?)", (s, day, p, p * 1.02, p * 0.98, p * 1.001, 1e6))
+        t0 = int((now - timedelta(days=500)).timestamp() * 1000) // 14_400_000 * 14_400_000
+        for k in range(3000):
+            p = 100 * (1.5 + math.sin(k / 60 + ph))
+            con.execute("INSERT INTO candles_4h VALUES(?,?,?,?,?,?,?)", (s, t0 + k * 14_400_000, p, p * 1.01, p * 0.99, p * 1.001,
+                                                                       t0 + (k + 1) * 14_400_000 - 1))
+    con.commit()
+    con.close()
 
 
 class RunTest(unittest.TestCase):
     def test_end_to_end(self):
         d = tempfile.mkdtemp()
         db = os.path.join(d, "b.db")
-        con = sqlite3.connect(db)
-        con.executescript("""CREATE TABLE daily(symbol, date, open, high, low, close, volume_usdt);
-            CREATE TABLE candles_4h(symbol, open_ms, open, high, low, close, close_ms);
-            CREATE TABLE latest(symbol, in_universe); CREATE TABLE pairs(symbol, token);""")
-        now = datetime.now(timezone.utc)
-        import math
-        for s, ph in (("BTCUSDT", 0.0), ("AAAUSDT", 1.0)):
-            con.execute("INSERT INTO latest VALUES(?,1)", (s,))
-            con.execute("INSERT INTO pairs VALUES(?,?)", (s, s[:-4]))
-            for k in range(1500, 0, -1):
-                day = (now - timedelta(days=k)).strftime("%Y-%m-%d")
-                p = 100 * (1.5 + math.sin(k / 40 + ph)) + k * 0.01
-                con.execute("INSERT INTO daily VALUES(?,?,?,?,?,?,?)", (s, day, p, p * 1.02, p * 0.98, p * 1.001, 1e6))
-            t0 = int((now - timedelta(days=500)).timestamp() * 1000) // 14_400_000 * 14_400_000
-            for k in range(3000):
-                p = 100 * (1.5 + math.sin(k / 60 + ph))
-                con.execute("INSERT INTO candles_4h VALUES(?,?,?,?,?,?,?)", (s, t0 + k * 14_400_000, p, p * 1.01, p * 0.99, p * 1.001,
-                                                                           t0 + (k + 1) * 14_400_000 - 1))
-        con.commit()
-        con.close()
+        make_db(db)
         out = os.path.join(d, "ma.json")
         M.MIN_TESTS = {"1w": 1, "1d": 1, "4h": 1}
         M.main(db, out, log=lambda *a: None)
-        r = json.load(open(out))
+        with open(out) as f:
+            r = json.load(f)
         self.assertEqual(set(r["timeframes"]), {"1w", "1d", "4h"})
         for tf in ("1w", "1d", "4h"):
             self.assertEqual(len(r["timeframes"][tf]["table"]), 34)

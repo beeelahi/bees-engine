@@ -14,8 +14,8 @@ Two jobs an average does, each measured against a fair baseline:
    then moved 1.5 ATR away from the average (high >= MA + 1.5 ATR for support) before a candle CLOSED 0.5 ATR through
    it; it BROKE when that close came first (a close through on the touching candle itself counts as broke; if both
    happen on the same later candle it counts as broke); neither within H candles = not held.
-   Baseline: the same rule from EVERY candle's close in the same window (price going 1.5 ATR up before closing 0.5 ATR
-   down, and the mirror for resistance). Edge = held rate minus that base rate, in points. An average with no edge is
+   Baseline: the same rule with the same geometry from EVERY candle in the same window: its low as the level (price
+   going 1.5 ATR above the low before a close 0.5 ATR below it), its high for resistance. Edge = held rate minus that base rate, in points. An average with no edge is
    just a line that price crosses; a positive edge means price really reacts to it.
 
 2. TREND. (a) Long-or-flat: hold while the candle closed above the average, flat below; 0.1% cost per switch;
@@ -29,7 +29,8 @@ period to agree (reaction edge and trend split both positive there too).
 
 Top 3 per timeframe: each average is ranked across the 34 on reaction edge (40%), Sharpe advantage (30%) and trend
 split (30%), pooled over every coin in the test window; only averages with at least MIN_TESTS tests count, and the
-check period must agree; the three keep distinct lengths; a tie goes to the shorter average (it reacts faster).
+check period must agree; the three are spread fast / medium / slow (each at least 1.5x its neighbour's length, so
+they are not three copies of one line); a tie goes to the shorter average (it reacts faster).
 Per coin, the same ranking on that coin alone (at least 4 tests) gives its own best three, shown with where price
 stands against the timeframe's top three today.
 
@@ -158,23 +159,25 @@ def reaction(o, h, l, c, m, a, i0, i1, H):
 
 
 def base_rate(h, l, c, a, i0, i1, H):
-    """Chance of the same outcome from any candle's close: (P(up 1.5 ATR before closing 0.5 ATR down), mirror)."""
+    """Chance of the same outcome with the same geometry from ANY candle: its low as the 'level' for support (up 1.5 ATR
+    from the low before a close 0.5 ATR below it), its high for resistance (the mirror). A test is triggered by the low
+    (high) touching the average, so the baseline must start from the low (high) too, not the close."""
     nu = nd = n = 0
     for k in range(max(i0, 1), i1):
-        ak = a[k]
+        ak = a[k - 1]
         if ak is None or ak <= 0:
             continue
-        lv, ru, rd = c[k], None, None
-        for j in range(k + 1, min(len(c), k + H + 1)):
+        ru, rd = None, None
+        for j in range(k, min(len(c), k + H + 1)):
             if ru is None:
-                if c[j] < lv - BREAK_ATR * ak:
+                if c[j] < l[k] - BREAK_ATR * ak:
                     ru = 0
-                elif h[j] >= lv + HOLD_ATR * ak:
+                elif j > k and h[j] >= l[k] + HOLD_ATR * ak:
                     ru = 1
             if rd is None:
-                if c[j] > lv + BREAK_ATR * ak:
+                if c[j] > h[k] + BREAK_ATR * ak:
                     rd = 0
-                elif l[j] <= lv - HOLD_ATR * ak:
+                elif j > k and l[j] <= h[k] - HOLD_ATR * ak:
                     rd = 1
             if ru is not None and rd is not None:
                 break
@@ -295,14 +298,18 @@ def rank_pick(rows, min_tests, need_check=True):
     return out
 
 
+SPREAD = 1.5      # the three picks are fast / medium / slow: each at least 1.5x the length of its neighbour
+
+
 def top3(ranked):
     n_of = lambda m: int("".join(ch for ch in m if ch.isdigit()))  # noqa: E731
     pick, used = [], set()
     for r in [x for x in ranked if x["passes"]] + [x for x in ranked if not x["passes"]]:
-        if n_of(r["ma"]) in used:
+        n = n_of(r["ma"])
+        if any(max(n, u) / min(n, u) < SPREAD for u in used):
             continue
         pick.append(r)
-        used.add(n_of(r["ma"]))
+        used.add(n)
         if len(pick) == 3:
             break
     return pick
