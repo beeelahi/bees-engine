@@ -83,6 +83,9 @@ case "$CMD" in
   onchain-refresh) python3 "$ROOT/bin/onchain_stocks.py" 2>&1 | tail -n 20 ;;
   strategy-lab)    python3 "$ROOT/research/strategy_lab.py" > "$ROOT/logs/strategy_lab.txt" 2>&1; tail -n 20 "$ROOT/logs/strategy_lab.txt" ;;
   strategy-lab-log) tail -n "$N" "$ROOT/logs/strategy_lab.txt" 2>/dev/null || echo "no strategy lab output yet" ;;
+  ma-lab)          setsid nohup nice -n 15 python3 "$ROOT/research/ma_lab.py" > "$ROOT/logs/ma_lab.txt" 2>&1 < /dev/null &
+                   echo "moving-average lab started in the background; read it with ma-lab-log" ;;
+  ma-lab-log)      tail -n "$N" "$ROOT/logs/ma_lab.txt" 2>/dev/null || echo "no moving-average lab output yet" ;;
   zig-probe)       python3 "$ROOT/bin/zig_archive.py" --probe 2>&1 | tail -n 20 ;;
   zig-status)      python3 "$ROOT/bin/zig_archive.py" --status 2>&1 | tail -n 10 ;;
   library-probe)   python3 "$ROOT/bin/coin_library.py" --probe 2>&1 | head -n 80; python3 "$ROOT/bin/coin_library.py" --tags 2>&1 | head -n 120 ;;
@@ -100,5 +103,5 @@ case "$CMD" in
   bee-tune-stop)   pf="$ROOT/logs/bee_tune.pid"; if [ -f "$pf" ] && kill -- -"$(cat "$pf")" 2>/dev/null; then echo "MM-Bee tuning study stopped"; else echo "no MM-Bee tuning study running"; fi; rm -f "$pf" ;;
   bee-tune-log)    tail -n "$N" "$ROOT/logs/bee_tune.txt" 2>/dev/null || echo "no MM-Bee tuning output yet" ;;
   bee-study-log)   tail -n "$N" "$ROOT/logs/bee_study.txt" 2>/dev/null || echo "no MM-Bee study output yet" ;;
-  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status web-setup web-status publish-local publish-github"; exit 2 ;;
+  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status web-setup web-status publish-local publish-github ma-lab ma-lab-log"; exit 2 ;;
 esac
