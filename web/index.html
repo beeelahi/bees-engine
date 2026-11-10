@@ -70,6 +70,12 @@ h2 { font-size: 15px; margin: 0; font-weight: 600; text-wrap: balance; }
 .read h3 { margin: 0 0 6px; font-size: 14px; } .read ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
 .read li { display: flex; gap: 8px; align-items: baseline; font-size: 13.5px; line-height: 1.45; } .read li i { flex: 0 0 8px; height: 8px; border-radius: 50%; background: var(--muted); transform: translateY(-1px); }
 .read li i.up { background: var(--up); } .read li i.down { background: var(--down); } .read li i.warn { background: var(--warn); } .read .note { margin: 8px 0 0; font-size: 11.5px; }
+.ma-top { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.ma-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: rgba(4, 183, 248, 0.05); min-width: 0; }
+.ma-card .r { font-size: 11.5px; color: var(--muted); } .ma-card .n { font-size: 22px; font-weight: 700; margin: 2px 0 6px; }
+.ma-card dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; font-size: 12.5px; } .ma-card dt { color: var(--muted); } .ma-card dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.ma-tbl td.ma-c { white-space: nowrap; font-variant-numeric: tabular-nums; } .ma-tbl td .s { display: block; font-size: 11px; color: var(--muted); }
+@media (max-width: 640px) { .ma-top { grid-template-columns: 1fr; } .ma-tbl .sm-hide { display: none; } }
 .sec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
 .sec-tile { text-align: left; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: rgba(255,255,255,0.03); color: var(--fg); cursor: pointer; font: inherit; min-width: 0; }
 .sec-tile:hover { border-color: var(--accent); }
@@ -1452,6 +1458,30 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
     <div class="card"><div class="card-head"><h2 id="wkTitle">Weekly report</h2><span class="note">Last closed week (Monday–Sunday UTC)</span></div><div class="grid-2" id="wkBody"></div></div>
     <div class="card"><div class="card-head"><h2>Universe changes</h2><span class="note">Pairs crossing the $100k 24h volume line</span></div>
       <div class="tbl-wrap" style="max-height: 40vh"><table><thead><tr><th>Pair</th><th>Event</th><th>Date</th><th>24h vol</th></tr></thead><tbody id="uniLog"></tbody></table></div></div>
+  </section>
+
+  <section class="view" id="v-ma" hidden>
+    <div class="card">
+      <div class="card-head"><h2>Moving averages that work</h2><span class="note" id="maAsOf"></span></div>
+      <p class="note" id="maLead" style="margin:0 0 12px"></p>
+      <div class="seg" id="maTf"><button type="button" data-v="1w" aria-pressed="false">Weekly · views</button><button type="button" data-v="1d" aria-pressed="true">Daily · trend</button><button type="button" data-v="4h" aria-pressed="false">4-hour · trading ideas</button></div>
+      <div class="ma-top" id="maTop"></div>
+      <p class="note" id="maTopNote"></p>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2 id="maCoinsH">Where each coin stands</h2><span class="note" id="maShown"></span></div>
+      <div class="cn-ctl">
+        <input class="search" id="maQ" type="search" placeholder="Search coin" aria-label="Search coin" autocomplete="off">
+        <div class="seg" id="maSet"><button type="button" data-v="picks" aria-pressed="true">My picks</button><button type="button" data-v="all" aria-pressed="false">Picks + top 100</button><button type="button" data-v="near" aria-pressed="false">Testing now</button></div>
+      </div>
+      <div class="tbl-wrap"><table class="wl-tbl ma-tbl"><thead id="maHead"></thead><tbody id="maBody"></tbody></table></div>
+      <p class="note" style="margin-top:10px">Distance = close vs the average (in % and in ATRs, the coin's average daily range on that timeframe); the arrow is the average's slope over 5 candles. "Last test" = the last time price came back to that average in the test year, and what happened. "This coin's best" = the three averages that worked best on that coin alone (held rate in brackets). Tap a coin for its chart.</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>All 34 averages, ranked</h2><span class="note" id="maRankNote"></span></div>
+      <div class="tbl-wrap"><table class="wl-tbl"><thead><tr><th class="num">#</th><th>Average</th><th class="num" title="Composite: trend split 40%, Sharpe vs holding 40%, reaction edge 20% (percentile among the 34)">Score</th><th class="num" title="Tests in the test window, pooled over all coins">Tests</th><th class="num" title="Held: price moved 1.5 ATR away before closing 0.5 ATR through">Held</th><th class="num" title="The same rule from any candle's close">By chance</th><th class="num" title="Held minus by chance, in points">Edge</th><th class="num" title="Long-or-flat (above the average) Sharpe minus holding's, median coin">Sharpe vs hold</th><th class="num sm-hide" title="Share of coins where long-or-flat beat holding risk-adjusted">Coins beaten</th><th class="num" title="Average forward return when above minus when below, median coin">Trend split</th><th class="num sm-hide">Switches / yr</th><th class="num" title="Edge in the earlier check period">Check edge</th><th class="num sm-hide" title="Trend split in the earlier check period">Check split</th><th title="Trend job works in the test window (split and Sharpe vs holding positive) and the check period agrees on the split">Passes</th></tr></thead><tbody id="maRank"></tbody></table></div>
+      <details style="margin-top:12px"><summary class="note">How this was tested</summary><div class="note" id="maMethod" style="margin-top:8px;line-height:1.55"></div></details>
+    </div>
   </section>
 
   <section class="view" id="v-lab" hidden>
@@ -4147,6 +4177,75 @@ function renderRead(r) {
   $("#readNote").textContent = "A plain description of the chart today, built from the same data as the chart and tiles below. Not a forecast and not advice.";
   box.hidden = false;
 }
+
+// ---------- moving-average lab (data/ma_lab.json, research/ma_lab.py)
+let maLoading = null;
+function renderMA() {
+  if (S.ma === undefined) { if (!maLoading) maLoading = j("data/ma_lab.json").then(d => { S.ma = d; }, () => { S.ma = null; }).then(() => { maLoading = null; if (!$("#v-ma").hidden) renderMA(); }); return; }
+  const D = S.ma; if (!D) { $("#maLead").textContent = "The moving-average study is published with the next refresh."; return; }
+  const tf = S.maTf || "1d", T = D.timeframes[tf], M = D.method, W = M.windows[tf], tfName = { "1w": "weekly", "1d": "daily", "4h": "4-hour" }[tf];
+  $("#maAsOf").textContent = "updated " + mbAgo(D.generated_utc);
+  $("#maLead").textContent = `${M.averages.length} moving averages (SMA and EMA, 5 to 200) tested on ${D.coins.length} coins: your ${D.picks.length} picks and the dashboard's 100 most traded pairs. Weekly to form views, daily for the current trend, 4-hour for trading ideas. Each average is judged on two jobs against a fair baseline: does price react to it (bounce from it more often than chance), and does being above it mean the next candles go better.` + (D.picks_missing.length ? ` Not in our data: ${D.picks_missing.join(", ")}.` : "");
+  $$("#maTf button").forEach(b => { b.setAttribute("aria-pressed", String(b.dataset.v === tf)); b.onclick = () => { S.maTf = b.dataset.v; renderMA(); }; });
+  const rows = Object.fromEntries(T.table.map(r => [r.ma, r])), top = $("#maTop"); top.replaceChildren();
+  T.top3.forEach((ma, i) => { const r = rows[ma], t = r.test, c = r.check, card = document.createElement("div"); card.className = "ma-card";
+    card.innerHTML = '<div class="r"></div><div class="n"></div><dl></dl>';
+    card.querySelector(".r").textContent = `#${i + 1} on the ${tfName} chart` + (r.passes ? " · trend edge, confirmed earlier" : " · best available, not confirmed");
+    card.querySelector(".n").textContent = ma.replace(/(\d+)/, " $1");
+    const dl = card.querySelector("dl"), add = (k, v, cl) => { const dt = document.createElement("dt"), dd = document.createElement("dd"); dt.textContent = k; dd.textContent = v; if (cl) dd.className = cl; dl.append(dt, dd); };
+    add("Held when tested", `${fN(t.held_pct, 0)}% (chance ${fN(t.base_pct, 0)}%)`); add("Reaction edge", (t.edge > 0 ? "+" : "") + fN(t.edge, 1) + " pts", cls(t.edge));
+    add("Tests (all coins)", fQ(t.tests)); add("Long above it vs holding", (t.sharpe_adv > 0 ? "+" : "") + fN(t.sharpe_adv, 2) + " Sharpe", cls(t.sharpe_adv));
+    add("Coins where it beat holding", fN(t.beat_hold_pct, 0) + "%"); add("Above vs below, next " + W.horizon_bars + " candles", fPct(t.split, 2), cls(t.split));
+    add("Switches a year", fN(t.switches_y, 1)); add("Earlier period edge / split", (isNum(c.edge) ? (c.edge > 0 ? "+" : "") + fN(c.edge, 1) + " pts" : "—") + " / " + fPct(c.split, 2));
+    top.append(card); });
+  const tw = W.test_days >= 1000 ? "the last 3 years" : "the last 12 months", cw = Math.round(W.check_days / 365) + " years before that";
+  const V = T.verdict || {};
+  $("#maTopNote").textContent = `Verdict on the ${tfName} chart: ${V.passed} of ${V.ranked} averages have a trend edge confirmed in the earlier period; ${V.reaction_positive} of ${V.ranked} beat chance as support or resistance (best ${isNum(V.best_edge) ? (V.best_edge > 0 ? "+" : "") + fN(V.best_edge, 1) : "—"} pts), so use them as trend filters (above = trend up), not as bounce lines. Test window: ${tw}; check window: the ${cw}. Ranking: trend split 40%, Sharpe vs holding 40%, reaction 20%; the three are spread fast / medium / slow. Research, not advice.`;
+  // ranking table
+  const rb = $("#maRank"), fr = document.createDocumentFragment(); let k = 0;
+  T.table.forEach(r => { const t = r.test, c = r.check, tr = document.createElement("tr"); k++;
+    if (T.top3.includes(r.ma)) tr.style.background = "rgba(4,183,248,0.08)";
+    tr.append(td(String(k), "num"), td(r.ma.replace(/(\d+)/, " $1")), td(isNum(r.score) ? fN(r.score, 0) : "—", "num"), td(fQ(t.tests), "num"), td(fN(t.held_pct, 0) + "%", "num"), td(fN(t.base_pct, 0) + "%", "num"),
+      td(isNum(t.edge) ? (t.edge > 0 ? "+" : "") + fN(t.edge, 1) : "—", "num " + cls(t.edge)), td(isNum(t.sharpe_adv) ? (t.sharpe_adv > 0 ? "+" : "") + fN(t.sharpe_adv, 2) : "—", "num " + cls(t.sharpe_adv)),
+      td(isNum(t.beat_hold_pct) ? fN(t.beat_hold_pct, 0) + "%" : "—", "num sm-hide"), td(fPct(t.split, 2), "num " + cls(t.split)), td(fN(t.switches_y, 1), "num sm-hide"),
+      td(isNum(c.edge) ? (c.edge > 0 ? "+" : "") + fN(c.edge, 1) : "—", "num " + cls(c.edge)), td(fPct(c.split, 2), "num sm-hide " + cls(c.split)), td(r.passes ? "✓" : "—", r.passes ? "up" : "cold"));
+    fr.append(tr); });
+  rb.replaceChildren(fr);
+  $("#maRankNote").textContent = `${T.coins} coins · ${tfName} · test ${tw}`;
+  // coins table
+  const head = $("#maHead"); head.innerHTML = ""; const hr = document.createElement("tr");
+  ["Coin", "Close"].concat(T.top3.map(m => m.replace(/(\d+)/, " $1"))).concat(["Last test", "This coin's best"]).forEach((h, i) => { const th = document.createElement("th"); th.textContent = h; if (i === 1 || (i >= 2 && i < 2 + T.top3.length)) th.className = "num"; if (i === 1 || i === 2 + T.top3.length) th.classList.add("sm-hide"); hr.append(th); });
+  head.append(hr);
+  const set = S.maSet || "picks", q = (S.maQ || "").toLowerCase();
+  $$("#maSet button").forEach(b => { b.setAttribute("aria-pressed", String(b.dataset.v === set)); b.onclick = () => { S.maSet = b.dataset.v; renderMA(); }; });
+  const qi = $("#maQ"); if (!qi.oninput) qi.oninput = e => { S.maQ = e.target.value.trim(); renderMA(); };
+  const near = new Set((D.testing_now || []).filter(x => x[1] === tf).map(x => x[0]));
+  let list = D.coins.filter(c => c.tf[tf] && (set === "all" || (set === "picks" ? c.pick : near.has(c.symbol))) && (!q || c.symbol.toLowerCase().includes(q)));
+  list.sort((a, b) => (b.pick - a.pick) || ((a.liq_rank || 999) - (b.liq_rank || 999)));
+  const body = $("#maBody"), f2 = document.createDocumentFragment();
+  list.forEach(c => { const d = c.tf[tf], tr = document.createElement("tr"); tr.className = "clickable"; tr.onclick = () => openPair(c.symbol);
+    const nm = document.createElement("span"), b = document.createElement("b"); b.textContent = c.symbol.replace(/USDT$/, ""); nm.append(c.pick ? "★ " : "", b); tr.append(tdNode(nm), td(fPx(d.close), "num sm-hide"));
+    const st = Object.fromEntries(d.state.map(x => [x[0], x]));
+    T.top3.forEach(ma => { const x = st[ma]; if (!x) { tr.append(td("—", "num")); return; }
+      const cell = document.createElement("td"); cell.className = "num ma-c " + cls(x[2]); const arrow = isNum(x[4]) ? (x[4] > 0.3 ? " ↗" : x[4] < -0.3 ? " ↘" : " →") : "";
+      cell.textContent = fPct(x[2], 1) + arrow; const sub = document.createElement("span"); sub.className = "s"; sub.textContent = (isNum(x[3]) ? (x[3] > 0 ? "+" : "") + x[3].toFixed(1) + " ATR · " : "") + fPx(x[1]); cell.append(sub);
+      cell.title = `${ma} at ${fPx(x[1])}; close ${fPct(x[2], 2)} from it; slope over 5 candles ${fPct(x[4], 2)}`; tr.append(cell); });
+    const lt = d.state.map(x => x[5]).filter(Boolean).sort((a, b) => String(b[0]).localeCompare(String(a[0])))[0];
+    tr.append(td(lt ? `${lt[0]} · ${lt[1]} · ${lt[2]}` : "—", "sm-hide " + (lt ? (lt[2] === "held" ? "up" : lt[2] === "broke" ? "down" : "") : "")));
+    tr.append(td(d.best.length ? d.best.map(x => `${x[0]} (${x[2]}%)`).join(" · ") : "too few tests"));
+    f2.append(tr); });
+  body.replaceChildren(f2); if (!list.length) body.innerHTML = '<tr><td colspan="7" class="empty">' + (set === "near" ? "No coin is within half an ATR of a top average on this timeframe right now." : "No coin matches.") + "</td></tr>";
+  $("#maShown").textContent = list.length + " coins";
+  $("#maCoinsH").textContent = `Where each coin stands against the ${tfName} top 3`;
+  $("#maMethod").innerHTML = "";
+  [`Averages: ${M.averages.join(", ")}.`,
+   `Test (reaction): the last 3 closes on one side of the average and the candle's low (or high) comes back to within ${M.touch_atr} ATR of it for the first time. Held = price then moved ${M.held_atr} ATR away from the average before any candle closed ${M.break_atr} ATR through it; a close through on the touching candle, or both on the same later candle, counts as broke; neither within the horizon = not held.`,
+   `By chance = the same rule from every candle's close in the same window, so a positive edge means price reacts to the average more than to an arbitrary price.`,
+   `Trend: long while the candle closed above the average, flat below, ${100 * M.cost}% cost per switch, compared with holding over the same window (Sharpe, annualised). Trend split = average return over the next ${W.horizon_bars} candles when above minus when below.`,
+   `Windows: daily and 4-hour tested on the last 365 days and checked on the 730 days before; weekly tested on the last 3 years (52 weekly candles are too few) and checked on the 3 years before. Weekly candles run Monday to Sunday (UTC); only completed candles are used. Minimum tests to rank: ${M.min_tests[tf]} on this timeframe.`,
+   `Coins: your picks (${D.picks.map(x => x.replace(/USDT$/, "")).join(", ")}) and the 100 pairs with the highest 30-day trading volume on the dashboard (no stablecoins or tokenized stocks). Past behaviour, not a promise; not advice.`]
+   .forEach(t => { const p = document.createElement("p"); p.style.margin = "0 0 6px"; p.textContent = t; $("#maMethod").append(p); });
+}
 function renderSectors() {
   const card = $("#secCard"); if (!card) return;
   const D = S.caps, X = D && D.sectors; if (!X || !X.length) { card.hidden = true; return; } card.hidden = false;
@@ -4589,7 +4688,7 @@ function renderBot() {
 const fUsd2 = v => isNum(v) ? (v < 0 ? "−$" : "$") + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
 
 // ---------- routing + controls
-const VIEWS = ["me", "overview", "world", "coins", "bot", "strategies", "mmbee", "lab", "highlights", "screener", "watchlist", "signals", "listings", "stocks", "pair"];
+const VIEWS = ["me", "overview", "world", "coins", "bot", "strategies", "mmbee", "ma", "lab", "highlights", "screener", "watchlist", "signals", "listings", "stocks", "pair"];
 // sub-sections inside a tab (#bot/record, #signals/library ...); old tab names still open the right place
 const SUBS = { bot: ["portfolio", "each", "record", "fade"], signals: ["latest", "library"], mmbee: ["bots", "live", "livu", "backtest"], stocks: ["basket", "onchain", "binance"] };
 const ALIAS = { top50: ["overview", "t50"], record: ["bot", "record"], library: ["signals", "library"] };
@@ -4617,7 +4716,7 @@ function show(v) {
   if (!VIEWS.includes(v)) v = "overview"; VIEWS.forEach(x => { $("#v-" + x).hidden = x !== v; });
   setGroupNav(v);
   ({ me: () => { renderMe(); if (!ME.user && AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); }, overview: () => { renderOverview(); renderCaps("capsOv"); renderSectors(); renderTop50(); if (focus === "t50") setTimeout(() => $("#t50Card").scrollIntoView({ behavior: "smooth", block: "start" }), 150); },
-    bot: () => { $("#botNavFade").hidden = !S.p4; subCounts(); setSub("bot", S.sub.bot); }, mmbee: () => { renderMMHead(); setSub("mmbee", S.sub.mmbee); }, lab: renderLab, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch,
+    bot: () => { $("#botNavFade").hidden = !S.p4; subCounts(); setSub("bot", S.sub.bot); }, mmbee: () => { renderMMHead(); setSub("mmbee", S.sub.mmbee); }, lab: renderLab, ma: renderMA, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch,
     signals: () => { subCounts(); setSub("signals", S.sub.signals); }, listings: renderListings, strategies: renderStrategies, stocks: () => setSub("stocks", S.sub.stocks), pair: renderPair, world: () => { renderWorld(); renderCaps("capsWx"); }, coins: renderCoins })[v](); }
 function subCounts() {
   const R = S.bot, PF = R && R.portfolio, fill = (view, sub, n, title) => { const b = $('.sub-nav[data-for="' + view + '"] button[data-s="' + sub + '"]'); if (!b) return; b.querySelector("i").textContent = n ? String(n) : ""; b.title = title || ""; };
@@ -4633,7 +4732,7 @@ function subCounts() {
 const GROUPS = [["me", "★ My dashboard", [["me", "My dashboard"]]], ["overview", "Home", [["overview", "Home"]]],
   ["markets", "Markets", [["world", "World"], ["stocks", "Stocks"]]],
   ["coins", "Coins", [["coins", "All coins"], ["screener", "Screener"], ["watchlist", "Watchlist"], ["listings", "New listings"]]],
-  ["ideas", "Ideas", [["highlights", "Trade ideas"], ["signals", "Signals"], ["lab", "Setup Lab"]]],
+  ["ideas", "Ideas", [["highlights", "Trade ideas"], ["ma", "Moving averages"], ["signals", "Signals"], ["lab", "Setup Lab"]]],
   ["bots", "Bots", [["bot", "Trading bots"], ["strategies", "Strategies"], ["mmbee", "MM-Bee"]]], ["chart", "Chart", [["pair", "Pair chart"]]]];
 const groupOf = v => (GROUPS.find(g => g[2].some(x => x[0] === v)) || GROUPS[1]);
 function setGroupNav(v) {
@@ -4643,7 +4742,7 @@ function setGroupNav(v) {
   if (n.dataset.g !== g[0]) { n.dataset.g = g[0]; n.replaceChildren(...g[2].map(([id, label]) => { const a = document.createElement("a"); a.href = "#" + id; a.dataset.view = id; a.textContent = label; return a; })); }
   $$("#gNav a").forEach(a => a.setAttribute("aria-current", a.dataset.view === v ? "page" : "false"));
 }
-const VIEW_NAME = { coins: "All coins", world: "World", strategies: "Strategies", stocks: "Stocks", overview: "Overview", shortlist: "Bee's Shortlist", top50: "Top 50", bot: "Trading bots", record: "Trading bots", mmbee: "MM-Bee", lab: "Setup Lab", highlights: "Trade Ideas", screener: "Screener", watchlist: "Watchlist", signals: "Signals", library: "Signals", listings: "Listings", pair: "Pair chart" };
+const VIEW_NAME = { ma: "Moving averages", coins: "All coins", world: "World", strategies: "Strategies", stocks: "Stocks", overview: "Overview", shortlist: "Bee's Shortlist", top50: "Top 50", bot: "Trading bots", record: "Trading bots", mmbee: "MM-Bee", lab: "Setup Lab", highlights: "Trade Ideas", screener: "Screener", watchlist: "Watchlist", signals: "Signals", library: "Signals", listings: "Listings", pair: "Pair chart" };
 const backStack = []; let lastClick = null, restoring = false;
 function spotOf(el) {
   const item = el && el.closest && el.closest("tr, .hl, .tile, li, [data-k], button, a");

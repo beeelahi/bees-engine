@@ -67,13 +67,13 @@ class PickTest(unittest.TestCase):
     def test_distinct_lengths_and_check_agrees(self):
         good = {"tests": 999, "edge": 5, "sharpe_adv": 0.5, "split": 1.0}
         rows = [("EMA20", good, {"edge": 3, "split": 1}), ("SMA20", dict(good, edge=4.9), {"edge": 3, "split": 1}),
-                ("EMA9", dict(good, edge=1), {"edge": -1, "split": 1}), ("EMA50", dict(good, edge=2), {"edge": 1, "split": 1}),
+                ("EMA9", dict(good, edge=1), {"edge": 1, "split": -1}), ("EMA50", dict(good, edge=2), {"edge": 1, "split": 1}),
                 ("SMA200", dict(good, edge=0.5), {"edge": 1, "split": 1}), ("EMA5", dict(good, tests=10), {"edge": 9, "split": 9})]
         best = [x["ma"] for x in M.top3(M.rank_pick(rows, 100))]
         self.assertEqual(best[0], "EMA20")
         self.assertNotIn("SMA20", best)                                     # same length as EMA20 (spread rule)
         self.assertNotIn("EMA5", best)                                      # too few tests
-        self.assertEqual(set(best), {"EMA20", "EMA50", "SMA200"})           # EMA9 fails the check period
+        self.assertEqual(set(best), {"EMA20", "EMA50", "SMA200"})           # EMA9 fails the check period (split)
 
 
 def make_db(db):

@@ -75,6 +75,7 @@ def main(out):
     onchain(E.OUT)
     zig(E.OUT)
     library(E.OUT)
+    ma_lab(E.OUT)
     import subprocess                                    # the Strategies tab: the strategy lab on the synthetic history
     subprocess.run([sys.executable, os.path.join(HERE, "..", "research", "strategy_lab.py"), db, os.path.join(E.OUT, "strategies.json")], check=True, capture_output=True)
     with open(os.path.join(HERE, "..", "web", "index.html"), encoding="utf-8") as f:
@@ -130,6 +131,19 @@ def library(out_data):
     d = tempfile.mkdtemp()
     CL.build(log=print, db=os.path.join(d, "l.db"), rows=ROWS, books=BOOKS, tr=[("CMC", "XMR", "Monero", 300, 3), ("CoinGecko", "NEW", "Newcoin", 1, None)],
              ext_file=os.path.join(d, "ext.json"), out_lib=os.path.join(out_data, "library.json"), out_caps=os.path.join(out_data, "caps.json"), totals=totals)
+
+
+def ma_lab(out_data):
+    """Moving-averages page from the unit tests' small database."""
+    import tempfile
+    sys.path.insert(0, os.path.join(HERE, "..", "research"))
+    sys.path.insert(0, os.path.join(HERE, ".."))
+    import ma_lab as MA
+    from tests.test_ma_lab import make_db
+    d = tempfile.mkdtemp()
+    make_db(os.path.join(d, "b.db"))
+    MA.MIN_TESTS = {"1w": 1, "1d": 1, "4h": 1}
+    MA.main(os.path.join(d, "b.db"), os.path.join(out_data, "ma_lab.json"), log=print)
 
 
 def zig(out_data):

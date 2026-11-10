@@ -1007,6 +1007,14 @@ def main():
             light_publish = True
     except Exception as e:
         log.warning(f"Strategy lab skipped: {e}")
+    try:                                       # Moving averages page (Ideas): the MA lab once a day, about a minute, low priority
+        mp = os.path.join(ROOT, "web_export", "ma_lab.json")
+        if not os.path.exists(mp) or time.time() - os.path.getmtime(mp) > 20 * 3600:
+            r_ = subprocess.run(["nice", "-n", "15", sys.executable, os.path.join(ROOT, "research", "ma_lab.py")], capture_output=True, text=True, timeout=900)
+            log.info("MA lab: " + (r_.stdout.strip().splitlines() or ["no output"])[-1][:160])
+            light_publish = True
+    except Exception as e:
+        log.warning(f"MA lab skipped: {e}")
     try:                                       # coin library: CMC top 1,000, exchange mapping, market totals (every 3h)
         import coin_library
         if coin_library.refresh(log=log.info):

@@ -27,9 +27,11 @@ Windows: daily and 4h are TESTED on the last 365 days and CHECKED on the 730 day
 the last 3 years (one year is only 52 weekly candles) and checked on the years before. The picks need the check
 period to agree (reaction edge and trend split both positive there too).
 
-Top 3 per timeframe: each average is ranked across the 34 on reaction edge (40%), Sharpe advantage (30%) and trend
-split (30%), pooled over every coin in the test window; only averages with at least MIN_TESTS tests count, and the
-check period must agree; the three are spread fast / medium / slow (each at least 1.5x its neighbour's length, so
+Top 3 per timeframe: each average is ranked across the 34 on trend split (40%), Sharpe advantage (40%) and reaction
+edge (20%), pooled over every coin in the test window; only averages with at least MIN_TESTS tests count. An average
+PASSES when its trend job works in the test window (split and Sharpe advantage both positive) and the check period
+agrees on the split; passing averages are picked first (reaction is reported, not required: with a fair baseline, few
+averages beat chance as support or resistance); the three are spread fast / medium / slow (each at least 1.5x its neighbour's length, so
 they are not three copies of one line); a tie goes to the shorter average (it reacts faster).
 Per coin, the same ranking on that coin alone (at least 4 tests) gives its own best three, shown with where price
 stands against the timeframe's top three today.
@@ -290,8 +292,10 @@ def rank_pick(rows, min_tests, need_check=True):
     re_, sa, sp = pct_rank("edge"), pct_rank("sharpe_adv"), pct_rank("split")
     out = []
     for ma, ts, cs in ok:
-        score = 0.4 * re_[ma] + 0.3 * sa[ma] + 0.3 * sp[ma]
-        passes = ts["edge"] > 0 and ts["split"] > 0 and (not need_check or (cs and (cs.get("edge") or -1) > 0 and (cs.get("split") or -1) > 0))
+        score = 0.2 * re_[ma] + 0.4 * sa[ma] + 0.4 * sp[ma]
+        # passes = its trend job works in the test window (above it the next candles went better, and long-above-it
+        # beat holding risk-adjusted) and the earlier period agrees on the split
+        passes = ts["split"] > 0 and ts["sharpe_adv"] > 0 and (not need_check or (cs and (cs.get("split") or -1) > 0))
         out.append({"ma": ma, "score": round(100 * score, 1), "passes": bool(passes)})
     n_of = lambda m: int("".join(ch for ch in m if ch.isdigit()))  # noqa: E731
     out.sort(key=lambda x: (-x["score"], n_of(x["ma"])))
@@ -366,8 +370,12 @@ def main(db, out_path, log=print):
                           "test": {k: r2(v, 3) if isinstance(v, float) else v for k, v in ts.items()},
                           "check": {k: r2(v, 3) if isinstance(v, float) else v for k, v in cs.items()}})
         table.sort(key=lambda x: (x["score"] is None, -(x["score"] or 0)))
+        t_ok = [r for r in table if r["test"]["tests"] >= MIN_TESTS[tf]]
         out["timeframes"][tf] = {"label": TF[tf]["label"], "use": TF[tf]["use"], "top3": [b["ma"] for b in best],
-                                 "coins": len(per_coin), "table": table}
+                                 "confirmed": [b["ma"] for b in best if b["passes"]], "coins": len(per_coin), "table": table,
+                                 "verdict": {"ranked": len(t_ok), "passed": sum(1 for r in t_ok if r["passes"]),
+                                             "reaction_positive": sum(1 for r in t_ok if (r["test"]["edge"] or 0) > 0),
+                                             "best_edge": max((r["test"]["edge"] for r in t_ok if r["test"]["edge"] is not None), default=None)}}
         log(f"ma lab {tf}: {len(per_coin)} coins; top 3 {[b['ma'] for b in best]} "
             + "; ".join(f"{r['ma']} edge {r['test']['edge']} split {r['test']['split']} sharpe+ {r['test']['sharpe_adv']} tests {r['test']['tests']}"
                         for r in table[:5]) + f" ({time.time() - t_start:.0f}s)")
