@@ -1475,7 +1475,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
         <div class="seg" id="maSet"><button type="button" data-v="picks" aria-pressed="true">My picks</button><button type="button" data-v="all" aria-pressed="false">Picks + top 100</button><button type="button" data-v="near" aria-pressed="false">Testing now</button></div>
       </div>
       <div class="tbl-wrap"><table class="wl-tbl ma-tbl"><thead id="maHead"></thead><tbody id="maBody"></tbody></table></div>
-      <p class="note" style="margin-top:10px">Distance = close vs the average (in % and in ATRs, the coin's average daily range on that timeframe); the arrow is the average's slope over 5 candles. "Last test" = the last time price came back to that average in the test year, and what happened. "This coin's best" = the three averages that worked best on that coin alone (held rate of its tests in brackets; few tests mean little). Tap a coin for its chart.</p>
+      <p class="note" style="margin-top:10px">Distance = close vs the average (in % and in ATRs, the coin's average daily range on that timeframe); the arrow is the average's slope over 5 candles. "Last test" = the last time price came back to that average in the test year, and what happened. "This coin's best" = the three averages that worked best on that coin alone (held rate of its tests in brackets; few tests mean little). Tap a coin to open its chart on this timeframe with these three averages drawn (the chart's "Best MAs" button).</p>
     </div>
     <div class="card">
       <div class="card-head"><h2>All 34 averages, ranked</h2><span class="note" id="maRankNote"></span></div>
@@ -1555,6 +1555,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <button class="star" id="pairStar" type="button" aria-pressed="false" hidden>☆ Add to my coins</button>
       <div class="seg" id="pairTf"><button type="button" data-tf="1h" aria-pressed="false">1H</button><button type="button" data-tf="4h" aria-pressed="false">4H</button><button type="button" data-tf="1d" aria-pressed="true">Daily</button><button type="button" data-tf="1w" aria-pressed="false">Weekly</button><button type="button" data-tf="1M" aria-pressed="false">Monthly</button></div>
       <button class="toggle" type="button" data-o="ema" aria-pressed="true">EMA 21/50/200</button>
+      <button class="toggle" type="button" data-o="lab" aria-pressed="false" title="The three averages that tested best on this timeframe (Ideas › Moving averages)">Best MAs</button>
       <button class="toggle" type="button" data-o="bb" aria-pressed="false">Bollinger</button>
       <button class="toggle" type="button" data-o="st" aria-pressed="false">Supertrend</button>
       <button class="toggle" type="button" data-o="cloud" aria-pressed="false">Ichimoku cloud</button>
@@ -4178,6 +4179,26 @@ function renderRead(r) {
   box.hidden = false;
 }
 
+// the timeframe's three best-tested averages drawn on the pair chart (from the moving-average lab)
+const LAB_COL = ["#f472b6", "#a3e635", "#fde047"];   // distinct from the EMA 21/50/200 lines
+function labTop() {                       // undefined = still loading; [] = no study for this timeframe
+  if (S.ma === undefined) { if (!maLoading) maLoading = j("data/ma_lab.json").then(d => { S.ma = d; }, () => { S.ma = null; }).then(() => { maLoading = null; if (!$("#v-pair").hidden) renderPair(); }); return undefined; }
+  const T = S.ma && S.ma.timeframes && S.ma.timeframes[S.pairTf]; return T ? T.top3 : [];
+}
+function labMAs(chart, rows, ci, pf) {
+  const L = labTop(); if (!L || !L.length) return;
+  const c = rows.map(x => x[ci.c]);
+  L.forEach((m, i) => { const n = +m.replace(/\D/g, ""), isE = m.startsWith("EMA"), out = []; let acc = 0, e = null;
+    for (let k = 0; k < c.length; k++) {
+      acc += c[k]; if (k >= n) acc -= c[k - n];
+      if (isE) { if (k === n - 1) e = acc / n; else if (k >= n) e = (2 / (n + 1)) * c[k] + (1 - 2 / (n + 1)) * e; }
+      const v = k >= n - 1 ? (isE ? e : acc / n) : null;
+      out.push(isNum(v) && k >= (isE ? 3 * n : n - 1) ? { time: rows[k][0], value: v } : { time: rows[k][0] });   // an EMA shows once it has settled
+    }
+    chart.addLineSeries({ color: LAB_COL[i], lineWidth: 2, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false, priceFormat: pf,
+      autoscaleInfoProvider: () => null }).setData(out); });
+}
+
 // ---------- moving-average lab (data/ma_lab.json, research/ma_lab.py)
 let maLoading = null;
 function renderMA() {
@@ -4223,7 +4244,8 @@ function renderMA() {
   let list = D.coins.filter(c => c.tf[tf] && (set === "all" || (set === "picks" ? c.pick : near.has(c.symbol))) && (!q || c.symbol.toLowerCase().includes(q)));
   list.sort((a, b) => (b.pick - a.pick) || ((a.liq_rank || 999) - (b.liq_rank || 999)));
   const body = $("#maBody"), f2 = document.createDocumentFragment();
-  list.forEach(c => { const d = c.tf[tf], tr = document.createElement("tr"); tr.className = "clickable"; tr.onclick = () => openPair(c.symbol);
+  list.forEach(c => { const d = c.tf[tf], tr = document.createElement("tr"); tr.className = "clickable"; tr.title = "Open the chart on this timeframe with these averages drawn";
+    tr.onclick = () => { S.ov_on.add("lab"); location.hash = "#pair/" + c.symbol + "/" + tf; };
     const nm = document.createElement("span"), b = document.createElement("b"); b.textContent = c.symbol.replace(/USDT$/, ""); nm.append(c.pick ? "★ " : "", b); tr.append(tdNode(nm), td(fPx(d.close), "num sm-hide"));
     const st = Object.fromEntries(d.state.map(x => [x[0], x]));
     T.top3.forEach(ma => { const x = st[ma]; if (!x) { tr.append(td("—", "num")); return; }
@@ -4398,6 +4420,7 @@ async function renderPair() {
   const lg = $("#pairLegend"); lg.replaceChildren();
   const leg = (color, text) => { const s = document.createElement("span"); const i = document.createElement("i"); i.style.background = color; s.append(i, document.createTextNode(text)); lg.append(s); };
   if (S.ov_on.has("ema")) { leg("var(--warn)", "EMA21"); leg("var(--accent)", "EMA50"); leg("var(--muted)", "EMA200"); }
+  if (S.ov_on.has("lab")) { const L = labTop(); if (L === undefined) leg("var(--muted)", "Best MAs: loading…"); else if (!L.length) leg("var(--muted)", "Best MAs: tested on weekly, daily and 4h only"); else L.forEach((m, i) => leg(LAB_COL[i], m.replace(/(\d+)/, " $1") + " (#" + (i + 1) + " " + { "1w": "weekly", "1d": "daily", "4h": "4h" }[S.pairTf] + ")")); }
   if (S.ov_on.has("bb")) leg("var(--violet)", "Bollinger 20,2"); if (S.ov_on.has("st")) leg("var(--up)", "Supertrend 10,3"); if (S.ov_on.has("cloud")) leg("var(--cold)", "Ichimoku cloud A/B");
   const chAll = S.ov_on.has("ch") && (S.pairTf === "1d" || S.pairTf === "4h") ? chanAll(S.pair, S.pairTf) : [], chLs = chAll.slice(0, 2), chL = chLs[0];
   chLs.forEach((x, k) => leg(["var(--soft-blue)", "var(--violet)", "var(--cold)"][k] || "var(--muted)", "Channel " + (k + 1) + ": " + ((chanData().labels || {})[x.status] || x.status).toLowerCase() + " · " + Math.round(x.days) + " days · " + x.touches[0] + "/" + x.touches[1] + " touches"));
@@ -4438,6 +4461,7 @@ async function renderPair() {
   if (S.ov_on.has("bb")) { line("bbu", 1, css("--violet"), { lineWidth: 1 }); line("bbl", 1, css("--violet"), { lineWidth: 1 }); }
   const cs = main.addCandlestickSeries({ upColor: css("--up"), downColor: css("--down"), wickUpColor: css("--up"), wickDownColor: css("--down"), borderVisible: false, priceFormat: pf });
   cs.setData(rows.map(x => ({ time: x[0], open: x[ci.o], high: x[ci.h], low: x[ci.l], close: x[ci.c] })));
+  if (S.ov_on.has("lab")) labMAs(main, rows, ci, pf);
   if (["mk", "sg", "tr"].some(k => S.ov_on.has(k))) { try { cs.setMarkers(chartMarkers(rows.map(x => x[0]))); } catch (e) {} }
   if (S.ov_on.has("ema")) { line("e21", 2, css("--warn")); line("e50", 4, css("--accent")); line("e200", 8, css("--muted")); }
   const hsHere = (hsData().rows || []).some(x => x.symbol === S.pair);
