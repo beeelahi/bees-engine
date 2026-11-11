@@ -127,6 +127,38 @@ class RunTest(unittest.TestCase):
         ns = sorted(int("".join(ch for ch in x[0] if ch.isdigit())) for x in b)
         self.assertTrue(all(ns[k + 1] / ns[k] >= 1.5 for k in range(2)))   # fast / medium / slow
         self.assertIsInstance(b[0][7], bool)
+        with open(os.path.join(d, "ma_summary.json")) as f:                # the small companion agrees with the full file
+            sm = json.load(f)
+        e = sm["coins"]["BTCUSDT"]["tf"]["1d"]
+        self.assertEqual(e[2], [x[0] for x in b])
+        self.assertEqual(e[0], sum(1 for x in b if x[9] is not None and x[9] > 0))
+        self.assertEqual((e[4], e[7]), (b[0][8], b[0][16]))
+        self.assertEqual(sm["fresh"], r["fresh"])
+        self.assertTrue(os.path.exists(os.path.join(d, "ma_cross_log.json")))   # the forward record sits next to the database
+        self.assertEqual(r["cross_log"]["total"], len({(x[0], x[1], x[2], x[6]) for x in r["fresh"]}))
+        self.assertEqual(set(r["cross_log"]["stats"]), {"1w", "1d", "4h"})
+
+
+class CrossRecordTest(unittest.TestCase):
+    def test_logged_once_then_measured(self):
+        d = tempfile.mkdtemp()
+        p = os.path.join(d, "log.json")
+        now = datetime(2026, 11, 11, tzinfo=timezone.utc)
+        row = ["EMA26", 9, 50, 1, 0.1, 1, 1, True, 100.0, 5.0, 1.0, 0.5, None, 10, 5, 4, [0, 1, "2026-11-10", 100.0]]
+        out = {"coins": [{"symbol": "XUSDT", "pick": True, "tf": {"1d": {"best": [row], "close": 100.0, "last_bar": "2026-11-10"}}}]}
+        r1 = M.cross_record(p, out, now)["rows"]
+        self.assertEqual(len(r1), 1)
+        self.assertEqual((r1[0]["ret"], r1[0]["side"]), (0.0, True))
+        row2 = list(row)
+        row2[9], row2[16] = -2.0, [1, -1, "2026-11-11", 95.0]           # a day later it fell back under: a new cross down
+        out["coins"][0]["tf"]["1d"].update(best=[row2], close=95.0, last_bar="2026-11-11")
+        rec = M.cross_record(p, out, now + timedelta(days=6))
+        r2 = rec["rows"]
+        self.assertEqual(len(r2), 2)                                            # the first one is not logged twice
+        up = next(e for e in r2 if e["dir"] == 1)
+        self.assertEqual((up["ret"], up["side"]), (-5.0, False))               # measured, and no longer above
+        st = rec["stats"]["1d"]                                                # only the first was shown 5+ days earlier
+        self.assertEqual((st["n"], st["median_ret"], st["positive_pct"], st["still_on_side_pct"]), (1, -5.0, 0.0, 0.0))
 
 
 class WeeksTest(unittest.TestCase):

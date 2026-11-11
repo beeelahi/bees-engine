@@ -1007,13 +1007,15 @@ def main():
             light_publish = True
     except Exception as e:
         log.warning(f"Strategy lab skipped: {e}")
-    try:                                       # Moving averages page (Ideas): the MA lab once a day, every pair, low priority,
+    try:                                       # Moving averages page (Ideas): the MA lab every 4 hours, every pair, low priority,
         mp = os.path.join(ROOT, "web_export", "ma_lab.json")     # in the background (several minutes) so the sync is not held up
         lp, sp_ = os.path.join(ROOT, "logs", "ma_lab.launch"), os.path.join(ROOT, "logs", "ma_lab.seen")
         os.makedirs(os.path.dirname(lp), exist_ok=True)
         age = time.time() - os.path.getmtime(mp) if os.path.exists(mp) else 1e9
         launched = time.time() - os.path.getmtime(lp) if os.path.exists(lp) else 1e9
-        if age > 20 * 3600 and launched > 3600:            # one run at a time: a run started within the hour is still going
+        last4h = time.time() // 14400 * 14400             # after every 4-hour candle (and so after each new daily close),
+        due = age > time.time() - last4h and time.time() - last4h > 600   # once its candles are in, so fresh crosses stay fresh
+        if due and launched > 3600:                        # one run at a time: a run started within the hour is still going
             with open(lp, "w") as f_:
                 f_.write(str(int(time.time())))
             with open(os.path.join(ROOT, "logs", "ma_lab.txt"), "w") as lf:

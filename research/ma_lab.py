@@ -257,7 +257,8 @@ def analyse(bars, tf, now):
                 side, jj = c[k] > m[k], k                      # when did price last cross it? candles since, direction, day
                 while jj > 0 and m[jj - 1] is not None and (c[jj - 1] > m[jj - 1]) == side:
                     jj -= 1
-                cross = [k - jj, 1 if side else -1, days[jj]] if jj > 0 and m[jj - 1] is not None else None
+                when = (datetime.fromtimestamp(t[jj] / 1000, timezone.utc).strftime("%Y-%m-%d %H:%M") if tf == "4h" else days[jj])
+                cross = [k - jj, 1 if side else -1, when, c[jj]] if jj > 0 and m[jj - 1] is not None else None
                 row["now"] = {"ma": m[k], "dist": 100 * (c[k] / m[k] - 1), "atr_dist": (c[k] - m[k]) / a[k],
                               "slope": 100 * (m[k] / m[k - 5] - 1) if k >= 5 and m[k - 5] else None, "cross": cross}
             res[f"{kind}{n}"] = row
@@ -347,6 +348,60 @@ def universe(con, now):
     return order, set(core), set(picks), missing, rank
 
 
+LOG_KEEP_D, LOG_SHOW_D, LOG_ROWS = 400, 120, 300
+LOG_MIN_AGE = {"1w": 14, "1d": 5, "4h": 1}   # a cross counts in the record's averages once it is this many days old
+
+
+def cross_record(path, out, now):
+    """Forward record of fresh crosses: each one is written down the run it appears (price at the crossing candle's
+    close) and measured on every later run against the pair's latest close on that timeframe. Nothing is back-filled,
+    so the record only holds what the page actually showed. Returns the last LOG_SHOW_D days for the page."""
+    try:
+        with open(path) as f:
+            ev = json.load(f)
+    except (OSError, ValueError):
+        ev = []
+    have = {(e["symbol"], e["tf"], e["ma"], e["when"]) for e in ev}
+    now_s = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    for cd in out["coins"]:
+        for tf, d in cd["tf"].items():
+            for i, b in enumerate(d["best"]):
+                cr = b[16]
+                if b[7] and cr and cr[0] <= FRESH[tf] and cr[3]:
+                    k = (cd["symbol"], tf, b[0], cr[2])
+                    if k not in have:
+                        have.add(k)
+                        ev.append({"symbol": cd["symbol"], "tf": tf, "ma": b[0], "rank": i + 1, "dir": cr[1], "when": cr[2], "px": cr[3],
+                                   "pick": cd["pick"], "logged_utc": now_s})
+    cut = (now - timedelta(days=LOG_KEEP_D)).strftime("%Y-%m-%d")
+    ev = [e for e in ev if e["when"][:10] >= cut]
+    state = {(cd["symbol"], tf): d for cd in out["coins"] for tf, d in cd["tf"].items()}
+    for e in ev:                                               # measure against the latest close; side = still on the crossed side
+        d = state.get((e["symbol"], e["tf"]))
+        if d and d.get("close") and e["px"]:
+            e["now_px"], e["ret"] = d["close"], round(100 * e["dir"] * (d["close"] / e["px"] - 1), 2)
+            row = next((b for b in d["best"] if b[0] == e["ma"]), None)
+            e["side"] = None if not row or row[9] is None else (1 if row[9] > 0 else -1) == e["dir"]
+            e["as_of"] = d.get("last_bar")
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(ev, f, separators=(",", ":"))
+    os.replace(tmp, path)
+    show = (now - timedelta(days=LOG_SHOW_D)).strftime("%Y-%m-%d")
+    rows = sorted((e for e in ev if e["when"][:10] >= show), key=lambda e: e["when"], reverse=True)
+    stats = {}
+    for tf, age in LOG_MIN_AGE.items():                        # only crosses old enough to have had time to work
+        old = (now - timedelta(days=age)).strftime("%Y-%m-%d")
+        m = [e for e in ev if e["tf"] == tf and e.get("ret") is not None and e["logged_utc"][:10] <= old]   # aged since it was shown
+        rs = sorted(e["ret"] for e in m)
+        stats[tf] = {"min_age_days": age, "n": len(m), "first": min((e["when"] for e in ev if e["tf"] == tf), default=None),
+                     "median_ret": round(st.median(rs), 2) if rs else None, "mean_ret": round(st.mean(rs), 2) if rs else None,
+                     "positive_pct": round(100 * sum(r > 0 for r in rs) / len(rs), 1) if rs else None,
+                     "still_on_side_pct": round(100 * sum(1 for e in m if e.get("side")) / len(m), 1) if m else None,
+                     "up": sum(1 for e in m if e["dir"] > 0), "down": sum(1 for e in m if e["dir"] < 0)}
+    return {"since": min((e["logged_utc"] for e in ev), default=None), "stats": stats, "total": len(rows), "rows": rows[:LOG_ROWS]}
+
+
 def main(db, out_path, log=print):
     t_start = time.time()
     now = datetime.now(timezone.utc)
@@ -430,12 +485,29 @@ def main(db, out_path, log=print):
                 if b[7] and cr and cr[0] <= FRESH[tf]:
                     fresh.append([cd["symbol"], tf, b[0], i + 1, cr[1], cr[0], cr[2], b[9], cd["pick"]])
     out["fresh"] = sorted(fresh, key=lambda x: (not x[8], {"1w": 0, "1d": 1, "4h": 2}[x[1]], x[5], x[3]))
+    out["cross_log"] = cross_record(os.path.join(os.path.dirname(os.path.abspath(db)), "ma_cross_log.json"), out, now)
     out["runtime_s"] = round(time.time() - t_start)
     con.close()
     tmp = out_path + ".tmp"
     with open(tmp, "w") as f:
         json.dump(out, f, separators=(",", ":"))
     os.replace(tmp, out_path)
+    # small companion for the pages that only need each pair's state (home, pair chart, screener): about a tenth the size
+    summ = {"generated_utc": out["generated_utc"], "fresh": out["fresh"], "fresh_bars": FRESH,
+            "top3": {tf: out["timeframes"][tf]["top3"] for tf in out["timeframes"]}, "picks": out["picks"],
+            "cols": ["above", "of", "averages", "confirmed", "ma1_value", "ma1_dist_pct", "ma1_atr_dist", "ma1_cross"], "coins": {}}
+    for cd in out["coins"]:
+        e = {}
+        for tf, d in cd["tf"].items():
+            if d["best"]:
+                b0 = d["best"][0]
+                e[tf] = [sum(1 for b in d["best"] if b[9] is not None and b[9] > 0), len(d["best"]), [b[0] for b in d["best"]],
+                         [b[7] for b in d["best"]], b0[8], b0[9], b0[10], b0[16]]
+        summ["coins"][cd["symbol"]] = {"pick": cd["pick"], "tf": e}
+    sp = os.path.join(os.path.dirname(out_path), "ma_summary.json")
+    with open(sp + ".tmp", "w") as f:
+        json.dump(summ, f, separators=(",", ":"))
+    os.replace(sp + ".tmp", sp)
     log(f"ma lab: wrote {out_path} ({os.path.getsize(out_path) // 1024} KB) in {out['runtime_s']}s; {len(near)} coin-timeframes testing a top average now")
     return out
 

@@ -415,6 +415,24 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
 /* accounts */
 .acct-ov { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 16px; background: rgba(4, 9, 26, 0.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .acct-ov[hidden] { display: none; }
+.find-ov { place-items: start center; padding-top: 10vh; }
+.find-card { width: 100%; max-width: 560px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px; box-shadow: 0 24px 80px rgba(0,0,0,.5); }
+.find-card .search { width: 100%; box-sizing: border-box; font-size: 16px; padding: 12px 14px; }
+#findList { list-style: none; margin: 8px 0 0; padding: 0; max-height: 52vh; overflow: auto; }
+#findList li { display: flex; gap: 10px; align-items: baseline; padding: 9px 10px; border-radius: 10px; cursor: pointer; }
+#findList li[aria-selected="true"], #findList li:hover { background: var(--accent-soft); }
+#findList li b { min-width: 64px; } #findList li .nm { color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#findList li .px { font-variant-numeric: tabular-nums; } #findList .hd { font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); padding: 8px 10px 2px; cursor: default; }
+.find-foot { margin: 8px 4px 0; } #openFind kbd { font: inherit; font-size: 11px; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; color: var(--muted); margin-left: 4px; }
+.ma-home { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.ma-home > a { display: block; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; color: var(--fg); text-decoration: none; font-size: 12.5px; line-height: 1.45; }
+.ma-home > a:hover { border-color: var(--accent); } .ma-home .t { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.ma-home .ma-al { margin-top: 4px; } .ma-home .ma-x { margin-left: 4px; }
+.pair-trend { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0 0; }
+.pair-trend > div { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-size: 12.5px; line-height: 1.45; min-width: 0; }
+.pair-trend .label { display: flex; justify-content: space-between; gap: 6px; } .pair-trend b.up { color: var(--up); } .pair-trend b.down { color: var(--down); } .pair-trend b.warn { color: var(--warn); }
+.pair-trend .ma-x { margin-left: 0; }
+@media (max-width: 640px) { .pair-trend { grid-template-columns: 1fr; } }
 .acct-card { width: 100%; max-width: 420px; max-height: calc(100vh - 32px); overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 28px 24px 22px; box-shadow: 0 24px 80px rgba(0,0,0,.5); position: relative; animation: acctIn .18s ease-out; }
 @keyframes acctIn { from { transform: translateY(8px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
 .acct-card h2 { margin: 6px 0 6px; font-size: 22px; } .acct-card p.lead { margin: 0 0 18px; color: var(--muted); line-height: 1.5; }
@@ -490,6 +508,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <div class="fresh">
         <span class="pill" id="freshPill"><span class="dot"></span><span id="freshText">Loading data…</span></span>
         <span class="note num" id="syncText"></span>
+        <button class="btn" id="openFind" type="button" title="Find a coin (press /)" aria-label="Find a coin"><span aria-hidden="true">⌕</span> <span class="sm-hide">Find a coin</span> <kbd class="sm-hide">/</kbd></button>
         <button class="btn" id="openAsk" type="button">Ask Claude</button>
         <button class="btn primary" id="signInBtn" type="button" hidden>Sign in</button>
         <button class="avatar" id="meBtn" type="button" hidden aria-haspopup="menu" aria-expanded="false" aria-label="Your account"></button>
@@ -548,6 +567,12 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <div class="card-head"><h2>Best trade ideas right now</h2><a class="note ov-link" href="#highlights">All trade ideas ›</a></div>
       <p class="note" style="margin:0 0 14px">The strongest live setups across the dashboard: grade A channel calls, recent grade A long-term breakouts and head-and-shoulders necklines in play. Information only, not advice.</p>
       <div class="hx-grid" id="ovBest"></div>
+    </div>
+    <div class="card" id="maHome" hidden>
+      <div class="card-head"><h2>Bee's picks against their own moving averages</h2><a class="note ov-link" href="#ma">Moving averages ›</a></div>
+      <p class="note" id="maHomeLead" style="margin:0 0 10px"></p>
+      <div class="ma-home" id="maHomeGrid"></div>
+      <p class="note" id="maHomeNote" style="margin:10px 0 0"></p>
     </div>
     <div class="card" id="dvCard" hidden>
       <div class="card-head"><h2>Daily divergences</h2><span class="note" id="dvNote"></span></div>
@@ -1482,12 +1507,19 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
       <div class="ma-fresh" id="maFresh" hidden><div class="ma-fresh-h"><b>Fresh crosses</b><span class="note" id="maFreshNote"></span></div><div class="ma-fresh-l" id="maFreshList"></div></div>
       <div class="cn-ctl">
         <input class="search" id="maQ" type="search" placeholder="Search coin" aria-label="Search coin" autocomplete="off">
-        <div class="seg" id="maSet"><button type="button" data-v="picks" aria-pressed="true">My picks</button><button type="button" data-v="top" aria-pressed="false">Top 100</button><button type="button" data-v="all" aria-pressed="false">All pairs</button><button type="button" data-v="fresh" aria-pressed="false">Fresh cross</button><button type="button" data-v="near" aria-pressed="false">Testing one</button></div>
+        <div class="seg" id="maSet"><button type="button" data-v="picks" aria-pressed="true">Bee's picks</button><button type="button" data-v="top" aria-pressed="false">Top 100</button><button type="button" data-v="all" aria-pressed="false">All pairs</button><button type="button" data-v="fresh" aria-pressed="false">Fresh cross</button><button type="button" data-v="near" aria-pressed="false">Testing one</button></div>
         <select id="maSort" aria-label="Sort pairs"><option value="liq">Sort: most traded</option><option value="strong">Strongest trend</option><option value="weak">Weakest trend</option><option value="flip">Closest to a daily flip</option></select>
         <span class="note" id="maShown"></span>
       </div>
       <div class="tbl-wrap"><table class="wl-tbl ma-tbl"><thead><tr><th>Coin</th><th>Weekly <span class="note">· views</span></th><th>Daily <span class="note">· trend</span></th><th>4-hour <span class="note">· trading ideas</span></th></tr></thead><tbody id="maBody"></tbody></table></div>
       <p class="note" id="maKey" style="margin-top:10px"></p>
+    </div>
+    <div class="card" id="maRecCard" hidden>
+      <div class="card-head"><h2>Fresh-cross record</h2><span class="note" id="maRecSince"></span></div>
+      <p class="note" id="maRecLead" style="margin:0 0 10px"></p>
+      <div class="ma-top" id="maRecStats"></div>
+      <details style="margin-top:10px"><summary class="note" id="maRecSum">Every cross in the record</summary>
+      <div class="tbl-wrap" style="margin-top:8px;max-height:60vh"><table class="wl-tbl"><thead><tr><th>Crossed</th><th>Pair</th><th>Chart</th><th>Average</th><th>Direction</th><th class="num">Price then</th><th class="num">Latest close</th><th class="num" title="Move since the cross in the cross's direction: up crosses gain when price rises, down crosses when it falls">Move its way</th><th title="Is the close still on the side it crossed to?">Still on that side</th></tr></thead><tbody id="maRecBody"></tbody></table></div></details>
     </div>
     <div class="card">
       <div class="card-head"><h2>Across all coins</h2><div class="seg" id="maTf"><button type="button" data-v="1w" aria-pressed="false">Weekly</button><button type="button" data-v="1d" aria-pressed="true">Daily</button><button type="button" data-v="4h" aria-pressed="false">4-hour</button></div></div>
@@ -1581,6 +1613,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
     </div>
     <div class="card">
       <div class="pair-head"><h2 id="pairName">—</h2><span class="px" id="pairPx">—</span><span id="pairChg"></span><span style="margin-left:auto; display:inline-flex; gap:8px"><button class="btn small" id="pairLink" type="button" title="Copy a link straight to this chart">Copy link</button><button class="btn small primary" id="pairApprove" type="button" hidden>Add to Bee's Shortlist</button></span></div>
+      <div class="pair-trend" id="pairTrend" hidden></div>
       <div class="read" id="pairRead" hidden><h3 id="readTitle"></h3><ul id="readList"></ul><p class="note" id="readNote"></p></div>
       <div class="stat-row" id="pairStats" style="margin:12px 0"></div>
       <div class="legend" id="pairLegend"></div>
@@ -1655,6 +1688,13 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
   </div>
 </aside>
 
+<div class="acct-ov find-ov" id="findDlg" hidden role="dialog" aria-modal="true" aria-label="Find a coin">
+  <div class="find-card">
+    <input class="search" id="findQ" type="search" placeholder="Coin, ticker or name: BTC, solana, ZIG…" aria-label="Coin, ticker or name" autocomplete="off" spellcheck="false" role="combobox" aria-controls="findList" aria-expanded="true">
+    <ul id="findList" role="listbox" aria-label="Matching coins"></ul>
+    <p class="note find-foot">↑ ↓ to move · Enter opens the chart · Esc closes</p>
+  </div>
+</div>
 <div class="acct-ov" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="welTitle">
   <div class="acct-card">
     <svg class="mark" viewBox="0 0 32 32" width="40" height="40" aria-hidden="true"><defs><linearGradient id="bm2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4a55e8"/><stop offset="1" stop-color="#04b7f8"/></linearGradient></defs><rect width="32" height="32" rx="8" fill="url(#bm2)"/><path d="M7 21l6-7 5 4 7-9" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -3507,6 +3547,7 @@ function renderOverview() {
   renderMarket();
   renderToday();
   renderBestIdeas();
+  renderMAHome();
   const ov = S.ov, c = ov.counts, last = ov.last_date;
   $("#kUniverse").textContent = c.pairs_filtered.toLocaleString();
   $("#kUniverseNote").textContent = c.pairs_trading + " trading USDT pairs, ≥ $100k 24h volume";
@@ -4197,10 +4238,10 @@ function renderRead(r) {
 // the timeframe's three best-tested averages drawn on the pair chart (from the moving-average lab)
 const LAB_COL = ["#f472b6", "#a3e635", "#fde047"];   // distinct from the EMA 21/50/200 lines
 function labTop() {                       // undefined = still loading; [] = no study for this timeframe
-  if (S.ma === undefined) { if (!maLoading) maLoading = j("data/ma_lab.json").then(d => { S.ma = d; }, () => { S.ma = null; }).then(() => { maLoading = null; if (!$("#v-pair").hidden) renderPair(); }); return undefined; }
-  const c = S.ma && (S.ma.coins || []).find(x => x.symbol === S.pair), d = c && c.tf[S.pairTf];
-  if (d && d.best.length) { S.labOwn = true; return d.best.map(b => b[0]); }
-  S.labOwn = false; const T = S.ma && S.ma.timeframes && S.ma.timeframes[S.pairTf]; return T ? T.top3 : [];
+  if (S.mas === undefined) { maSumLoad(); return undefined; }
+  const e = maSumTf(S.pair, S.pairTf);
+  if (e && e[2].length) { S.labOwn = true; return e[2]; }
+  S.labOwn = false; return (S.mas && S.mas.top3 && S.mas.top3[S.pairTf]) || [];
 }
 function labMAs(chart, rows, ci, pf) {
   const L = labTop(); if (!L || !L.length) return;
@@ -4218,6 +4259,124 @@ function labMAs(chart, rows, ci, pf) {
 
 // ---------- moving-average lab (data/ma_lab.json, research/ma_lab.py)
 let maLoading = null;
+function maLoad() {                       // one fetch for every user of the study; redraws whatever is open when it lands
+  if (S.ma !== undefined || maLoading) return;
+  maLoading = j("data/ma_lab.json").then(d => { S.ma = d; }, () => { S.ma = null; }).then(() => { maLoading = null;
+    if (!$("#v-ma").hidden) renderMA(); });
+}
+// the small companion (data/ma_summary.json): each pair's own three and where it sits, for home, the pair chart and its overlay
+let masLoading = null;
+function maSumLoad() {
+  if (S.mas !== undefined || masLoading) return;
+  masLoading = j("data/ma_summary.json").then(d => { S.mas = d; }, () => { S.mas = null; }).then(() => { masLoading = null;
+    if (!$("#v-overview").hidden) renderMAHome(); if (!$("#v-me").hidden && ME.user) renderMe();
+    if (!$("#v-pair").hidden) { if (S.ov_on.has("lab")) renderPair(); else renderPairTrend(); } });
+}
+// summary row per timeframe: [above, of, averages, confirmed flags, #1 value, #1 dist %, #1 ATR dist, #1 cross]; as a best row for maCell etc.
+function maSumTf(sym, tf) { const c = S.mas && S.mas.coins && S.mas.coins[sym]; return c && c.tf[tf]; }
+function maAlignSum(sym) {
+  let sc = 0; const c = S.mas && S.mas.coins && S.mas.coins[sym];
+  const marks = MA_TFS.map(([tf]) => { const e = c && c.tf[tf]; if (!e) return ["·", "cold"]; sc += (2 * e[0] - e[1]) / e[1];
+    return [e[0] === e[1] ? "▲" : e[0] === 0 ? "▼" : "◆", e[0] === e[1] ? "up" : e[0] === 0 ? "down" : "warn"]; });
+  return { sc, marks };
+}
+function maMarks(sym) { const al = document.createElement("span"); al.className = "ma-al"; al.title = "Weekly · daily · 4-hour: ▲ above all three of its own averages, ▼ below all three, ◆ mixed";
+  maAlignSum(sym).marks.forEach(([t, k]) => { const i = document.createElement("i"); i.className = k; i.textContent = t; al.append(i); }); return al; }
+function renderMAHome() {
+  const card = $("#maHome"); if (S.mas === undefined) { card.hidden = true; maSumLoad(); return; }
+  const M = S.mas; if (!M || !M.coins) { card.hidden = true; return; }
+  const syms = Object.keys(M.coins), mine = ME.user ? [...ME.watch.keys()].filter(x => M.coins[x]) : [];
+  const picks = mine.length ? mine : syms.filter(x => M.coins[x].pick && S.index && S.index[x]); card.hidden = !picks.length; if (!picks.length) return;
+  $("#maHome h2").textContent = (mine.length ? "Your coins" : "Bee's picks") + " against their own moving averages";
+  const AL = Object.fromEntries(picks.map(x => [x, maAlignSum(x)]));
+  picks.sort((a, b) => AL[b].sc - AL[a].sc || a.localeCompare(b));
+  const daily = syms.map(x => M.coins[x].tf["1d"]).filter(Boolean), dUp = daily.filter(e => isNum(e[5]) && e[5] > 0).length;
+  const wk = syms.map(x => M.coins[x].tf["1w"]).filter(Boolean), wUp = wk.filter(e => isNum(e[5]) && e[5] > 0).length;
+  $("#maHomeLead").textContent = `Weekly · daily · 4-hour, each against the pair's own best three averages: ▲ above all three, ▼ below all three, ◆ mixed. Breadth across all ${daily.length} pairs: ${Math.round(100 * dUp / daily.length)}% close above their own #1 daily average, ${wk.length ? Math.round(100 * wUp / wk.length) : "—"}% above their #1 weekly.`;
+  const fr = {}; (M.fresh || []).forEach(x => { (fr[x[0]] = fr[x[0]] || []).push(x); });
+  const g = $("#maHomeGrid"), f = document.createDocumentFragment();
+  picks.forEach(sym => { const a = document.createElement("a"), t = document.createElement("div"), b = document.createElement("b"), px = document.createElement("span");
+    a.href = "#pair/" + sym + "/1d"; a.onclick = e => { e.preventDefault(); openPair(sym, "1d"); };
+    t.className = "t"; b.textContent = sym.replace(/USDT$/, ""); const r = S.scr.find(x => x.symbol === sym), lp = livePx(sym);
+    px.className = "note"; px.textContent = fPx(lp ? lp[0] : r && r.last_close); t.append(b, px); a.append(t, maMarks(sym));
+    const d = M.coins[sym].tf["1d"]; if (d && isNum(d[4]) && isNum(d[5])) { const l = document.createElement("div"); l.className = "note";
+      l.textContent = `daily #1 ${maName(d[2][0])} ${fPct(d[5], 1)}`; a.append(l); }
+    (fr[sym] || []).slice(0, 2).forEach(x => { const m = document.createElement("span"); m.className = "ma-x " + (x[4] > 0 ? "up" : "down");
+      m.textContent = (x[4] > 0 ? "↑ " : "↓ ") + { "1w": "W", "1d": "D", "4h": "4h" }[x[1]] + " " + maName(x[2]); m.title = `Closed ${x[4] > 0 ? "above" : "below"} its own #${x[3]} on ${x[6]}`; a.append(m); });
+    a.title = "Open the daily chart. Hover the marks for what they mean."; f.append(a); });
+  g.replaceChildren(f);
+  const nFresh = (M.fresh || []).length;
+  $("#maHomeNote").textContent = `Updated ${mbAgo(M.generated_utc)}. ${nFresh} fresh cross${nFresh === 1 ? "" : "es"} of confirmed averages across all pairs on the Moving averages page. Trend filters, not signals; research, not advice.`;
+}
+// pair chart: where the close sits against the pair's own three averages on each timeframe, and where the #1 flips
+function renderPairTrend() {
+  const box = $("#pairTrend"); if (S.mas === undefined) { maSumLoad(); box.hidden = true; return; }
+  const cs = S.mas && S.mas.coins && S.mas.coins[S.pair]; box.replaceChildren(); box.hidden = !cs; if (!cs) return;
+  const c = { symbol: S.pair, tf: Object.fromEntries(Object.entries(cs.tf).map(([tf, e]) => [tf, { best: e[2].map((m, i) => i ? [m, 0, 0, 0, 0, 0, 0, e[3][i]] :
+    [m, 0, 0, 0, 0, 0, 0, e[3][0], e[4], e[5], e[6], null, null, null, null, null, e[7]]), up: e[0] }])) };
+  MA_TFS.forEach(([tf, nm]) => { const d = c.tf[tf], el = document.createElement("div"), h = document.createElement("span"); h.className = "label";
+    const t = document.createElement("span"); t.textContent = { "1w": "Weekly · views", "1d": "Daily · trend", "4h": "4-hour · trading ideas" }[tf]; h.append(t);
+    if (d && d.best.length) { const a = document.createElement("a"); a.href = "#pair/" + c.symbol + "/" + tf; a.textContent = "draw";
+      a.title = "Open this timeframe with its three averages drawn"; a.onclick = e => { e.preventDefault(); S.ov_on.add("lab"); openPair(c.symbol, tf); }; h.append(a); }
+    el.append(h);
+    if (!d || !d.best.length) { const n = document.createElement("div"); n.className = "note"; n.textContent = d ? "too little history" : "no candles"; el.append(n); box.append(el); return; }
+    const up = d.up, n = d.best.length, st = document.createElement("b");
+    st.className = up === n ? "up" : up === 0 ? "down" : "warn"; st.textContent = up === n ? "▲ Above all three" : up === 0 ? "▼ Below all three" : `◆ Above ${up} of ${n}`;
+    const l1 = document.createElement("div"); l1.append(st, " " + d.best.map(b => maName(b[0]) + (b[7] ? " ✓" : "")).join(" · ")); el.append(l1);
+    const b0 = d.best[0]; if (isNum(b0[8]) && isNum(b0[9])) { const l2 = document.createElement("div"), above = b0[9] > 0;
+      l2.textContent = `#1 ${maName(b0[0])} at ${fPx(b0[8])}: ${above ? "flips down below it" : "flips up above it"} (${fN(Math.abs(b0[9]), 1)}% away)`; el.append(l2); }
+    const x = b0[16]; if (x) { const l3 = document.createElement("div"); l3.className = "note"; l3.append(`last crossed ${x[1] > 0 ? "above" : "below"} ${x[2]}`);
+      if (x[0] <= MA_FRESH[tf]) { const m = document.createElement("span"); m.className = "ma-x " + (x[1] > 0 ? "up" : "down"); m.textContent = "new"; l3.append(" ", m); } el.append(l3); }
+    el.title = "From Ideas › Moving averages: this pair's own best three on this timeframe (✓ = also worked in its earlier history). Above = trend up. Research, not advice."; box.append(el); });
+}
+// ---------- find a coin (header button or "/"): every pair on the dashboard, by ticker or name; Enter opens its chart
+const FIND = { sel: 0, items: [] };
+function findItems(q) {
+  q = q.trim().toLowerCase().replace(/\/?usdt$/, ""); const names = {};
+  if (S.coins && S.coins.rows) { const ci = Object.fromEntries(S.coins.columns.map((c, i) => [c, i]));
+    S.coins.rows.forEach(r => { const pr = r[ci.pair]; if (pr && !names[pr]) names[pr] = r[ci.name]; }); }
+  const recent = (store.get("findRecent") || "").split(",").filter(x => S.index && S.index[x]);
+  const all = S.scr.map(r => r.symbol).filter(x => S.index && S.index[x]);
+  if (!q) return { recent, list: S.scr.slice().sort((a, b) => (b.vol_24h_usdt || 0) - (a.vol_24h_usdt || 0)).slice(0, 8).map(r => r.symbol).filter(x => !recent.includes(x)), names };
+  const sc = sym => { const t = sym.replace(/USDT$/, "").toLowerCase(), nm = (names[sym] || "").toLowerCase();
+    return t === q ? 0 : t.startsWith(q) ? 1 : nm.startsWith(q) ? 2 : t.includes(q) ? 3 : nm.includes(q) ? 4 : 9; };
+  const vol = Object.fromEntries(S.scr.map(r => [r.symbol, r.vol_24h_usdt || 0]));
+  return { recent: [], list: all.map(x => [x, sc(x)]).filter(x => x[1] < 9).sort((a, b) => a[1] - b[1] || vol[b[0]] - vol[a[0]]).slice(0, 30).map(x => x[0]), names };
+}
+function findRender() {
+  const { recent, list, names } = findItems($("#findQ").value), ul = $("#findList"); ul.replaceChildren(); FIND.items = [...recent, ...list];
+  if (FIND.sel >= FIND.items.length) FIND.sel = Math.max(0, FIND.items.length - 1);
+  const head = t => { const h = document.createElement("li"); h.className = "hd"; h.setAttribute("role", "presentation"); h.textContent = t; ul.append(h); };
+  const row = (sym, k) => { const li = document.createElement("li"), b = document.createElement("b"), nm = document.createElement("span"), px = document.createElement("span");
+    li.setAttribute("role", "option"); li.id = "find-" + k; li.setAttribute("aria-selected", String(k === FIND.sel));
+    b.textContent = sym.replace(/USDT$/, ""); nm.className = "nm"; nm.textContent = names[sym] || (venueOf(sym) ? venueOf(sym) : "");
+    const r = S.scr.find(x => x.symbol === sym), lp = livePx(sym); px.className = "px";
+    const ch = lp ? lp[1] : r && r.ret_1d; px.append(fPx(lp ? lp[0] : r && r.last_close) + " ");
+    if (isNum(ch)) { const c = document.createElement("span"); c.className = ch >= 0 ? "up" : "down"; c.textContent = fPct(ch, 1); px.append(c); }
+    li.append(b, nm, px); li.onmousemove = () => { if (FIND.sel !== k) { FIND.sel = k; findMark(); } }; li.onclick = () => findGo(sym); ul.append(li); };
+  let k = 0; if (recent.length) { head("Recent"); recent.forEach(x => row(x, k++)); }
+  if (list.length) { if (!$("#findQ").value.trim()) head("Most traded"); list.forEach(x => row(x, k++)); }
+  if (!FIND.items.length) { const li = document.createElement("li"); li.className = "hd"; li.textContent = "No pair on the dashboard matches. Coins without a USDT pair on Binance, KuCoin, Gate or MEXC are not tracked."; ul.append(li); }
+  findMark();
+}
+function findMark() { $$("#findList li[role=option]").forEach(li => li.setAttribute("aria-selected", String(li.id === "find-" + FIND.sel)));
+  const el = $("#find-" + FIND.sel); if (el) { el.scrollIntoView({ block: "nearest" }); $("#findQ").setAttribute("aria-activedescendant", el.id); } }
+function findGo(sym) { const r = [sym, ...(store.get("findRecent") || "").split(",").filter(x => x && x !== sym)].slice(0, 5); store.set("findRecent", r.join(","));
+  findClose(); openPair(sym, S.pairTf && S.pair ? S.pairTf : "1d"); }
+function findOpen() { if (!S.index) return; const d = $("#findDlg"); FIND.back = document.activeElement; d.hidden = false; const q = $("#findQ"); q.value = ""; FIND.sel = 0; findRender(); q.focus();
+  if (S.coins === undefined) { if (!readLibLoading) readLibLoading = j("data/library.json").then(x => { S.coins = x; }, () => { S.coins = null; }).then(() => { readLibLoading = null; });
+    readLibLoading.then(() => { if (!$("#findDlg").hidden) findRender(); }); } }
+$("#openFind").onclick = findOpen;
+$("#findDlg").addEventListener("mousedown", e => { if (e.target.id === "findDlg") findClose(); });
+$("#findQ").addEventListener("input", () => { FIND.sel = 0; findRender(); });
+$("#findQ").addEventListener("keydown", e => {
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); const n = FIND.items.length; if (n) { FIND.sel = (FIND.sel + (e.key === "ArrowDown" ? 1 : n - 1)) % n; findMark(); } }
+  else if (e.key === "Enter") { e.preventDefault(); if (FIND.items[FIND.sel]) findGo(FIND.items[FIND.sel]); }
+  else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); findClose(); } });
+document.addEventListener("keydown", e => {
+  const t = e.target, typing = t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+  if (((e.key === "/" && !typing) || (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey))) && $("#findDlg").hidden && !document.querySelector(".acct-ov:not([hidden]), dialog[open]")) { e.preventDefault(); findOpen(); } });
+function findClose() { $("#findDlg").hidden = true; if (FIND.back && FIND.back.focus) try { FIND.back.focus(); } catch (e) {} }
 const MA_TFS = [["1w", "weekly"], ["1d", "daily"], ["4h", "4-hour"]], maName = m => m.replace(/(\d+)/, " $1");
 // best rows: [ma, tests, held%, edge, sharpe_adv, split, check_split, confirmed, value, dist%, atr_dist, slope%, last,
 //             long-above-it return %, holding return %, switches/yr, cross [candles since, +1 above / -1 below, date]]
@@ -4281,13 +4440,37 @@ function maDetail(c) {
     tb.append(bd); const w = document.createElement("div"); w.className = "tbl-wrap"; w.append(tb); box.append(w); });
   return box;
 }
+// forward record of the fresh crosses this page showed: logged when they appeared, measured on every run since
+function renderMARecord(D) {
+  const R = D.cross_log, card = $("#maRecCard"); card.hidden = !R; if (!R) return;
+  $("#maRecSince").textContent = R.since ? "recording since " + R.since.slice(0, 10) : "";
+  $("#maRecLead").textContent = "Each fresh cross is written down when it first appears here, at the crossing candle's close, and measured on every update after that. Nothing is filled in from the past, so this is an out-of-sample record of exactly what the page showed. A cross counts in the averages once it has been on the page long enough to work: weekly 14 days, daily 5, 4-hour 1. Early numbers rest on few cases; judge them only once there are dozens.";
+  const box = $("#maRecStats"); box.replaceChildren();
+  MA_TFS.forEach(([tf, nm]) => { const t = R.stats[tf] || {}, card2 = document.createElement("div"); card2.className = "ma-card";
+    card2.innerHTML = '<div class="r"></div><div class="n"></div><dl></dl>';
+    card2.querySelector(".r").textContent = nm[0].toUpperCase() + nm.slice(1) + " crosses, shown at least " + t.min_age_days + " day" + (t.min_age_days > 1 ? "s" : "") + " ago";
+    card2.querySelector(".n").textContent = t.n ? t.n + (t.n === 1 ? " cross" : " crosses") : "none yet";
+    const dl = card2.querySelector("dl"), add = (k, v, c) => { const a = document.createElement("dt"), b = document.createElement("dd"); a.textContent = k; b.textContent = v; if (c) b.className = c; dl.append(a, b); };
+    if (t.n) { add("Up / down", t.up + " / " + t.down); add("Median move its way", fPct(t.median_ret, 1), cls(t.median_ret)); add("Average move its way", fPct(t.mean_ret, 1), cls(t.mean_ret));
+      add("Moved its way", fN(t.positive_pct, 0) + "%"); add("Still on that side", fN(t.still_on_side_pct, 0) + "%"); }
+    else add("Status", t.first ? "first logged " + t.first.slice(0, 10) + "; waiting for them to age" : "no fresh cross logged yet");
+    box.append(card2); });
+  $("#maRecSum").textContent = `Every cross in the record (last ${R.rows.length < R.total ? R.rows.length + " of " + R.total : R.total})`;
+  const tb = $("#maRecBody"), f = document.createDocumentFragment();
+  R.rows.forEach(e => { const tr = document.createElement("tr"); tr.className = "clickable"; tr.onclick = () => { S.ov_on.add("lab"); openPair(e.symbol, e.tf); };
+    const nm = document.createElement("span"); nm.append(e.pick ? "★ " : "", e.symbol.replace(/USDT$/, ""));
+    tr.append(td(e.when), tdNode(nm), td({ "1w": "weekly", "1d": "daily", "4h": "4-hour" }[e.tf]), td(maName(e.ma) + " #" + e.rank), td(e.dir > 0 ? "↑ above" : "↓ below", e.dir > 0 ? "up" : "down"),
+      td(fPx(e.px), "num"), td(fPx(e.now_px), "num"), td(fPct(e.ret, 1), "num " + cls(e.ret)), td(e.side == null ? "—" : e.side ? "yes" : "no", e.side ? "up" : e.side === false ? "down" : ""));
+    f.append(tr); });
+  tb.replaceChildren(f); if (!R.rows.length) tb.innerHTML = '<tr><td colspan="9" class="empty">No crosses logged yet. The record fills in from the next update.</td></tr>';
+}
 function renderMA() {
-  if (S.ma === undefined) { if (!maLoading) maLoading = j("data/ma_lab.json").then(d => { S.ma = d; }, () => { S.ma = null; }).then(() => { maLoading = null; if (!$("#v-ma").hidden) renderMA(); }); return; }
+  if (S.ma === undefined) { maLoad(); return; }
   const D = S.ma; if (!D) { $("#maLead").textContent = "The moving-average study is published with the next refresh."; return; }
   const M = D.method;
   $("#maAsOf").textContent = "updated " + mbAgo(D.generated_utc);
   const nCore = D.coins.filter(c => c.core !== false).length;
-  $("#maLead").textContent = `Each pair's own three best moving averages on the weekly chart (to form views), the daily (current trend) and the 4-hour (trading ideas), chosen from ${M.averages.length} SMAs and EMAs (5 to 200) on that pair's own history, and spread fast / medium / slow. ${D.coins.length} pairs: every pair on the dashboard with enough history; the ranking across coins below uses your ${D.picks.length} picks and the 100 most traded (${nCore}), so thin, new coins do not skew it.` + (D.picks_missing.length ? ` Not in our data: ${D.picks_missing.join(", ")}.` : "");
+  $("#maLead").textContent = `Each pair's own three best moving averages on the weekly chart (to form views), the daily (current trend) and the 4-hour (trading ideas), chosen from ${M.averages.length} SMAs and EMAs (5 to 200) on that pair's own history, and spread fast / medium / slow. ${D.coins.length} pairs: every pair on the dashboard with enough history; the ranking across coins below uses Bee's ${D.picks.length} picks and the 100 most traded (${nCore}), so thin, new coins do not skew it.` + (D.picks_missing.length ? ` Not in our data: ${D.picks_missing.join(", ")}.` : "");
   $("#maKey").textContent = "▲▼◆ under each coin: weekly, daily, 4-hour, closing above all three of its averages (▲), none (▼) or some (◆). Each cell: how many of the three it closes above, then each average with the close's distance from it and its slope (↗ rising, ↘ falling); \"new ↑/↓\" = the close just crossed it. ✓ = confirmed: it also worked in the pair's earlier history; without ✓ it is the best this pair has, on one year (weekly: 3 years) of data. Hover for the evidence; tap a pair for the full table, past returns and its flip level. They work as trend filters (above = trend up); as bounce lines they have done no better than chance across coins. Past results, not a forecast.";
   const set = S.maSet || "picks", q = (S.maQ || "").toLowerCase(), sort = S.maSort || "liq";
   $$("#maSet button").forEach(b => { b.setAttribute("aria-pressed", String(b.dataset.v === set)); b.onclick = () => { S.maSet = b.dataset.v; renderMA(); }; });
@@ -4328,6 +4511,7 @@ function renderMA() {
     mb.onclick = () => { S.maAllRows = !S.maAllRows; renderMA(); }; mc.append(mb); mr.append(mc); f2.append(mr); }
   body.replaceChildren(f2); if (!list.length) body.innerHTML = '<tr><td colspan="4" class="empty">' + (set === "near" ? "No pair is within half an ATR of one of its own best averages right now." : set === "fresh" ? "No pair crossed one of its confirmed averages on the latest candles." : "No coin matches.") + "</td></tr>";
   $("#maShown").textContent = list.length + " pairs" + (list.length > shown.length ? ` · showing ${shown.length}` : "");
+  renderMARecord(D);
   // across all coins
   const tf = S.maTf || "1d", T = D.timeframes[tf], W = M.windows[tf], tfName = { "1w": "weekly", "1d": "daily", "4h": "4-hour" }[tf];
   $$("#maTf button").forEach(b => { b.setAttribute("aria-pressed", String(b.dataset.v === tf)); b.onclick = () => { S.maTf = b.dataset.v; renderMA(); }; });
@@ -4508,7 +4692,7 @@ async function renderPair() {
      ["RVOL 20", fX(g("rvol20"))], ["From ATH", fPct(g("dist_ath"))], ["Hist. vol", isNum(g("hv")) ? g("hv").toFixed(0) + "%" : "—"], ["24h volume", fUsd(r.vol_24h_usdt)], ["Mkt cap (est.)", fUsd(r.mcap_est)],
      ...(() => { const d = S.dv && S.dv.pairs && S.dv.pairs[S.pair]; return d ? [["Funding (yearly)", fPct(d.funding_apr, 1)], ["Open interest", fUsd(d.oi_usdt) + (isNum(d.oi_chg_7d) ? " · " + fPct(d.oi_chg_7d, 0) + " 7D" : "")], ["Long / short", isNum(d.ls_ratio) ? fN(d.ls_ratio, 2) + " (" + fN(100 * d.long_pct, 0) + "% long)" : "—"]] : []; })()]
     .forEach(([k, v]) => { const d = document.createElement("div"); const l = document.createElement("span"); l.className = "label"; l.textContent = k; const b = document.createElement("b"); b.textContent = v; d.append(l, b); st.append(d); }); }
-  renderRead(r);
+  renderRead(r); renderPairTrend();
   const lg = $("#pairLegend"); lg.replaceChildren();
   const leg = (color, text) => { const s = document.createElement("span"); const i = document.createElement("i"); i.style.background = color; s.append(i, document.createTextNode(text)); lg.append(s); };
   if (S.ov_on.has("ema")) { leg("var(--warn)", "EMA21"); leg("var(--accent)", "EMA50"); leg("var(--muted)", "EMA200"); }
@@ -5174,7 +5358,7 @@ async function loadMine() {
 function paintAccount() {
   const on = !!ME.user; $("#signInBtn").hidden = !AUTH || on; $("#meBtn").hidden = !on; $("#navMe").hidden = !on; $("#pairStar").hidden = !AUTH;
   if (on) { const n = meName(); $("#meBtn").textContent = initials(n); $("#meMenuName").textContent = n; $("#meMenuEmail").textContent = ME.user.email || ""; }
-  paintStar(); if (!$("#v-me").hidden) renderMe();
+  paintStar(); if (!$("#v-me").hidden) renderMe(); if (!$("#v-overview").hidden && S.mas) renderMAHome();
 }
 async function setUser(u) {
   const was = ME.user && ME.user.id; ME.user = u || null;
@@ -5191,7 +5375,7 @@ async function toggleCoin(sym, force) {
     const { error } = await ME.sb.from("watchlist").insert({ symbol: sym, position: ME.watch.size }); if (error) { ME.watch.delete(sym); toast(/limit/.test(error.message) ? "You can follow up to 300 coins." : "Couldn't save. Please try again."); } else toast(sym.replace(/USDT$/, "") + " added to your coins"); }
   else { const keep = ME.watch.get(sym); ME.watch.delete(sym); paintStar();
     const { error } = await ME.sb.from("watchlist").delete().eq("symbol", sym); if (error) { ME.watch.set(sym, keep); toast("Couldn't remove. Please try again."); } else toast(sym.replace(/USDT$/, "") + " removed"); }
-  paintStar(); if (!$("#v-me").hidden) renderMe();
+  paintStar(); if (!$("#v-me").hidden) renderMe(); if (!$("#v-overview").hidden && S.mas) renderMAHome();
 }
 const saveNote = (() => { const timers = {}; return (sym, note) => { clearTimeout(timers[sym]); timers[sym] = setTimeout(async () => {
   const { error } = await ME.sb.from("watchlist").update({ note: note.slice(0, 500) || null }).eq("symbol", sym); if (error) toast("Couldn't save your note."); else { const x = ME.watch.get(sym); if (x) x.note = note; } }, 600); }; })();
@@ -5202,6 +5386,8 @@ function coinNews(sym) {
   ((H.hs || {}).rows || []).filter(x => x.symbol === sym && x.status !== "after_break").forEach(x => out.push([(x.kind === "top" ? "H&S top: " : "Inverse H&S: ") + (HS_ST[x.status] || x.status).toLowerCase(), x.kind === "top" ? "down" : "up"]));
   (chanData().rows || []).filter(x => x.symbol === sym && x.tf === "1d" && x.status !== "inside").slice(0, 1).forEach(x => out.push(["Channel: " + (D[x.status] || x.status).toLowerCase(), CH_UP[x.status] || "neutral"]));
   const pick = ((S.pubSL && S.pubSL.rows) || []).find(d => d.symbol === sym && d.status === "active"); if (pick) out.push(["On Bee's Shortlist (" + (pick.side || "long") + ")", pick.side === "short" ? "down" : "up"]);
+  if (S.mas === undefined) maSumLoad();
+  ((S.mas && S.mas.fresh) || []).filter(x => x[0] === sym).slice(0, 2).forEach(x => out.push([`Crossed ${x[4] > 0 ? "above" : "below"} its own ${{ "1w": "weekly", "1d": "daily", "4h": "4-hour" }[x[1]]} ${maName(x[2])} (${x[6]})`, x[4] > 0 ? "up" : "down"]));
   const last = S.ov && S.ov.last_date; S.sig.filter(x => x.symbol === sym && x.tf === "1d" && x.period_start === last).slice(0, 2).forEach(x => out.push([sigLabel(x.signal, x.direction), x.direction === "bullish" ? "up" : "down"]));
   return out;
 }
@@ -5225,7 +5411,8 @@ function renderMe() {
     if (!news.children.length) news.append(Object.assign(document.createElement("span"), { className: "note", textContent: "Quiet today" }));
     const note = document.createElement("input"); note.className = "me-note"; note.maxLength = 500; note.placeholder = "Add a note…"; note.value = c.note || ""; note.setAttribute("aria-label", "Note for " + c.symbol); note.oninput = () => saveNote(c.symbol, note.value);
     const rm = document.createElement("button"); rm.className = "btn small"; rm.type = "button"; rm.textContent = "Remove"; rm.onclick = () => toggleCoin(c.symbol, false);
-    t.append(tdNode(symNode(c.symbol)), td(fPx(px), "num"), td(isNum(ch) ? fPct(ch, 1) : "—", "num " + cls(ch)), td(r ? fPct(r.ret_7d, 1) : "—", "num " + (r ? cls(r.ret_7d) : "")), td(r ? fPct(r.ret_30d, 1) : "—", "num " + (r ? cls(r.ret_30d) : "")),
+    const sn = document.createElement("span"); sn.append(symNode(c.symbol)); if (S.mas && S.mas.coins && S.mas.coins[c.symbol]) { sn.append(document.createElement("br"), maMarks(c.symbol)); }
+    t.append(tdNode(sn), td(fPx(px), "num"), td(isNum(ch) ? fPct(ch, 1) : "—", "num " + cls(ch)), td(r ? fPct(r.ret_7d, 1) : "—", "num " + (r ? cls(r.ret_7d) : "")), td(r ? fPct(r.ret_30d, 1) : "—", "num " + (r ? cls(r.ret_30d) : "")),
       tdNode(r && isNum(r.d_bull_score) ? chip(String(r.d_bull_score), r.d_bull_score >= 7 ? "up" : r.d_bull_score <= 3 ? "down" : "neutral") : chip("—", "neutral")), tdNode(news), tdNode(note), tdNode(rm)); tb.append(t); });
   if (!coins.length) tb.innerHTML = '<tr><td colspan="9" class="empty">No coins yet. Add one above, or tap “☆ Add to my coins” on any chart.</td></tr>';
   const nl = $("#meNews"); nl.replaceChildren(); let any = 0;
