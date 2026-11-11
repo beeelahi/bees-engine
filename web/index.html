@@ -1,5 +1,7 @@
 <title>Bee's Dashboard</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#081028">
+<meta name="description" content="Bee's Dashboard: every Binance USDT pair (plus KuCoin, Gate and MEXC listings) with charts, indicators, tested trade ideas and simulated bots, each with its own track record.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap">
@@ -1778,11 +1780,12 @@ const METRICS = {
   bb_pctb: ["BB %B", "n2"], bb_bw: ["BB width", "n3"], bb_bw_rank: ["Width rank", "osc"], atr14_pct: ["ATR %", "pct1"], hv: ["Hist. vol", "pct1"],
   st_dir: ["Supertrend", "dir"], ichi_pos: ["Cloud", "cloud"], rvol20: ["RVOL 20", "x"], rvol50: ["RVOL 50", "x"], vol_z20: ["Vol z", "n2"],
   cmf20: ["CMF 20", "n2"], taker_buy_ratio: ["Taker buy", "share"], dist_ath: ["From ATH", "ret"], bars_since_ath: ["Bars since ATH", "int"],
-  bull_score: ["Confluence /10", "score"], dist_hi_1y: ["From 1y high", "ret"], dist_lo_1y: ["From 1y low", "ret"], streak: ["Streak", "int"], "@trend": ["vs EMA 21·50·200", "trend"] };
+  bull_score: ["Confluence /10", "score"], dist_hi_1y: ["From 1y high", "ret"], dist_lo_1y: ["From 1y low", "ret"], streak: ["Streak", "int"], "@trend": ["vs EMA 21·50·200", "trend"],
+  "@ma": ["Own MAs W·D·4h", "matrend"] };
 const GLOBAL = new Set(["live_24h", "ret_1d", "ret_7d", "ret_30d", "ret_90d", "ret_180d", "ret_365d", "vol_24h_usdt", "mcap_est", "last_close", "on_watchlist_today", "listed"]);
 const PRESETS = {
-  overview: ["last_close", "live_24h", "mcap_est", "ret_1d", "ret_7d", "ret_30d", "ret_90d", "ret_365d", "bull_score", "rvol20", "rsi14", "macd_hist", "@trend", "rs30", "vol_24h_usdt", "on_watchlist_today"],
-  trend: ["last_close", "ema21", "ema50", "ema200", "sma200", "st_dir", "ichi_pos", "adx14", "pdi14", "mdi14", "dc55_up", "rs30"],
+  overview: ["last_close", "live_24h", "mcap_est", "ret_1d", "ret_7d", "ret_30d", "ret_90d", "ret_365d", "bull_score", "rvol20", "rsi14", "macd_hist", "@trend", "@ma", "rs30", "vol_24h_usdt", "on_watchlist_today"],
+  trend: ["last_close", "@ma", "ema21", "ema50", "ema200", "sma200", "st_dir", "ichi_pos", "adx14", "pdi14", "mdi14", "dc55_up", "rs30"],
   momentum: ["last_close", "rsi6", "rsi14", "rsi24", "stoch_k", "stochrsi_k", "macd_hist", "macdf_hist", "roc10", "roc30", "streak"],
   volatility: ["last_close", "bb_pctb", "bb_bw", "bb_bw_rank", "atr14_pct", "hv", "dc20_up", "ret_7d", "ret_30d"],
   volume: ["last_close", "rvol20", "rvol50", "vol_z20", "mfi14", "cmf20", "taker_buy_ratio", "vol_24h_usdt", "ret_7d"],
@@ -1792,6 +1795,7 @@ function raw(r, k) { return GLOBAL.has(k) ? r[k] : r[S.tf + "_" + k]; }
 function val(r, k) {
   if (k === "last_close") { const lp = livePx(r.symbol); if (lp) return lp[0]; }          // latest price (15-minute refresh)
   if (k === "live_24h") { const lp = livePx(r.symbol); return lp ? lp[1] : null; }
+  if (k === "@ma") { const c = S.mas && S.mas.coins && S.mas.coins[r.symbol]; return c ? maAlignSum(r.symbol).sc : null; }
   if (k === "@trend") { return [21, 50, 200].reduce((s, n) => s + (isNum(raw(r, "ema" + n)) && raw(r, "close") > raw(r, "ema" + n) ? 1 : 0), 0); }
   const v = raw(r, k), t = METRICS[k] && METRICS[k][1];
   if (t === "dist") { const c = raw(r, "close"); return isNum(v) && v !== 0 && isNum(c) ? (c / v - 1) * 100 : null; }
@@ -1813,6 +1817,7 @@ function cell(r, k) {
     case "cloud": return tdNode(v == null ? chip("—", "neutral") : chip(v > 0 ? "Above" : v < 0 ? "Below" : "Inside", v > 0 ? "up" : v < 0 ? "down" : "neutral"));
     case "watch": return tdNode(v ? chip("Hit", "warn") : null);
     case "score": return tdNode(v == null ? chip("—", "neutral") : chip(String(v), v >= 8 ? "up" : v <= 2 ? "down" : "neutral"));
+    case "matrend": { if (S.mas === undefined) maSumLoad(); return tdNode(S.mas && S.mas.coins && S.mas.coins[r.symbol] ? maMarks(r.symbol) : chip("—", "neutral")); }
     case "trend": { const s = document.createElement("span"); s.className = "trend";
       [21, 50, 200].forEach(n => { const e = raw(r, "ema" + n), w = isNum(e), above = raw(r, "close") > e; s.append(chip(!w ? "·" : above ? "▲" : "▼", !w ? "neutral" : above ? "up" : "down")); s.lastChild.title = "EMA" + n + (!w ? ": warming up" : above ? ": price above" : ": price below"); });
       return tdNode(s); }
@@ -3636,7 +3641,7 @@ function renderScreener() {
 function initScreenerControls() {
   const ps = $("#presetSeg"); Object.entries(PRESET_NAMES).forEach(([k, n]) => { const b = document.createElement("button"); b.type = "button"; b.dataset.p = k; b.textContent = n; b.setAttribute("aria-pressed", String(k === S.preset));
     b.onclick = () => { S.preset = k; store.set("preset", k); $$("#presetSeg button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); renderScreener(); }; ps.append(b); });
-  const opts = Object.keys(METRICS).filter(k => k !== "@trend" && k !== "listed" && k !== "on_watchlist_today").sort((a, b) => METRICS[a][0].localeCompare(METRICS[b][0]));
+  const opts = Object.keys(METRICS).filter(k => k !== "@trend" && k !== "@ma" && k !== "listed" && k !== "on_watchlist_today").sort((a, b) => METRICS[a][0].localeCompare(METRICS[b][0]));
   opts.forEach(k => { $("#addCol").add(new Option(METRICS[k][0], k)); if (!["sign", "dir", "cloud", "watch", "text", "trend"].includes(METRICS[k][1])) $("#fMetric").add(new Option(METRICS[k][0] + (METRICS[k][1] === "dist" ? " (% from price)" : ""), k)); });
   $("#addCol").onchange = e => { const k = e.target.value; if (k && !S.extraCols.includes(k)) { S.extraCols.push(k); store.set("extraCols", JSON.stringify(S.extraCols)); } e.target.value = ""; renderScreener(); };
   $("#fMetric").onchange = e => { const on = !!e.target.value; ["#fOp", "#fVal", "#fAdd"].forEach(s => { $(s).hidden = !on; }); if (on) $("#fVal").focus(); };
@@ -4269,7 +4274,7 @@ let masLoading = null;
 function maSumLoad() {
   if (S.mas !== undefined || masLoading) return;
   masLoading = j("data/ma_summary.json").then(d => { S.mas = d; }, () => { S.mas = null; }).then(() => { masLoading = null;
-    if (!$("#v-overview").hidden) renderMAHome(); if (!$("#v-me").hidden && ME.user) renderMe();
+    if (!$("#v-overview").hidden) renderMAHome(); if (!$("#v-me").hidden && ME.user) renderMe(); if (!$("#v-screener").hidden) renderScreener();
     if (!$("#v-pair").hidden) { if (S.ov_on.has("lab")) renderPair(); else renderPairTrend(); } });
 }
 // summary row per timeframe: [above, of, averages, confirmed flags, #1 value, #1 dist %, #1 ATR dist, #1 cross]; as a best row for maCell etc.
@@ -5121,7 +5126,7 @@ let turns = [], askCtl = null, samplePromise = null;
 const getSample = () => (samplePromise ||= (window.claude ? claude.use("sample") : Promise.resolve(null)));
 function addMsg(role, text) { const d = document.createElement("div"); d.className = "msg " + role; d.textContent = text; $("#chat").append(d); d.scrollIntoView({ block: "end" }); return d; }
 const pick = (r, keys) => Object.fromEntries(keys.map(k => [k, r[k]]));
-const METRIC_IDS = Object.keys(METRICS).filter(k => k !== "@trend");
+const METRIC_IDS = Object.keys(METRICS).filter(k => k !== "@trend" && k !== "@ma");
 const TOOLS = [
   { name: "screener", description: "Screen pairs in the filtered universe on ANY metric for timeframe tf (d, w or m; weekly/monthly = last closed candle). Filters: [{metric, op: 'ge'|'le', value}]. Price-level metrics (ema*, sma*, supertrend, dc*) are expressed as % distance of close from that level; macd_hist/macdf_hist as % of price. st_dir: +1 up/-1 down; ichi_pos: +1 above cloud, 0 inside, -1 below. Null = not warmed up (excluded by any filter on it). Returns matched count and rows with the requested metrics (default a standard set).",
     inputSchema: { type: "object", properties: { tf: { type: "string", enum: ["d", "w", "m"] }, filters: { type: "array", items: { type: "object", properties: { metric: { type: "string", enum: METRIC_IDS }, op: { type: "string", enum: ["ge", "le"] }, value: { type: "number" } } } },
