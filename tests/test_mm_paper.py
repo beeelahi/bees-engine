@@ -175,6 +175,27 @@ class PaperGridTest(unittest.TestCase):
         self.assertIn("completed rounds", txt)
 
 
+class BeeReportStateTest(unittest.TestCase):
+    """The report explains an MM-Bee book: units per state, a running pause, the latest non-fill event."""
+
+    def test_bee_state_line(self):
+        import mm_bee
+        con = sqlite3.connect(":memory:")
+        self.assertEqual(P.bee_state(con), "")                         # a grid run has no MM-Bee tables
+        con.executescript(mm_bee.SCHEMA)
+        con.execute("ALTER TABLE bee_meta ADD COLUMN pause_until REAL")
+        con.execute("INSERT INTO bee_meta(symbol, base, pause_until) VALUES('ZIGUSDT', 0.04, ?)", (1_800_000_000 + 3600,))
+        for k, st in enumerate(["armed"] * 18 + ["sold"] * 2):
+            con.execute("INSERT INTO bee_units(symbol, ladder, k, state, kind, qty) VALUES('ZIGUSDT', 0, ?, ?, 'ladder', 1)", (k, st))
+        con.execute("INSERT INTO bee_log VALUES('2026-10-30T01:00:00Z','ZIGUSDT','btc guard',0,0,0.041,0,0,'BTC +2.3%, ZIG -0.5%: 20 sells pulled for 8 h')")
+        con.execute("INSERT INTO bee_log VALUES('2026-10-30T02:00:00Z','ZIGUSDT','sold',0,1,0.042,15000,0,'ladder')")
+        line = P.bee_state(con, now_s=1_800_000_000)
+        self.assertIn("bee units: armed 18, sold 2", line)
+        self.assertIn("PAUSED until 2027-01-15 09:00 UTC", line)
+        self.assertIn("last event 2026-10-30T01:00:00Z btc guard: BTC +2.3%", line)  # the fill after it is skipped
+        self.assertNotIn("PAUSED", P.bee_state(con, now_s=1_800_000_000 + 7200))     # the pause is over
+
+
 if __name__ == "__main__":
     unittest.main()
 
