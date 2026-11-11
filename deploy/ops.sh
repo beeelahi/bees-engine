@@ -83,8 +83,10 @@ case "$CMD" in
   onchain-refresh) python3 "$ROOT/bin/onchain_stocks.py" 2>&1 | tail -n 20 ;;
   strategy-lab)    python3 "$ROOT/research/strategy_lab.py" > "$ROOT/logs/strategy_lab.txt" 2>&1; tail -n 20 "$ROOT/logs/strategy_lab.txt" ;;
   strategy-lab-log) tail -n "$N" "$ROOT/logs/strategy_lab.txt" 2>/dev/null || echo "no strategy lab output yet" ;;
-  ma-lab)          setsid nohup nice -n 15 python3 "$ROOT/research/ma_lab.py" > "$ROOT/logs/ma_lab.txt" 2>&1 < /dev/null &
-                   echo "moving-average lab started in the background; read it with ma-lab-log" ;;
+  ma-lab)          sudo -n systemd-run --unit=bees-ma-lab --collect --uid=bees --gid=bees --nice=15 -p "StandardOutput=truncate:$ROOT/logs/ma_lab.txt" \
+                     -p StandardError=inherit -p "WorkingDirectory=$ROOT" -p RuntimeMaxSec=1800 python3 -u "$ROOT/research/ma_lab.py" \
+                     && echo "moving-average lab started in the background (unit bees-ma-lab); read it with ma-lab-log" \
+                     || echo "not started: a run is probably still going (systemctl status bees-ma-lab)" ;;
   ma-lab-log)      tail -n "$N" "$ROOT/logs/ma_lab.txt" 2>/dev/null || echo "no moving-average lab output yet" ;;
   zig-probe)       python3 "$ROOT/bin/zig_archive.py" --probe 2>&1 | tail -n 20 ;;
   zig-status)      python3 "$ROOT/bin/zig_archive.py" --status 2>&1 | tail -n 10 ;;

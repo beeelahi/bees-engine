@@ -1018,10 +1018,13 @@ def main():
         if due and launched > 3600:                        # one run at a time: a run started within the hour is still going
             with open(lp, "w") as f_:
                 f_.write(str(int(time.time())))
-            with open(os.path.join(ROOT, "logs", "ma_lab.txt"), "w") as lf:
-                subprocess.Popen(["nice", "-n", "15", sys.executable, os.path.join(ROOT, "research", "ma_lab.py")], stdout=lf,
-                                 stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, start_new_session=True, close_fds=True)
-            log.info("MA lab: started in the background")
+            # its own transient systemd unit: a child of this sync would be stopped with the sync's unit when it ends.
+            # One run at a time: systemd refuses a second start while bees-ma-lab is still running.
+            r_ = subprocess.run(["sudo", "-n", "systemd-run", "--unit=bees-ma-lab", "--collect", "--uid=bees", "--gid=bees", "--nice=15",
+                                 "-p", "StandardOutput=truncate:" + os.path.join(ROOT, "logs", "ma_lab.txt"), "-p", "StandardError=inherit",
+                                 "-p", "WorkingDirectory=" + ROOT, "-p", "RuntimeMaxSec=1800",
+                                 sys.executable, "-u", os.path.join(ROOT, "research", "ma_lab.py")], capture_output=True, text=True, timeout=30)
+            log.info("MA lab: started in the background" if r_.returncode == 0 else "MA lab: not started: " + (r_.stderr or r_.stdout).strip()[:160])
         if os.path.exists(mp):                             # a finished run goes out with the next publish
             seen = open(sp_).read().strip() if os.path.exists(sp_) else ""
             if seen != str(int(os.path.getmtime(mp))):
