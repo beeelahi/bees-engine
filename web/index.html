@@ -1694,7 +1694,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
   <div class="find-card">
     <input class="search" id="findQ" type="search" placeholder="Coin, ticker or name: BTC, solana, ZIG…" aria-label="Coin, ticker or name" autocomplete="off" spellcheck="false" role="combobox" aria-controls="findList" aria-expanded="true">
     <ul id="findList" role="listbox" aria-label="Matching coins"></ul>
-    <p class="note find-foot">↑ ↓ to move · Enter opens the chart · Esc closes</p>
+    <p class="note find-foot">↑ ↓ to move · Enter opens the chart · Esc closes. On a chart: 1 · 4 · D · W · M change the timeframe, B draws its best averages.</p>
   </div>
 </div>
 <div class="acct-ov" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="welTitle">
@@ -4380,6 +4380,10 @@ $("#findQ").addEventListener("keydown", e => {
   else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); findClose(); } });
 document.addEventListener("keydown", e => {
   const t = e.target, typing = t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+  if (!typing && !e.metaKey && !e.ctrlKey && !e.altKey && !$("#v-pair").hidden && $("#findDlg").hidden && !document.querySelector(".acct-ov:not([hidden]), dialog[open]")) {
+    const tf = { "1": "1h", "4": "4h", d: "1d", w: "1w", m: "1M" }[e.key];          // chart shortcuts: timeframe, Best MAs
+    if (tf) { const b = $(`#pairTf button[data-tf="${tf}"]`); if (b) { e.preventDefault(); b.click(); } return; }
+    if (e.key === "b") { const b = $('[data-o="lab"]'); if (b) { e.preventDefault(); b.click(); } return; } }
   if (((e.key === "/" && !typing) || (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey))) && $("#findDlg").hidden && !document.querySelector(".acct-ov:not([hidden]), dialog[open]")) { e.preventDefault(); findOpen(); } });
 function findClose() { $("#findDlg").hidden = true; if (FIND.back && FIND.back.focus) try { FIND.back.focus(); } catch (e) {} }
 const MA_TFS = [["1w", "weekly"], ["1d", "daily"], ["4h", "4-hour"]], maName = m => m.replace(/(\d+)/, " $1");
