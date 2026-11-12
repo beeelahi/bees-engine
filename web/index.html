@@ -434,6 +434,7 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
 .pair-trend { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0 0; }
 .pair-trend > div { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-size: 12.5px; line-height: 1.45; min-width: 0; }
 .pair-trend .label { display: flex; justify-content: space-between; gap: 6px; } .pair-trend b.up { color: var(--up); } .pair-trend b.down { color: var(--down); } .pair-trend b.warn { color: var(--warn); }
+.pair-trend .label a { display: inline-block; padding: 5px 8px; margin: -5px -8px; }   /* "draw": a 24px+ tap target on phones, same layout */
 .pair-trend .ma-x { margin-left: 0; }
 @media (max-width: 640px) { .pair-trend { grid-template-columns: 1fr; } }
 .acct-card { width: 100%; max-width: 420px; max-height: calc(100vh - 32px); overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 28px 24px 22px; box-shadow: 0 24px 80px rgba(0,0,0,.5); position: relative; animation: acctIn .18s ease-out; }

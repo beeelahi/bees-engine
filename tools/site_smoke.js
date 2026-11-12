@@ -33,7 +33,11 @@ const ROUTES = ["overview", "world", "coins", "ma", "highlights", "highlights/se
       await p.evaluate(h => { location.hash = h; }, r); await p.waitForTimeout((r.startsWith("pair") ? 900 : 450) * (LIVE ? 2 : 1));
       const st = await p.evaluate(() => { const v = [...document.querySelectorAll("section.view")].filter(s => !s.hidden);
         return { views: v.length, text: v[0] ? v[0].innerText.trim().length : 0, over: document.documentElement.scrollWidth - window.innerWidth }; });
-      const bad = [...errs]; if (st.views !== 1) bad.push(`${st.views} views visible`); if (st.text < 40) bad.push("view is empty"); if (st.over > 2) bad.push(`page ${st.over}px wider than the screen`);
+      const bad = [...errs];
+      if (vp.n === "phone" && r.startsWith("pair/")) {   // small links a thumb must hit (e.g. "draw" on the chart's trend boxes)
+        const tiny = await p.evaluate(() => [...document.querySelectorAll(".pair-trend .label a")].filter(a => { const b = a.getBoundingClientRect(); return b.width && (b.height < 24 || b.width < 24); }).length);
+        if (tiny) bad.push(`${tiny} link(s) smaller than a 24px tap target`); }
+      if (st.views !== 1) bad.push(`${st.views} views visible`); if (st.text < 40) bad.push("view is empty"); if (st.over > 2) bad.push(`page ${st.over}px wider than the screen`);
       console.log(`${vp.n.padEnd(8)} #${r.padEnd(24)} ${bad.length ? "FAIL " + bad.join(" | ") : "ok"}`);
       if (bad.length) fails.push(`${vp.n} #${r}: ${bad.join(" | ")}`);
     }
