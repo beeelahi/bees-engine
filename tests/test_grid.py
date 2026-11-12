@@ -135,5 +135,13 @@ class GridLiveTest(unittest.TestCase):
             self.assertGreaterEqual(min(live), max(armed) - 1e-12, "an armed rung nearer the market sits idle")
 
 
+class GridEventTextTest(unittest.TestCase):
+    def test_round_profit_keeps_its_sign(self):
+        g = GL.GridLive(None, {"symbol": "ZIGUSDT"}, sqlite3.connect(":memory:"), log=lambda *a: None)
+        g.note("rebought", 1, 0.0381, 15000, -3.2)
+        g.note("rebought", 2, 0.0379, 15000, 4.75)
+        self.assertEqual(g.events, ["ZIG: rebought 15,000 @ 0.0381 (-3.20 USDT)", "ZIG: rebought 15,000 @ 0.0379 (+4.75 USDT)"])
+
+
 if __name__ == "__main__":
     unittest.main()
