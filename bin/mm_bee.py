@@ -201,7 +201,7 @@ class BeeLadder:
     def note(self, event, ladder, k, price, qty, profit=0.0, note=""):
         self.con.execute("INSERT INTO bee_log VALUES(?,?,?,?,?,?,?,?,?)", (self.now(), self.sym, event, ladder, k, price, qty, profit, note))
         if event in ("sold", "bought"):
-            self.events.append(f"{self.sym.replace('USDT', '')} bee: {event} {qty:,.0f} @ {price:.6g}" + (f" (+{profit:,.2f} USDT)" if profit else ""))
+            self.events.append(f"{self.sym.replace('USDT', '')} bee: {event} {qty:,.0f} @ {price:.6g}" + (f" ({profit:+,.2f} USDT)" if profit else ""))
 
     def cid(self, side):
         self.seq += 1

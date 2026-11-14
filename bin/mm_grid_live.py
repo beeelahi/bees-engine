@@ -217,7 +217,7 @@ class GridLive:
         self.con.execute("INSERT INTO grid_log VALUES(?,?,?,?,?,?,?)", (now(), self.sym, event, level, price, qty, profit))
         self.con.commit()
         if event in ("sold", "rebought", "rung bought", "rung resold"):
-            self.events.append(f"{self.sym.replace('USDT', '')}: {event} {qty:,.0f} @ {price:.6g}" + (f" (+{profit:,.2f} USDT)" if profit else ""))
+            self.events.append(f"{self.sym.replace('USDT', '')}: {event} {qty:,.0f} @ {price:.6g}" + (f" ({profit:+,.2f} USDT)" if profit else ""))
 
     def cid(self, side):
         self.seq += 1
