@@ -5051,6 +5051,13 @@ function setGroupNav(v) {
   const n = $("#gNav"); n.hidden = g[2].length < 2;
   if (n.dataset.g !== g[0]) { n.dataset.g = g[0]; n.replaceChildren(...g[2].map(([id, label]) => { const a = document.createElement("a"); a.href = "#" + id; a.dataset.view = id; a.textContent = label; return a; })); }
   $$("#gNav a").forEach(a => a.setAttribute("aria-current", a.dataset.view === v ? "page" : "false"));
+  [$('header nav.tabs a[aria-current="page"]'), $('#gNav a[aria-current="page"]')].forEach(keepInBar);
+}
+// on a phone the tab bar and the pills scroll sideways: bring the current one fully into view (sideways only, the page stays put)
+function keepInBar(a) {
+  if (!a || a.hidden || !a.parentElement || a.parentElement.hidden) return;
+  const n = a.parentElement, r = a.getBoundingClientRect(), b = n.getBoundingClientRect();
+  if (r.left < b.left) n.scrollLeft -= b.left - r.left + 8; else if (r.right > b.right) n.scrollLeft += r.right - b.right + 8;
 }
 const VIEW_NAME = { ma: "Moving averages", coins: "All coins", world: "World", strategies: "Strategies", stocks: "Stocks", overview: "Overview", shortlist: "Bee's Shortlist", top50: "Top 50", bot: "Trading bots", record: "Trading bots", mmbee: "MM-Bee", lab: "Setup Lab", highlights: "Trade Ideas", screener: "Screener", watchlist: "Watchlist", signals: "Signals", library: "Signals", listings: "Listings", pair: "Pair chart" };
 const backStack = []; let lastClick = null, restoring = false;
