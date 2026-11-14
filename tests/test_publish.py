@@ -127,6 +127,8 @@ class AuthConfigTest(unittest.TestCase):
         sw = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "web", "sw.js")).read()
         self.assertIn('r.method !== "GET" || r.mode !== "navigate"', sw)       # pages only, never data or sign-in calls
         self.assertIn("u.origin !== self.location.origin", sw)                  # never anything cross-origin
+        self.assertIn('cache: "no-cache"', sw)                                  # always checks for a newer page, but an unchanged one is a 304
+        self.assertNotIn('cache: "no-store"', sw)                               # (no-store re-downloaded the whole page on every visit)
 
     def test_anon_jwt_ok_service_role_refused(self):
         self.assertIsNotNone(P.auth_config(self.cfg({"url": "https://abcdefghijklmnop.supabase.co", "key": self.jwt("anon")}))[0])

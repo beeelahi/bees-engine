@@ -16,7 +16,7 @@ self.addEventListener("fetch", e => {
   if (r.method !== "GET" || r.mode !== "navigate") return;
   const u = new URL(r.url);
   if (u.origin !== self.location.origin || !(u.pathname === "/" || u.pathname.endsWith("/index.html"))) return;
-  const net = fetch(r, { cache: "no-store" });
+  const net = fetch(r, { cache: "no-cache" });   // revalidate: an unchanged page comes back as a tiny 304
   e.respondWith((async () => {
     const c = await caches.open(SHELL);
     let late = false;
