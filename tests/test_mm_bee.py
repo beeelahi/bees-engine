@@ -376,5 +376,17 @@ class BeePaperTest(unittest.TestCase):
             shutil.rmtree(tmp)
 
 
+class EventTextTest(unittest.TestCase):
+    def test_round_profit_keeps_its_sign(self):
+        """A round that bought back above its sell price lost money: the event shows -40.51, not "+-40.51"."""
+        clock = Clock()
+        bee = B.BeeLadder(FakeEx(0.25, clock), {"symbol": "JUPUSDT"}, sqlite3.connect(":memory:"), log=lambda *a: None, clock=clock)
+        bee.note("bought", 0, 1, 0.2637, 1960, -40.51)
+        bee.note("bought", 0, 2, 0.2400, 1960, 12.5)
+        bee.note("sold", 0, 3, 0.2500, 1960)
+        self.assertEqual(bee.events, ["JUP bee: bought 1,960 @ 0.2637 (-40.51 USDT)", "JUP bee: bought 1,960 @ 0.24 (+12.50 USDT)",
+                                      "JUP bee: sold 1,960 @ 0.25"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -102,12 +102,21 @@ class LibraryTest(unittest.TestCase):
         self.assertNotIn("BTC", [l[0] for x in c["sectors"] for l in x["leaders"]])   # BTC / ETH left out of sectors
         self.assertEqual(sum(x["n"] for x in c["sectors"]), 7)          # the 8 kept coins minus BTC
         self.assertIn("Other", sec)
-        rows = [[1, 1, "BIG", "Big", "big", "Meme", 1, 900.0, 0, 0, 0, -10.0, 0, 0, "", "", "", "", None, 0, 0],
-                [2, 2, "NEW", "New", "new", "Meme", 1, 100.0, 0, 0, 0, 99900.0, 0, 0, "", "", "", "", None, 0, 0]]
+        rows = [[1, 1, "BIG", "Big", "big", "Meme", 1, 900.0, 0, 5e6, 0, -10.0, 0, 0, "", "", "", "", None, 0, 0],
+                [2, 2, "NEW", "New", "new", "Meme", 1, 100.0, 0, 5e6, 0, 99900.0, 0, 0, "", "", "", "", None, 0, 0]]
         cols = ["rank", "cmc_id", "symbol", "name", "slug", "sector", "price", "mcap", "fdv", "vol24", "ch24", "ch7", "ch30", "ch1y", "added", "chain",
                 "venues", "primary", "pair", "venue_vol24", "trending"]
         m = L.sector_stats(rows, cols)[0]                              # 900 was 1,000; 100 was 0.1: total 1,000.1 -> 1,000
         self.assertAlmostEqual(m["ch7"], 100 * (1000 / 1000.1 - 1), places=6)
+        # a coin CMC shows with no 24h volume (stale, broken change figures): counted in the sector's size, not in its moves or leaders
+        dead = [3, 3, "DEAD", "Dead", "dead", "Meme", 1, 1e8, 0, 0, 72178.0, 15614.0, 0, 0, "", "", "", "", None, 0, 0]
+        m = L.sector_stats(rows + [dead], cols)[0]
+        self.assertEqual(m["n"], 3)
+        self.assertEqual(m["mcap"], 1e8 + 1000.0)
+        self.assertAlmostEqual(m["ch7"], 100 * (1000 / 1000.1 - 1), places=6)
+        self.assertEqual(m["ch24"], 0.0)
+        self.assertNotIn("DEAD", [l[0] for l in m["leaders"]])
+        self.assertEqual(m["up7_pct"], 50.0)
 
     def test_global_history_rejects_parts_not_adding_up(self):
         con = sqlite3.connect(":memory:")

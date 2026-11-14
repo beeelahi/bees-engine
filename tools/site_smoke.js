@@ -1,5 +1,5 @@
 // Browser smoke test of the dashboard (CI): opens every tab, section and chart view of a synthetic data package
-// (tools/site_smoke_data.py) on a desktop and a phone screen, and fails on any JavaScript error, an empty view,
+// (tools/site_smoke_data.py) on a desktop, a phone and a small (320px) phone screen, and fails on any JavaScript error, an empty view,
 // or a page wider than the screen.   node tools/site_smoke.js SITE_DIR
 // The same check against the live site (daily, from the private ops repository):  node tools/site_smoke.js https://beesells.xyz/
 const http = require("http"), fs = require("fs"), path = require("path");
@@ -18,7 +18,7 @@ const ROUTES = ["overview", "world", "coins", "ma", "highlights", "highlights/se
   if (!LIVE) await new Promise(ok => server.listen(0, "127.0.0.1", ok));
   const base = LIVE ? arg.replace(/\/?$/, "/") + "?smoke=" + Date.now() : "http://127.0.0.1:" + server.address().port + "/";
   const b = await chromium.launch(); const fails = [];
-  for (const vp of [{ width: 1300, height: 900, n: "desktop" }, { width: 390, height: 844, n: "phone" }]) {
+  for (const vp of [{ width: 1300, height: 900, n: "desktop" }, { width: 390, height: 844, n: "phone" }, { width: 320, height: 640, n: "phone320" }]) {
     const p = await b.newPage({ viewport: vp }); let errs = [];
     p.on("pageerror", e => errs.push("pageerror: " + e.message));
     p.on("console", m => { if (m.type() === "error" && !/Failed to load resource/.test(m.text())) errs.push("console: " + m.text()); });
@@ -32,8 +32,14 @@ const ROUTES = ["overview", "world", "coins", "ma", "highlights", "highlights/se
       errs = [];
       await p.evaluate(h => { location.hash = h; }, r); await p.waitForTimeout((r.startsWith("pair") ? 900 : 450) * (LIVE ? 2 : 1));
       const st = await p.evaluate(() => { const v = [...document.querySelectorAll("section.view")].filter(s => !s.hidden);
-        return { views: v.length, text: v[0] ? v[0].innerText.trim().length : 0, over: document.documentElement.scrollWidth - window.innerWidth }; });
-      const bad = [...errs]; if (st.views !== 1) bad.push(`${st.views} views visible`); if (st.text < 40) bad.push("view is empty"); if (st.over > 2) bad.push(`page ${st.over}px wider than the screen`);
+        const cut = [document.querySelector('header nav.tabs a[aria-current="page"]'), document.querySelector('#gNav a[aria-current="page"]')].filter(a => a && !a.hidden && !a.parentElement.hidden)
+          .filter(a => { const r = a.getBoundingClientRect(), n = a.parentElement.getBoundingClientRect(); return r.left < n.left - 1 || r.right > n.right + 1; }).map(a => a.textContent.trim());
+        return { views: v.length, text: v[0] ? v[0].innerText.trim().length : 0, over: document.documentElement.scrollWidth - window.innerWidth, cut }; });
+      const bad = [...errs];
+      if (vp.n === "phone" && r.startsWith("pair/")) {   // small links a thumb must hit (e.g. "draw" on the chart's trend boxes)
+        const tiny = await p.evaluate(() => [...document.querySelectorAll(".pair-trend .label a")].filter(a => { const b = a.getBoundingClientRect(); return b.width && (b.height < 24 || b.width < 24); }).length);
+        if (tiny) bad.push(`${tiny} link(s) smaller than a 24px tap target`); }
+      if (st.views !== 1) bad.push(`${st.views} views visible`); if (st.text < 40) bad.push("view is empty"); if (st.over > 2) bad.push(`page ${st.over}px wider than the screen`); if (st.cut.length) bad.push(`current tab/pill cut off: ${st.cut.join(", ")}`);
       console.log(`${vp.n.padEnd(8)} #${r.padEnd(24)} ${bad.length ? "FAIL " + bad.join(" | ") : "ok"}`);
       if (bad.length) fails.push(`${vp.n} #${r}: ${bad.join(" | ")}`);
     }

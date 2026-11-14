@@ -193,3 +193,34 @@ class AnalyticsWithExternalPair(unittest.TestCase):
         n = con.execute("SELECT COUNT(*) FROM candles WHERE symbol='ZIGUSDT' AND tf='1w' AND trades IS NULL").fetchone()[0]
         self.assertGreater(n, 50)                                  # weekly candles built, trade count left empty
         self.assertEqual(con.execute("SELECT COUNT(*) FROM latest WHERE symbol='ZIGUSDT'").fetchone()[0], 1)
+
+
+class CurlUrlGuardTest(unittest.TestCase):
+    """The URL goes into a curl --config on stdin: a quote, backslash or line break could add curl options of its own
+    (an output file, a header), and only http(s) may be fetched."""
+
+    def test_plain_urls_pass(self):
+        u = "https://api.mexc.com/api/v3/klines?symbol=ZIGUSDT&interval=1d&limit=500"
+        self.assertEqual(V.curl_config_url(u), 'url = "%s"\n' % u)
+        self.assertTrue(V.curl_config_url("http://example.com/a b").startswith('url = "http://'))
+
+    def test_injection_and_other_schemes_refused(self):
+        for bad in ('https://x.example/"\noutput = "/tmp/pwn', "https://x.example/a\\b", "https://x.example/\r\nheader = X",
+                    "https://x.example/\x00", "file:///etc/passwd", "ftp://x.example/", "", None):
+            with self.assertRaises(ValueError, msg=repr(bad)):
+                V.curl_config_url(bad)
+
+    def test_curl_limited_to_http_on_redirects_too(self):
+        self.assertEqual(V.CURL_PROTO, ["--proto", "=http,https", "--proto-redir", "=http,https"])
+
+    def test_world_fetch_refuses_without_running_curl(self):
+        import subprocess
+        import world_markets as W
+        real, calls = subprocess.run, []
+        subprocess.run = lambda *a, **k: calls.append(a) or real(["false"])
+        try:
+            self.assertEqual(W.fetch('https://x.example/"\noutput = "/tmp/pwn'), (0, ""))
+            self.assertEqual(W.fetch("file:///etc/passwd"), (0, ""))
+        finally:
+            subprocess.run = real
+        self.assertEqual(calls, [])
