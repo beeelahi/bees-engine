@@ -85,11 +85,24 @@ def native(sym):
     return NATIVE.get(sym, sym)
 
 
+# curl may only speak http(s), on the first request and on any redirect (never file://, ftp://, ...)
+CURL_PROTO = ["--proto", "=http,https", "--proto-redir", "=http,https"]
+
+
+def curl_config_url(url):
+    """The `url = "..."` line for a curl --config read from stdin. Refuses a URL that is not http(s) or that holds a
+    quote, a backslash or a control character: any of those could end the quoted value and slip extra curl options
+    (an output file, a header) into the config."""
+    if not isinstance(url, str) or not url.startswith(("https://", "http://")) or any(c in '"\\' or ord(c) < 0x20 or ord(c) == 0x7f for c in url):
+        raise ValueError("refused URL for curl: " + repr(url)[:120])
+    return 'url = "%s"\n' % url
+
+
 def default_fetch(url):
     """(status, headers, body) via curl (the URL is read from stdin, never put on a command line)."""
     import subprocess
-    p = subprocess.run(["curl", "-sS", "--compressed", "--max-time", "60", "-w", "\n%{http_code}", "--config", "-"],
-                       input='url = "%s"\n' % url, capture_output=True, text=True)
+    p = subprocess.run(["curl", "-sS", "--compressed", "--max-time", "60", *CURL_PROTO, "-w", "\n%{http_code}", "--config", "-"],
+                       input=curl_config_url(url), capture_output=True, text=True)
     if p.returncode != 0:
         raise ConnectionError(f"curl exit {p.returncode}")
     body, _, code = p.stdout.rpartition("\n")

@@ -30,6 +30,8 @@ from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from xml.etree import ElementTree as ET
 
+from venues import CURL_PROTO, curl_config_url
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DB = os.path.join(ROOT, "data", "world.db")
 OUT = os.path.join(ROOT, "web_export", "world.json")
@@ -169,13 +171,16 @@ HOT = r"\b(surge|plunge|crash|soar|slump|tumble|record|emergency|unexpected|shoc
 def fetch(url, timeout=15, data=None, jar=None, tv=False):
     """GET (or POST `data` as JSON) a public URL with curl (no credentials ever). Returns (status, body text).
     tv=True sends TradingView's origin on a GET too (its public calendar asks for it)."""
-    cfg = f'url = "{url}"\nheader = "User-Agent: {UA}"\nheader = "Accept: */*"\n'
+    try:
+        cfg = curl_config_url(url) + f'header = "User-Agent: {UA}"\nheader = "Accept: */*"\n'
+    except ValueError:
+        return 0, ""
     if tv and data is None:
         cfg += 'header = "Origin: https://www.tradingview.com"\nheader = "Referer: https://www.tradingview.com/"\n'
     if data is not None:
         cfg += 'header = "Content-Type: application/json"\nheader = "Origin: https://www.tradingview.com"\n' \
                'header = "Referer: https://www.tradingview.com/"\n'
-    args = ["curl", "-sS", "-L", "--max-redirs", "3", "--compressed", "--max-time", str(timeout),
+    args = ["curl", "-sS", "-L", "--max-redirs", "3", *CURL_PROTO, "--compressed", "--max-time", str(timeout),
             "--max-filesize", str(MAX_BODY), "-w", "\n%{http_code}", "--config", "-"]
     if jar:
         args += ["-b", jar, "-c", jar]
