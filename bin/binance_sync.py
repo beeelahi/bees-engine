@@ -577,9 +577,11 @@ def refresh_fear_greed(con, today):
 
 
 # ---------------------------------------------------------------- exports
+# Pinned pairs (venues.PINNED, ZIG on MEXC) stay in the universe while they trade, on a quiet day and also when the
+# day's 24h snapshot is missing for them (LEFT JOIN): on 1 Nov 2026 one quiet snapshot dropped ZIG for a whole day.
 FILTERED_SQL = f"""
 SELECT p.symbol FROM pairs p
-JOIN ticker_snapshots t ON t.symbol = p.symbol
+LEFT JOIN ticker_snapshots t ON t.symbol = p.symbol
  AND t.snap_date = (SELECT MAX(snap_date) FROM ticker_snapshots)
 WHERE p.status = 'TRADING' AND (t.quote_volume_24h >= {MIN_VOL_USDT}
        OR p.symbol IN ({",".join("'" + x + "'" for x in sorted(venues.PINNED)) or "''"}))   -- pairs tracked on purpose (ZIG) stay in, quiet days too
