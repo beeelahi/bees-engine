@@ -35,7 +35,11 @@ const ROUTES = ["overview", "world", "coins", "ma", "highlights", "highlights/se
         const cut = [document.querySelector('header nav.tabs a[aria-current="page"]'), document.querySelector('#gNav a[aria-current="page"]')].filter(a => a && !a.hidden && !a.parentElement.hidden)
           .filter(a => { const r = a.getBoundingClientRect(), n = a.parentElement.getBoundingClientRect(); return r.left < n.left - 1 || r.right > n.right + 1; }).map(a => a.textContent.trim());
         return { views: v.length, text: v[0] ? v[0].innerText.trim().length : 0, over: document.documentElement.scrollWidth - window.innerWidth, cut }; });
-      const bad = [...errs]; if (st.views !== 1) bad.push(`${st.views} views visible`); if (st.text < 40) bad.push("view is empty"); if (st.over > 2) bad.push(`page ${st.over}px wider than the screen`); if (st.cut.length) bad.push(`current tab/pill cut off: ${st.cut.join(", ")}`);
+      const bad = [...errs];
+      if (vp.n === "phone" && r.startsWith("pair/")) {   // small links a thumb must hit (e.g. "draw" on the chart's trend boxes)
+        const tiny = await p.evaluate(() => [...document.querySelectorAll(".pair-trend .label a")].filter(a => { const b = a.getBoundingClientRect(); return b.width && (b.height < 24 || b.width < 24); }).length);
+        if (tiny) bad.push(`${tiny} link(s) smaller than a 24px tap target`); }
+      if (st.views !== 1) bad.push(`${st.views} views visible`); if (st.text < 40) bad.push("view is empty"); if (st.over > 2) bad.push(`page ${st.over}px wider than the screen`); if (st.cut.length) bad.push(`current tab/pill cut off: ${st.cut.join(", ")}`);
       console.log(`${vp.n.padEnd(8)} #${r.padEnd(24)} ${bad.length ? "FAIL " + bad.join(" | ") : "ok"}`);
       if (bad.length) fails.push(`${vp.n} #${r}: ${bad.join(" | ")}`);
     }
