@@ -79,6 +79,9 @@ case "$CMD" in
     sudo -n chown saad:saad /home/saad/.ssh/authorized_keys; sudo -n chmod 600 /home/saad/.ssh/authorized_keys
     echo "saad ALL=(ALL) NOPASSWD:ALL" | sudo -n tee /etc/sudoers.d/90-saad >/dev/null; sudo -n chmod 440 /etc/sudoers.d/90-saad
     sudo -n visudo -cf /etc/sudoers.d/90-saad >/dev/null && echo "sudo rule ok" || { sudo -n rm -f /etc/sudoers.d/90-saad; echo "sudo rule invalid: removed"; }
+    # SSH only admits users on its AllowUsers list (bees, opsbot); AllowUsers lines add up, so this adds saad to it
+    printf '%s\n' "# Bee's Dashboard ops (saad-user): Saad's own login" "AllowUsers saad" | sudo -n tee /etc/ssh/sshd_config.d/00-bees-saad.conf >/dev/null
+    if sudo -n sshd -t; then sudo -n systemctl reload ssh; echo "ssh: saad allowed, reloaded"; else sudo -n rm -f /etc/ssh/sshd_config.d/00-bees-saad.conf; echo "ssh config test FAILED: removed"; fi
     echo "user: $(id saad)"; echo "key: $(sudo -n ssh-keygen -lf /home/saad/.ssh/authorized_keys)" ;&
   ssh-check)       # why can't someone reach SSH? what sshd listens on, the firewall, fail2ban, recent refusals
     echo "listening: $(sudo -n ss -ltnp 2>/dev/null | awk '/sshd/{print $4}' | tr '\n' ' ')"
