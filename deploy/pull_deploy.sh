@@ -57,7 +57,7 @@ switch_to() {  # $1 = unpacked release dir, $2 = sha
   done
   if [ "$changed" = 1 ]; then
     sudo -n systemctl daemon-reload || true
-    sudo -n systemctl enable --now bees-sync.timer bees-deploy.timer >/dev/null 2>&1 || true
+    sudo -n systemctl enable --now bees-sync.timer bees-deploy.timer bees-ma-lab.timer >/dev/null 2>&1 || true
   fi
   if systemctl is-active --quiet bees-mm.service; then sudo -n systemctl restart bees-mm.service || true; fi
   if systemctl is-active --quiet bees-mm-paper.service; then sudo -n systemctl restart bees-mm-paper.service || true; fi

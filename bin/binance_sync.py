@@ -1009,24 +1009,9 @@ def main():
             light_publish = True
     except Exception as e:
         log.warning(f"Strategy lab skipped: {e}")
-    try:                                       # Moving averages page (Ideas): the MA lab every 4 hours, every pair, low priority,
-        mp = os.path.join(ROOT, "web_export", "ma_lab.json")     # in the background (several minutes) so the sync is not held up
-        lp, sp_ = os.path.join(ROOT, "logs", "ma_lab.launch"), os.path.join(ROOT, "logs", "ma_lab.seen")
-        os.makedirs(os.path.dirname(lp), exist_ok=True)
-        age = time.time() - os.path.getmtime(mp) if os.path.exists(mp) else 1e9
-        launched = time.time() - os.path.getmtime(lp) if os.path.exists(lp) else 1e9
-        last4h = time.time() // 14400 * 14400             # after every 4-hour candle (and so after each new daily close),
-        due = age > time.time() - last4h and time.time() - last4h > 600   # once its candles are in, so fresh crosses stay fresh
-        if due and launched > 3600:                        # one run at a time: a run started within the hour is still going
-            with open(lp, "w") as f_:
-                f_.write(str(int(time.time())))
-            # its own transient systemd unit: a child of this sync would be stopped with the sync's unit when it ends.
-            # One run at a time: systemd refuses a second start while bees-ma-lab is still running.
-            r_ = subprocess.run(["sudo", "-n", "systemd-run", "--unit=bees-ma-lab", "--collect", "--uid=bees", "--gid=bees", "--nice=15",
-                                 "-p", "StandardOutput=truncate:" + os.path.join(ROOT, "logs", "ma_lab.txt"), "-p", "StandardError=inherit",
-                                 "-p", "WorkingDirectory=" + ROOT, "-p", "RuntimeMaxSec=1800",
-                                 sys.executable, "-u", os.path.join(ROOT, "research", "ma_lab.py")], capture_output=True, text=True, timeout=30)
-            log.info("MA lab: started in the background" if r_.returncode == 0 else "MA lab: not started: " + (r_.stderr or r_.stdout).strip()[:160])
+    try:                                       # Moving averages page (Ideas): the study runs on its own timer (bees-ma-lab.timer,
+        mp = os.path.join(ROOT, "web_export", "ma_lab.json")     # 20 minutes after each 4-hour candle); here only publish a new run
+        sp_ = os.path.join(ROOT, "logs", "ma_lab.seen")
         if os.path.exists(mp):                             # a finished run goes out with the next publish
             seen = open(sp_).read().strip() if os.path.exists(sp_) else ""
             if seen != str(int(os.path.getmtime(mp))):

@@ -59,6 +59,15 @@ case "$CMD" in
       echo "market maker heartbeat: $hage s ago"
       [ "$hage" -lt 300 ] || { echo "UNHEALTHY: market maker running but no heartbeat for over 5 minutes"; exit 1; }
     fi
+    # every published data file must be fresh: most refresh at least daily, the moving-average study every 4 hours
+    stale=""; now=$(date +%s)
+    for f in "$ROOT"/web_export/*.json; do
+      [ -f "$f" ] || continue; n=$(basename "$f"); lim=93600
+      case "$n" in ma_lab.json|ma_summary.json) lim=21600 ;; esac
+      a=$(( now - $(stat -c %Y "$f") )); [ "$a" -gt "$lim" ] && stale="$stale $n($((a / 3600))h)"
+    done
+    [ -z "$stale" ] || { echo "UNHEALTHY: stale data files:$stale"; exit 1; }
+    systemctl is-active --quiet bees-ma-lab.timer || echo "note: moving-average timer not active yet (it is enabled on the next deploy)"
     echo healthy ;;
   run-sync)        sudo systemctl start --no-block bees-sync.service && echo "engine run started" ;;
   deploy)          sudo systemctl start bees-deploy.service && tail -n 5 "$ROOT/logs/deploy.log" ;;
@@ -83,10 +92,9 @@ case "$CMD" in
   onchain-refresh) python3 "$ROOT/bin/onchain_stocks.py" 2>&1 | tail -n 20 ;;
   strategy-lab)    python3 "$ROOT/research/strategy_lab.py" > "$ROOT/logs/strategy_lab.txt" 2>&1; tail -n 20 "$ROOT/logs/strategy_lab.txt" ;;
   strategy-lab-log) tail -n "$N" "$ROOT/logs/strategy_lab.txt" 2>/dev/null || echo "no strategy lab output yet" ;;
-  ma-lab)          sudo -n systemd-run --unit=bees-ma-lab --collect --uid=bees --gid=bees --nice=15 -p "StandardOutput=truncate:$ROOT/logs/ma_lab.txt" \
-                     -p StandardError=inherit -p "WorkingDirectory=$ROOT" -p RuntimeMaxSec=1800 python3 -u "$ROOT/research/ma_lab.py" \
-                     && echo "moving-average lab started in the background (unit bees-ma-lab); read it with ma-lab-log" \
-                     || echo "not started: a run is probably still going (systemctl status bees-ma-lab)" ;;
+  ma-lab)          sudo -n systemctl start --no-block bees-ma-lab.service \
+                     && echo "moving-average lab started (unit bees-ma-lab, also runs every 4 hours by timer); read it with ma-lab-log" \
+                     || echo "could not start bees-ma-lab" ;;
   ma-lab-log)      tail -n "$N" "$ROOT/logs/ma_lab.txt" 2>/dev/null || echo "no moving-average lab output yet" ;;
   zig-probe)       python3 "$ROOT/bin/zig_archive.py" --probe 2>&1 | tail -n 20 ;;
   zig-status)      python3 "$ROOT/bin/zig_archive.py" --status 2>&1 | tail -n 10 ;;

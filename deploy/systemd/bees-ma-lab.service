@@ -1,0 +1,18 @@
+[Unit]
+Description=Bee's Dashboard moving-average study (every pair's own best averages, fresh crosses, forward record)
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=bees
+WorkingDirectory=/home/bees/BinanceData
+ExecStart=/usr/bin/python3 -u /home/bees/BinanceData/research/ma_lab.py
+StandardOutput=truncate:/home/bees/BinanceData/logs/ma_lab.txt
+StandardError=inherit
+Nice=15
+TimeoutStartSec=30min
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/bees/BinanceData
