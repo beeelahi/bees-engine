@@ -69,6 +69,24 @@ case "$CMD" in
     [ -z "$stale" ] || { echo "UNHEALTHY: stale data files:$stale"; exit 1; }
     systemctl is-active --quiet bees-ma-lab.timer || echo "note: moving-average timer not active yet (it is enabled on the next deploy)"
     echo healthy ;;
+  saad-user)       # Saad's own login with admin rights (sudo without a password: the account has no password at all,
+                   # login is by his key only). Bilal's request, 15 Nov 2026. Idempotent. Remove: sudo deluser --remove-home saad
+    K="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMR76KAyM4/8zwmV+Vhmi5Zr34KABC7D/7g7Aj/ue6nC saad"
+    id saad >/dev/null 2>&1 || sudo -n adduser --disabled-password --gecos "Saad" saad >/dev/null
+    sudo -n usermod -aG sudo saad
+    sudo -n install -d -o saad -g saad -m 700 /home/saad/.ssh
+    echo "$K" | sudo -n tee /home/saad/.ssh/authorized_keys >/dev/null
+    sudo -n chown saad:saad /home/saad/.ssh/authorized_keys; sudo -n chmod 600 /home/saad/.ssh/authorized_keys
+    echo "saad ALL=(ALL) NOPASSWD:ALL" | sudo -n tee /etc/sudoers.d/90-saad >/dev/null; sudo -n chmod 440 /etc/sudoers.d/90-saad
+    sudo -n visudo -cf /etc/sudoers.d/90-saad >/dev/null && echo "sudo rule ok" || { sudo -n rm -f /etc/sudoers.d/90-saad; echo "sudo rule invalid: removed"; }
+    echo "user: $(id saad)"; echo "key: $(sudo -n ssh-keygen -lf /home/saad/.ssh/authorized_keys)" ;&
+  ssh-check)       # why can't someone reach SSH? what sshd listens on, the firewall, fail2ban, recent refusals
+    echo "listening: $(sudo -n ss -ltnp 2>/dev/null | awk '/sshd/{print $4}' | tr '\n' ' ')"
+    echo "sshd: $(sudo -n sshd -T 2>/dev/null | grep -Ei '^(port|listenaddress|permitrootlogin|passwordauthentication|allowusers|allowgroups|denyusers) ' | tr '\n' ' ')"
+    echo "ssh service: $(systemctl is-active ssh 2>/dev/null) socket: $(systemctl is-active ssh.socket 2>/dev/null)"
+    echo "ufw:"; sudo -n ufw status verbose 2>/dev/null | sed -n '1,25p'
+    command -v fail2ban-client >/dev/null && { echo "fail2ban:"; sudo -n fail2ban-client status sshd 2>/dev/null | sed -n '1,12p'; }
+    echo "recent ssh log:"; sudo -n journalctl -u ssh --since "-3h" --no-pager 2>/dev/null | grep -Ei "accepted|refused|invalid|failed|closed" | tail -12 | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+\.[0-9]+/\1.x.x/g' ;;
   root-login-off)  # close root SSH login again (undo root-login-keys)
     sudo -n rm -f /etc/ssh/sshd_config.d/00-bees-root-keys.conf
     sudo -n sshd -t && { sudo -n systemctl reload ssh 2>/dev/null || sudo -n systemctl reload sshd; } && echo "root login closed again"
@@ -133,5 +151,5 @@ case "$CMD" in
   bee-tune-stop)   pf="$ROOT/logs/bee_tune.pid"; if [ -f "$pf" ] && kill -- -"$(cat "$pf")" 2>/dev/null; then echo "MM-Bee tuning study stopped"; else echo "no MM-Bee tuning study running"; fi; rm -f "$pf" ;;
   bee-tune-log)    tail -n "$N" "$ROOT/logs/bee_tune.txt" 2>/dev/null || echo "no MM-Bee tuning output yet" ;;
   bee-study-log)   tail -n "$N" "$ROOT/logs/bee_study.txt" 2>/dev/null || echo "no MM-Bee study output yet" ;;
-  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status web-setup web-status publish-local publish-github ma-lab ma-lab-log root-key-saad root-keys root-login-keys root-login-off"; exit 2 ;;
+  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status web-setup web-status publish-local publish-github ma-lab ma-lab-log root-key-saad root-keys root-login-keys root-login-off saad-user ssh-check"; exit 2 ;;
 esac
