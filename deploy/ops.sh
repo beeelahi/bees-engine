@@ -69,6 +69,10 @@ case "$CMD" in
     [ -z "$stale" ] || { echo "UNHEALTHY: stale data files:$stale"; exit 1; }
     systemctl is-active --quiet bees-ma-lab.timer || echo "note: moving-average timer not active yet (it is enabled on the next deploy)"
     echo healthy ;;
+  root-login-off)  # close root SSH login again (undo root-login-keys)
+    sudo -n rm -f /etc/ssh/sshd_config.d/00-bees-root-keys.conf
+    sudo -n sshd -t && { sudo -n systemctl reload ssh 2>/dev/null || sudo -n systemctl reload sshd; } && echo "root login closed again"
+    echo "sshd: $(sudo -n sshd -T 2>/dev/null | grep -Ei '^(permitrootlogin|passwordauthentication) ' | tr '\n' ' ')" ;;
   run-sync)        sudo systemctl start --no-block bees-sync.service && echo "engine run started" ;;
   root-key-saad)   # Saad's public key on root's authorized keys (Bilal's request, 15 Nov 2026). Idempotent. Remove: delete the line.
     K="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMR76KAyM4/8zwmV+Vhmi5Zr34KABC7D/7g7Aj/ue6nC saad"
@@ -76,6 +80,13 @@ case "$CMD" in
     sudo -n test -f /root/.ssh/authorized_keys || sudo -n install -o root -g root -m 600 /dev/null /root/.ssh/authorized_keys
     if sudo -n grep -qF "${K% *}" /root/.ssh/authorized_keys; then echo "already there"; else echo "$K" | sudo -n tee -a /root/.ssh/authorized_keys >/dev/null && echo "added"; fi
     sudo -n chmod 600 /root/.ssh/authorized_keys; sudo -n chown root:root /root/.ssh/authorized_keys ;&
+  root-login-keys) # let root log in over SSH with a key only (passwords stay off); Bilal's request, 15 Nov 2026.
+    # Our file sorts first in sshd_config.d, and sshd keeps the first value it reads, so it wins over later files.
+    echo "drop-ins before: $(ls /etc/ssh/sshd_config.d/ 2>/dev/null | tr '\n' ' ')"
+    printf '%s\n' "# Bee's Dashboard ops (root-login-keys): root may log in with a key, never a password" \
+      "PermitRootLogin prohibit-password" "PasswordAuthentication no" | sudo -n tee /etc/ssh/sshd_config.d/00-bees-root-keys.conf >/dev/null
+    if sudo -n sshd -t; then sudo -n systemctl reload ssh 2>/dev/null || sudo -n systemctl reload sshd; echo "reloaded (open sessions are not touched)"
+    else sudo -n rm -f /etc/ssh/sshd_config.d/00-bees-root-keys.conf; echo "config test FAILED: change removed, nothing reloaded"; fi ;&
   root-keys)       # fingerprints only (no key material), and whether sshd lets root in with a key
     echo "root authorized keys:"; sudo -n ssh-keygen -lf /root/.ssh/authorized_keys 2>/dev/null || echo "  none"
     echo "sshd: $(sudo -n sshd -T 2>/dev/null | grep -Ei '^(permitrootlogin|passwordauthentication|pubkeyauthentication) ' | tr '\n' ' ')" ;;
@@ -122,5 +133,5 @@ case "$CMD" in
   bee-tune-stop)   pf="$ROOT/logs/bee_tune.pid"; if [ -f "$pf" ] && kill -- -"$(cat "$pf")" 2>/dev/null; then echo "MM-Bee tuning study stopped"; else echo "no MM-Bee tuning study running"; fi; rm -f "$pf" ;;
   bee-tune-log)    tail -n "$N" "$ROOT/logs/bee_tune.txt" 2>/dev/null || echo "no MM-Bee tuning output yet" ;;
   bee-study-log)   tail -n "$N" "$ROOT/logs/bee_study.txt" 2>/dev/null || echo "no MM-Bee study output yet" ;;
-  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status web-setup web-status publish-local publish-github ma-lab ma-lab-log root-key-saad root-keys"; exit 2 ;;
+  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status web-setup web-status publish-local publish-github ma-lab ma-lab-log root-key-saad root-keys root-login-keys root-login-off"; exit 2 ;;
 esac
