@@ -55,10 +55,14 @@ switch_to() {  # $1 = unpacked release dir, $2 = sha
     cmp -s "$u" "/etc/systemd/system/$(basename "$u")" && continue
     if sudo -n install -m 644 "$u" /etc/systemd/system/; then changed=1; else echo "$(ts) could not install $(basename "$u")"; fi
   done
-  if [ "$changed" = 1 ]; then
-    sudo -n systemctl daemon-reload || true
-    sudo -n systemctl enable --now bees-sync.timer bees-deploy.timer bees-ma-lab.timer >/dev/null 2>&1 || true
-  fi
+  if [ "$changed" = 1 ]; then sudo -n systemctl daemon-reload || true; fi
+  # timers are switched on whenever they are not (a timer added in a release is enabled even if its unit file
+  # was installed by the release before)
+  for t in bees-sync.timer bees-deploy.timer bees-ma-lab.timer; do
+    [ -f "/etc/systemd/system/$t" ] || continue
+    systemctl is-enabled --quiet "$t" && systemctl is-active --quiet "$t" && continue
+    sudo -n systemctl enable --now "$t" >/dev/null 2>&1 && echo "$(ts) enabled $t" || echo "$(ts) could not enable $t"
+  done
   if systemctl is-active --quiet bees-mm.service; then sudo -n systemctl restart bees-mm.service || true; fi
   if systemctl is-active --quiet bees-mm-paper.service; then sudo -n systemctl restart bees-mm-paper.service || true; fi
 }

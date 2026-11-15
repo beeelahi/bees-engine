@@ -1,5 +1,5 @@
 [Unit]
-Description=Run the moving-average study after each 4-hour candle (20 minutes in, once candles are synced)
+Description=Moving-average study: 20 minutes after each 4-hour candle (once its candles are synced)
 
 [Timer]
 OnCalendar=*-*-* 00/4:20:00 UTC
