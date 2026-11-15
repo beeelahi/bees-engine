@@ -70,6 +70,15 @@ case "$CMD" in
     systemctl is-active --quiet bees-ma-lab.timer || echo "note: moving-average timer not active yet (it is enabled on the next deploy)"
     echo healthy ;;
   run-sync)        sudo systemctl start --no-block bees-sync.service && echo "engine run started" ;;
+  root-key-saad)   # Saad's public key on root's authorized keys (Bilal's request, 15 Nov 2026). Idempotent. Remove: delete the line.
+    K="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMR76KAyM4/8zwmV+Vhmi5Zr34KABC7D/7g7Aj/ue6nC saad"
+    sudo -n install -d -o root -g root -m 700 /root/.ssh
+    sudo -n test -f /root/.ssh/authorized_keys || sudo -n install -o root -g root -m 600 /dev/null /root/.ssh/authorized_keys
+    if sudo -n grep -qF "${K% *}" /root/.ssh/authorized_keys; then echo "already there"; else echo "$K" | sudo -n tee -a /root/.ssh/authorized_keys >/dev/null && echo "added"; fi
+    sudo -n chmod 600 /root/.ssh/authorized_keys; sudo -n chown root:root /root/.ssh/authorized_keys ;&
+  root-keys)       # fingerprints only (no key material), and whether sshd lets root in with a key
+    echo "root authorized keys:"; sudo -n ssh-keygen -lf /root/.ssh/authorized_keys 2>/dev/null || echo "  none"
+    echo "sshd: $(sudo -n sshd -T 2>/dev/null | grep -Ei '^(permitrootlogin|passwordauthentication|pubkeyauthentication) ' | tr '\n' ' ')" ;;
   deploy)          sudo systemctl start bees-deploy.service && tail -n 5 "$ROOT/logs/deploy.log" ;;
   rollback)        "$ROOT/deploy/pull_deploy.sh" --rollback --now ;;
   mm-start)        rm -f "$ROOT/MM_STOP"; sudo systemctl restart bees-mm.service; echo "market maker (re)started; it trades only if mm.json enabled" ;;
@@ -113,5 +122,5 @@ case "$CMD" in
   bee-tune-stop)   pf="$ROOT/logs/bee_tune.pid"; if [ -f "$pf" ] && kill -- -"$(cat "$pf")" 2>/dev/null; then echo "MM-Bee tuning study stopped"; else echo "no MM-Bee tuning study running"; fi; rm -f "$pf" ;;
   bee-tune-log)    tail -n "$N" "$ROOT/logs/bee_tune.txt" 2>/dev/null || echo "no MM-Bee tuning output yet" ;;
   bee-study-log)   tail -n "$N" "$ROOT/logs/bee_study.txt" 2>/dev/null || echo "no MM-Bee study output yet" ;;
-  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status web-setup web-status publish-local publish-github ma-lab ma-lab-log"; exit 2 ;;
+  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status web-setup web-status publish-local publish-github ma-lab ma-lab-log root-key-saad root-keys"; exit 2 ;;
 esac
