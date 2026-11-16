@@ -5,8 +5,8 @@ Daily check of the LIVE website's data (run from the private ops repository; Pyt
 
 Fails (exit 1) and lists every problem when the published data is stale, missing, malformed or inconsistent:
 daily package built within 36 hours and data through yesterday or the day before; live prices refreshed within
-45 minutes for 90%+ of the universe; 4-hour charts within 6 hours, 1-hour charts within 3 hours (ZIG included);
-every core file parses; the bots' integrity check is "ok"; the page carries its security policy; the privacy and
+45 minutes for 90%+ of the universe's pairs (counted by symbol, so the extra stock-token rows cannot hide gaps);
+4-hour charts within 6 hours, 1-hour charts within 3 hours (ZIG included); every core file parses; the bots' integrity check is "ok"; the page carries its security policy; the privacy and
 terms pages answer. Prints a short summary either way.
 """
 import json
@@ -54,8 +54,15 @@ def main(base):
     px = J.get("prices")
     if px:
         age = (now - ts(px["as_of"])).total_seconds() / 60
-        cov = len(px.get("rows", {})) / max(1, (ov.get("counts") or {}).get("pairs_filtered", 1))
-        notes.append(f"live prices {age:.0f} min old for {len(px.get('rows', {}))} pairs")
+        rows = px.get("rows", {})
+        uni = [r[0] for r in (J.get("screener") or {}).get("rows", []) if r]   # the universe's crypto pairs (no stock tokens)
+        if uni:                                     # share of the universe that has a live price
+            have = sum(1 for s in uni if s in rows)
+            cov = have / len(uni)
+            notes.append(f"live prices {age:.0f} min old for {len(rows)} pairs ({have} of {len(uni)} universe pairs)")
+        else:                                       # no screener: fall back to the row count
+            cov = len(rows) / max(1, (ov.get("counts") or {}).get("pairs_filtered", 1))
+            notes.append(f"live prices {age:.0f} min old for {len(rows)} pairs")
         if age > 45:
             probs.append(f"live prices are {age:.0f} minutes old")
         if cov < 0.9:
