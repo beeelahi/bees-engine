@@ -1,6 +1,6 @@
 <title>Bee's Dashboard</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="theme-color" content="var(--bg)">
+<meta name="theme-color" content="#0A0E17">
 <meta name="description" content="Bee's Dashboard: every Binance USDT pair (plus KuCoin, Gate and MEXC listings) with charts, indicators, tested trade ideas and simulated bots, each with its own track record.">
 <script>try { if (localStorage.getItem("beeTheme") === "light") document.documentElement.dataset.theme = "light"; } catch (e) {}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,7 +15,7 @@
   --bg: #0A0E17; --panel: #111827; --panel-2: #182132; --line: #1F2937; --line-strong: #334155; --fg: #F3F4F6; --muted: #9CA3AF;
   --accent: #C9A227; --accent-2: #E5C158; --accent-ink: #0A0E17; --accent-soft: rgba(201, 162, 39, 0.14);
   --up: #22C55E; --up-soft: rgba(34, 197, 94, 0.14); --down: #EF4444; --down-soft: rgba(239, 68, 68, 0.14);
-  --warn: #F59E0B; --warn-soft: rgba(245, 158, 11, 0.15); --cold: #4B5563; --violet: #A78BFA; --soft-blue: #93C5FD;
+  --warn: #F59E0B; --warn-soft: rgba(245, 158, 11, 0.15); --cold: #4B5563; --cold-text: #808999; --violet: #A78BFA; --soft-blue: #93C5FD;
   --t1: rgba(255, 255, 255, 0.025); --t2: rgba(255, 255, 255, 0.045); --t3: rgba(255, 255, 255, 0.09); --t4: rgba(255, 255, 255, 0.16);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.35); --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.5); --glow: transparent;
   --btn-from: #C9A227; --btn-to: #B08D1E; --header: rgba(10, 14, 23, 0.86); --text: var(--fg);
@@ -28,7 +28,7 @@
   --bg: #F6F7F9; --panel: #FFFFFF; --panel-2: #F1F3F6; --line: #E3E6EB; --line-strong: #C7CDD6; --fg: #0F172A; --muted: #556070;
   --accent: #8A6D12; --accent-2: #A8841A; --accent-ink: #FFFFFF; --accent-soft: rgba(168, 132, 26, 0.12);
   --up: #15803D; --up-soft: rgba(21, 128, 61, 0.10); --down: #B91C1C; --down-soft: rgba(185, 28, 28, 0.09);
-  --warn: #B45309; --warn-soft: rgba(180, 83, 9, 0.10); --cold: #94A3B8; --violet: #6D28D9; --soft-blue: #1D4ED8;
+  --warn: #B45309; --warn-soft: rgba(180, 83, 9, 0.10); --cold: #94A3B8; --cold-text: #666E7C; --violet: #6D28D9; --soft-blue: #1D4ED8;
   --t1: rgba(15, 23, 42, 0.02); --t2: rgba(15, 23, 42, 0.035); --t3: rgba(15, 23, 42, 0.06); --t4: rgba(15, 23, 42, 0.10);
   --shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 1px rgba(15, 23, 42, 0.04); --shadow-lg: 0 24px 64px rgba(15, 23, 42, 0.18);
   --btn-from: #A8841A; --btn-to: #8A6D12; --header: rgba(255, 255, 255, 0.92);
@@ -142,7 +142,7 @@ td:first-child, th:first-child { text-align: left; position: sticky; left: 0; ba
 th:first-child { background: var(--panel-2); z-index: 2; }
 tbody tr { background: var(--panel); } tbody tr:hover { background: #13265a; }
 tbody tr.clickable { cursor: pointer; }
-.pos { color: var(--up); } .neg { color: var(--down); } .cold { color: var(--cold); }
+.pos { color: var(--up); } .neg { color: var(--down); } .cold { color: var(--cold-text); }   /* dimmed text, still 4.5:1 on the panels (--cold stays for dots and bars) */
 .chip { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 11.5px; font-weight: 600; }
 .chip.up { background: var(--up-soft); color: var(--up); } .chip.down { background: var(--down-soft); color: var(--down); }
 .chip.warn { background: var(--warn-soft); color: var(--warn); } .chip.neutral { background: var(--panel-2); color: var(--muted); }
