@@ -83,7 +83,8 @@ class PublishTest(unittest.TestCase):
         self.assertIn("data/prices.json", self.files())
 
     def test_no_publish_switch(self):
-        open(self.r + "/.no_publish", "w").close()
+        with open(self.r + "/.no_publish", "w"):
+            pass
         self.assertFalse(P.run(lambda *a: None))
 
 
@@ -154,3 +155,65 @@ class AuthConfigTest(unittest.TestCase):
         self.assertNotIn("Contact", page)
         self.assertIn("Contact", P.legal_page(*P.LEGAL["terms.html"], contact="hello@example.com"))
         self.assertNotIn("Contact", P.legal_page(*P.LEGAL["terms.html"], contact="<x>@bad"))
+
+
+class PublishHealthTest(unittest.TestCase):
+    """The health check notices when the public site stops being updated (e.g. GitHub refuses the token)."""
+    def setUp(self):
+        self.r = tempfile.mkdtemp()
+        self.saved = {k: getattr(P, k) for k in ("ROOT", "CFG")}
+        P.ROOT, P.CFG = self.r, self.r + "/site.json"
+        with open(P.CFG, "w") as f:
+            json.dump({"repo": "x/y"}, f)
+
+    def tearDown(self):
+        for k, v in self.saved.items():
+            setattr(P, k, v)
+        shutil.rmtree(self.r, ignore_errors=True)
+
+    def status(self, stamp):
+        with open(self.r + "/site_status.json", "w") as f:
+            json.dump({"published_utc": stamp}, f)
+
+    def test_fresh_stale_and_never(self):
+        now = 1794900000                                     # 2026-11-17 07:20 UTC
+        line, problem = P.publish_problem(now)
+        self.assertIn("never", problem)
+        self.status("2026-11-17T07:00:00Z")
+        line, problem = P.publish_problem(now)
+        self.assertIsNone(problem)
+        self.assertIn("2026-11-17 07:00 UTC (20 min ago)", line)
+        self.status("2026-11-16T21:18:59Z")                  # the 16 Nov case: pushes failing for hours
+        line, problem = P.publish_problem(now)
+        self.assertIn("not published for 10.0 hours", problem)
+
+    def test_not_the_publisher_or_served_locally(self):
+        self.status("2026-01-01T00:00:00Z")
+        with open(self.r + "/.publish_local_only", "w"):
+            pass
+        self.assertIsNone(P.publish_problem(1794900000)[1])
+        os.remove(self.r + "/.publish_local_only")
+        with open(self.r + "/.no_publish", "w"):
+            pass
+        self.assertIsNone(P.publish_problem(1794900000)[1])
+
+    def test_refused_token_is_named(self):
+        def fail(args, cwd, env=None, check=True):
+            raise RuntimeError("git push failed: fatal: could not read Username for 'https://github.com': terminal prompts disabled")
+        saved = P.git
+        P.git = fail
+        self.addCleanup(setattr, P, "git", saved)
+        with self.assertRaises(RuntimeError) as c:
+            P._push("https://github.com/x/y.git", "main", "t" * 40, {}, force=False)
+        self.assertIn("GitHub refused the website token", str(c.exception))
+        self.assertNotIn("t" * 40, str(c.exception))         # the token never appears in the message
+
+    def test_other_push_errors_pass_through(self):
+        def fail(args, cwd, env=None, check=True):
+            raise RuntimeError("git push failed: ! [rejected] main -> main (fetch first)")
+        saved = P.git
+        P.git = fail
+        self.addCleanup(setattr, P, "git", saved)
+        with self.assertRaises(RuntimeError) as c:
+            P._push("https://github.com/x/y.git", "main", "t" * 40, {}, force=False)
+        self.assertNotIn("refused the website token", str(c.exception))

@@ -203,14 +203,27 @@ def _push(remote, branch, token, env, force):
         # line (visible in the process list) and never in a URL or a file.
         b64 = base64.b64encode(f"x-access-token:{token}".encode()).decode()
         header = f"AUTHORIZATION: basic {b64}"
-        if git_version(env) >= (2, 31):
-            push_env.update(GIT_CONFIG_COUNT="1", GIT_CONFIG_KEY_0="http.https://github.com/.extraheader",
-                            GIT_CONFIG_VALUE_0=header)
-            git(args, BUILD, push_env)
-        else:                                  # older git: header on the command line (still never in a URL or file)
-            git(["-c", f"http.https://github.com/.extraheader={header}"] + args, BUILD, push_env)
+        try:
+            if git_version(env) >= (2, 31):
+                push_env.update(GIT_CONFIG_COUNT="1", GIT_CONFIG_KEY_0="http.https://github.com/.extraheader",
+                                GIT_CONFIG_VALUE_0=header)
+                git(args, BUILD, push_env)
+            else:                              # older git: header on the command line (still never in a URL or file)
+                git(["-c", f"http.https://github.com/.extraheader={header}"] + args, BUILD, push_env)
+        except RuntimeError as e:
+            if AUTH_REFUSED.search(str(e)):    # say plainly what to do instead of git's prompt message
+                raise RuntimeError(f"{TOKEN_REFUSED} ({str(e)[-160:]})") from None
+            raise
     else:
         git(args, BUILD, push_env)
+
+
+# GitHub answered 401/403: the token was revoked, regenerated, expired or lost access to the site repository.
+# git then tries to ask for a user name, which fails with "could not read Username" (no terminal).
+AUTH_REFUSED = re.compile(r"could not read Username|Authentication failed|Invalid username or password|"
+                          r"returned error: 40[13]|Permission to \S+ denied|Write access to repository not granted", re.I)
+TOKEN_REFUSED = ("GitHub refused the website token (revoked, regenerated, expired or no access to the site repository): "
+                 "create a new one and save it to ~/BinanceData/.github_token")
 
 
 def _sync_tree(dst_data):
@@ -349,7 +362,35 @@ def _status(repo, domain, ov, stamp, expires):
                    "token_expires_utc": expires or old.get("token_expires_utc")}, f)
 
 
+PUBLISH_MAX_AGE_S = 2 * 3600   # a push every 30 minutes; two hours without one means publishing is broken
+
+
+def publish_problem(now=None, max_age_s=PUBLISH_MAX_AGE_S):
+    """(summary line, problem or None) for the health check: is the public website still being updated?
+    Nothing to check when this machine does not publish (.no_publish, no site.json) or serves the site itself."""
+    if os.path.exists(os.path.join(ROOT, ".no_publish")) or not os.path.exists(CFG):
+        return "website: not published from this machine", None
+    if os.path.exists(os.path.join(ROOT, ".publish_local_only")):
+        return "website: served from this server (no GitHub push)", None
+    last = _last_push()
+    if last is None:
+        return "website last published: never", "website never published from this server"
+    age = (time.time() if now is None else now) - last
+    line = f"website last published: {datetime.fromtimestamp(last, timezone.utc):%Y-%m-%d %H:%M} UTC ({int(age // 60)} min ago)"
+    if age > max_age_s:
+        return line, (f"website not published for {age / 3600:.1f} hours (pushes to GitHub are failing; "
+                      "see 'Website refresh failed' in the logs)")
+    return line, None
+
+
 if __name__ == "__main__":
+    if sys.argv[1:] == ["--check"]:            # health check: reads site_status.json only, never the token
+        line, problem = publish_problem()
+        print(line)
+        if problem:
+            print("UNHEALTHY: " + problem)
+            sys.exit(1)
+        sys.exit(0)
     try:
         run()
     except Exception as e:
