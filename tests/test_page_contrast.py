@@ -25,7 +25,8 @@ def ratio(a, b):
 
 class ContrastTest(unittest.TestCase):
     def setUp(self):
-        self.css = open(PAGE, encoding="utf-8").read()
+        with open(PAGE, encoding="utf-8") as f:
+            self.css = f.read()
         dark = tokens(self.css, ":root")
         light = dict(dark, **tokens(self.css, ':root[data-theme="light"]'))
         self.themes = {"dark": dark, "light": light}
