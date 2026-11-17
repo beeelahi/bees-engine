@@ -83,7 +83,8 @@ class PublishTest(unittest.TestCase):
         self.assertIn("data/prices.json", self.files())
 
     def test_no_publish_switch(self):
-        open(self.r + "/.no_publish", "w").close()
+        with open(self.r + "/.no_publish", "w"):
+            pass
         self.assertFalse(P.run(lambda *a: None))
 
 
@@ -162,7 +163,8 @@ class PublishHealthTest(unittest.TestCase):
         self.r = tempfile.mkdtemp()
         self.saved = {k: getattr(P, k) for k in ("ROOT", "CFG")}
         P.ROOT, P.CFG = self.r, self.r + "/site.json"
-        json.dump({"repo": "x/y"}, open(P.CFG, "w"))
+        with open(P.CFG, "w") as f:
+            json.dump({"repo": "x/y"}, f)
 
     def tearDown(self):
         for k, v in self.saved.items():
@@ -170,7 +172,8 @@ class PublishHealthTest(unittest.TestCase):
         shutil.rmtree(self.r, ignore_errors=True)
 
     def status(self, stamp):
-        json.dump({"published_utc": stamp}, open(self.r + "/site_status.json", "w"))
+        with open(self.r + "/site_status.json", "w") as f:
+            json.dump({"published_utc": stamp}, f)
 
     def test_fresh_stale_and_never(self):
         now = 1794900000                                     # 2026-11-17 07:20 UTC
@@ -186,10 +189,12 @@ class PublishHealthTest(unittest.TestCase):
 
     def test_not_the_publisher_or_served_locally(self):
         self.status("2026-01-01T00:00:00Z")
-        open(self.r + "/.publish_local_only", "w").close()
+        with open(self.r + "/.publish_local_only", "w"):
+            pass
         self.assertIsNone(P.publish_problem(1794900000)[1])
         os.remove(self.r + "/.publish_local_only")
-        open(self.r + "/.no_publish", "w").close()
+        with open(self.r + "/.no_publish", "w"):
+            pass
         self.assertIsNone(P.publish_problem(1794900000)[1])
 
     def test_refused_token_is_named(self):
