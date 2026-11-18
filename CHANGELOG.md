@@ -5,6 +5,7 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- A refused website token no longer triggers a pointless full publish (daily check, 18 Nov): when GitHub refuses the token on the 15-minute light refresh, the engine stops there and logs the plain message, instead of wiping and rebuilding the whole site package and pushing again (refused the same way). From 16 Nov this happened on every run (95 times in 24 hours). Any other push error still falls back to a full publish.
 - Health check flags a website that stopped updating (daily check, 17 Nov): `health` now fails when the last push to GitHub is over 2 hours old (`publish_site.py --check`, reads site_status.json only, never the token), and a push GitHub refuses (401/403, shown by git as "could not read Username") is logged as "GitHub refused the website token ... save a new one to ~/BinanceData/.github_token". From 16 Nov 21:49 UTC every push failed while `health` still said healthy.
 - Tests for the bot core (bin/bot_core.py, shared by the backtest and the live paper trader): calendar maths, excluded tokens, series breaks, no look-ahead in the rolling windows and features, agreement with bin/indicators.py, and the Top-50 score parts (tests only).
 - Faster page opens: the service worker now revalidates the page (cache "no-cache") instead of bypassing the browser cache ("no-store"), so an unchanged page comes back as a 304 instead of the whole ~600 KB page on every visit; a changed page is still fetched at once and the offline copy still works.

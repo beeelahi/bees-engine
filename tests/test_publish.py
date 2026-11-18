@@ -82,6 +82,40 @@ class PublishTest(unittest.TestCase):
         self.assertTrue(P.run(q, light=True))
         self.assertIn("data/prices.json", self.files())
 
+    def test_refused_token_skips_the_full_publish(self):
+        q = lambda *a: None
+        P.LIGHT_MIN_S, saved_min = 0, P.LIGHT_MIN_S
+        self.addCleanup(setattr, P, "LIGHT_MIN_S", saved_min)
+        self.assertTrue(P.run(q))                                  # a good full publish first
+        marker = self.r + "/site_build/.kept"
+        with open(marker, "w"):
+            pass
+        calls = []
+
+        def refused(remote, branch, token, env, force):
+            calls.append(force)
+            raise RuntimeError(P.TOKEN_REFUSED + " (fatal: could not read Username)")
+        saved_push = P._push
+        P._push = refused
+        self.addCleanup(setattr, P, "_push", saved_push)
+        with open(self.r + "/web_export/prices.json", "w") as f:
+            f.write("{}")
+        with self.assertRaises(RuntimeError) as c:
+            P.run(q, light=True)
+        self.assertIn("GitHub refused the website token", str(c.exception))
+        self.assertEqual(calls, [False])                           # one light push, no full publish after it
+        self.assertTrue(os.path.exists(marker))                    # the build tree was not wiped and rebuilt
+
+        def rejected(remote, branch, token, env, force):          # any other push error still falls back to a full publish
+            calls.append(force)
+            if not force:
+                raise RuntimeError("git push failed: ! [rejected] main -> main (fetch first)")
+        P._push = rejected
+        with open(self.r + "/web_export/prices.json", "w") as f:
+            f.write('{"a": 1}')
+        self.assertTrue(P.run(q, light=True))
+        self.assertEqual(calls, [False, False, True])
+
     def test_no_publish_switch(self):
         with open(self.r + "/.no_publish", "w"):
             pass
