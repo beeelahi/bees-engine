@@ -88,7 +88,8 @@ class PublishTest(unittest.TestCase):
         self.addCleanup(setattr, P, "LIGHT_MIN_S", saved_min)
         self.assertTrue(P.run(q))                                  # a good full publish first
         marker = self.r + "/site_build/.kept"
-        open(marker, "w").close()
+        with open(marker, "w"):
+            pass
         calls = []
 
         def refused(remote, branch, token, env, force):
@@ -97,7 +98,8 @@ class PublishTest(unittest.TestCase):
         saved_push = P._push
         P._push = refused
         self.addCleanup(setattr, P, "_push", saved_push)
-        open(self.r + "/web_export/prices.json", "w").write("{}")
+        with open(self.r + "/web_export/prices.json", "w") as f:
+            f.write("{}")
         with self.assertRaises(RuntimeError) as c:
             P.run(q, light=True)
         self.assertIn("GitHub refused the website token", str(c.exception))
@@ -109,7 +111,8 @@ class PublishTest(unittest.TestCase):
             if not force:
                 raise RuntimeError("git push failed: ! [rejected] main -> main (fetch first)")
         P._push = rejected
-        open(self.r + "/web_export/prices.json", "w").write('{"a": 1}')
+        with open(self.r + "/web_export/prices.json", "w") as f:
+            f.write('{"a": 1}')
         self.assertTrue(P.run(q, light=True))
         self.assertEqual(calls, [False, False, True])
 
