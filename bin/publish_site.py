@@ -316,6 +316,8 @@ def run(log=print, light=False):
             _status(repo, domain, ov, stamp, None)
             return True
         except RuntimeError as e:              # the site changed elsewhere or the history is gone: rebuild fully
+            if TOKEN_REFUSED in str(e):        # ...but not when GitHub refused the token: a full publish would be
+                raise                          # refused the same way, after rebuilding the whole package for nothing
             log(f"publish_site: light refresh rejected ({str(e)[:120]}), doing a full publish")
 
     expires = token_expiry(token, repo) if token and not local_only else None
