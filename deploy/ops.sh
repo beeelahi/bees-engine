@@ -90,6 +90,27 @@ case "$CMD" in
     echo "ufw:"; sudo -n ufw status verbose 2>/dev/null | sed -n '1,25p'
     command -v fail2ban-client >/dev/null && { echo "fail2ban:"; sudo -n fail2ban-client status sshd 2>/dev/null | sed -n '1,12p'; }
     echo "recent ssh log:"; sudo -n journalctl -u ssh --since "-3h" --no-pager 2>/dev/null | grep -Ei "accepted|refused|invalid|failed|closed" | tail -12 | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+\.[0-9]+/\1.x.x/g' ;;
+  site-token-save) # new website token arriving on stdin from the bees-ops "Save site token" workflow (GitHub secret
+                   # SITE_TOKEN, entered by Bilal). Checked with GitHub first; the file is only replaced if GitHub accepts it.
+    F="$ROOT/.github_token"; T=""
+    IFS= read -r -t 20 T || true
+    T="${T%$'\r'}"
+    [[ "$T" =~ ^(github_pat_|ghp_)[A-Za-z0-9_]{20,250}$ ]] || { echo "REFUSED: that does not look like a GitHub token (nothing changed)"; exit 1; }
+    R=$(printf '%s' "$T" | python3 -c '
+import json, sys, urllib.request
+t = sys.stdin.read()
+try:
+    r = urllib.request.urlopen(urllib.request.Request("https://api.github.com/repos/beeelahi/beesells",
+        headers={"Authorization": "Bearer " + t, "User-Agent": "BeesDashboard"}), timeout=20)
+    d = json.load(r); print("ok" if d.get("permissions", {}).get("push") else "nopush", r.headers.get("github-authentication-token-expiration") or "no-expiry")
+except urllib.error.HTTPError as e: print("rejected", e.code)
+except Exception as e: print("error", type(e).__name__)')
+    case "$R" in
+      ok*) umask 077; printf '%s\n' "$T" > "$F.new" && chmod 600 "$F.new" && mv -f "$F.new" "$F"; unset T
+           echo "saved: GitHub accepts the new token, it can write to beeelahi/beesells, expires ${R#ok }" ;;
+      nopush*) unset T; echo "REFUSED: GitHub accepts the token but it cannot write to beeelahi/beesells (needs Contents: Read and write). Nothing changed." ; exit 1 ;;
+      *) unset T; echo "REFUSED: GitHub did not accept the token ($R). Nothing changed."; exit 1 ;;
+    esac ;;
   token-check)     # the GitHub token's state WITHOUT showing it: file facts, format, and whether GitHub accepts it
     F="$ROOT/.github_token"
     echo "file: $(stat -c '%U:%G mode %a, %s bytes, changed %y' "$F" 2>&1)"
@@ -179,5 +200,5 @@ PY
   bee-tune-stop)   pf="$ROOT/logs/bee_tune.pid"; if [ -f "$pf" ] && kill -- -"$(cat "$pf")" 2>/dev/null; then echo "MM-Bee tuning study stopped"; else echo "no MM-Bee tuning study running"; fi; rm -f "$pf" ;;
   bee-tune-log)    tail -n "$N" "$ROOT/logs/bee_tune.txt" 2>/dev/null || echo "no MM-Bee tuning output yet" ;;
   bee-study-log)   tail -n "$N" "$ROOT/logs/bee_study.txt" 2>/dev/null || echo "no MM-Bee study output yet" ;;
-  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status web-setup web-status publish-local publish-github ma-lab ma-lab-log root-key-saad root-keys root-login-keys root-login-off saad-user ssh-check token-check"; exit 2 ;;
+  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status web-setup web-status publish-local publish-github ma-lab ma-lab-log root-key-saad root-keys root-login-keys root-login-off saad-user ssh-check token-check site-token-save"; exit 2 ;;
 esac
