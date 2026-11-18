@@ -90,6 +90,31 @@ case "$CMD" in
     echo "ufw:"; sudo -n ufw status verbose 2>/dev/null | sed -n '1,25p'
     command -v fail2ban-client >/dev/null && { echo "fail2ban:"; sudo -n fail2ban-client status sshd 2>/dev/null | sed -n '1,12p'; }
     echo "recent ssh log:"; sudo -n journalctl -u ssh --since "-3h" --no-pager 2>/dev/null | grep -Ei "accepted|refused|invalid|failed|closed" | tail -12 | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+\.[0-9]+/\1.x.x/g' ;;
+  token-check)     # the GitHub token's state WITHOUT showing it: file facts, format, and whether GitHub accepts it
+    F="$ROOT/.github_token"
+    echo "file: $(stat -c '%U:%G mode %a, %s bytes, changed %y' "$F" 2>&1)"
+    [ -r "$F" ] && echo "readable by $(whoami): yes" || echo "readable by $(whoami): NO"
+    python3 - "$F" <<'PY'
+import re, sys, json, urllib.request
+p = sys.argv[1]
+try:
+    raw = open(p).read()
+except Exception as e:
+    print("read error:", type(e).__name__); sys.exit()
+t = raw.strip()
+print("lines:", raw.count("\n"), "| length:", len(t), "| kind:", "fine-grained" if t.startswith("github_pat_") else "classic" if t.startswith("ghp_") else "unknown prefix",
+      "| format ok:", bool(re.fullmatch(r"[A-Za-z0-9_]{20,255}", t)), "| spaces/CR inside:", bool(re.search(r"\s", t)))
+try:
+    r = urllib.request.urlopen(urllib.request.Request("https://api.github.com/repos/beeelahi/beesells",
+        headers={"Authorization": "Bearer " + t, "User-Agent": "BeesDashboard"}), timeout=20)
+    d = json.load(r)
+    print("GitHub: accepted | push allowed:", d.get("permissions", {}).get("push"), "| expires:", r.headers.get("github-authentication-token-expiration"))
+except urllib.error.HTTPError as e:
+    print("GitHub: REJECTED, HTTP", e.code, (e.read()[:160]).decode("utf8", "replace"))
+except Exception as e:
+    print("GitHub check failed:", type(e).__name__)
+PY
+    echo "git: $(git --version) | global config: $(git config --global --list 2>/dev/null | grep -v -i 'token\|extraheader' | tr '\n' ' ')" ;;
   root-login-off)  # close root SSH login again (undo root-login-keys)
     sudo -n rm -f /etc/ssh/sshd_config.d/00-bees-root-keys.conf
     sudo -n sshd -t && { sudo -n systemctl reload ssh 2>/dev/null || sudo -n systemctl reload sshd; } && echo "root login closed again"
@@ -154,5 +179,5 @@ case "$CMD" in
   bee-tune-stop)   pf="$ROOT/logs/bee_tune.pid"; if [ -f "$pf" ] && kill -- -"$(cat "$pf")" 2>/dev/null; then echo "MM-Bee tuning study stopped"; else echo "no MM-Bee tuning study running"; fi; rm -f "$pf" ;;
   bee-tune-log)    tail -n "$N" "$ROOT/logs/bee_tune.txt" 2>/dev/null || echo "no MM-Bee tuning output yet" ;;
   bee-study-log)   tail -n "$N" "$ROOT/logs/bee_study.txt" 2>/dev/null || echo "no MM-Bee study output yet" ;;
-  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status web-setup web-status publish-local publish-github ma-lab ma-lab-log root-key-saad root-keys root-login-keys root-login-off saad-user ssh-check"; exit 2 ;;
+  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status web-setup web-status publish-local publish-github ma-lab ma-lab-log root-key-saad root-keys root-login-keys root-login-off saad-user ssh-check token-check"; exit 2 ;;
 esac
