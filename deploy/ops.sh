@@ -67,6 +67,7 @@ case "$CMD" in
       a=$(( now - $(stat -c %Y "$f") )); [ "$a" -gt "$lim" ] && stale="$stale $n($((a / 3600))h)"
     done
     [ -z "$stale" ] || { echo "UNHEALTHY: stale data files:$stale"; exit 1; }
+    python3 "$ROOT/bin/publish_site.py" --health || exit 1   # fresh files are not enough: did they reach the website?
     systemctl is-active --quiet bees-ma-lab.timer || echo "note: moving-average timer not active yet (it is enabled on the next deploy)"
     echo healthy ;;
   saad-user)       # Saad's own login with admin rights (sudo without a password: the account has no password at all,

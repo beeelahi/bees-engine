@@ -87,6 +87,67 @@ class PublishTest(unittest.TestCase):
         self.assertFalse(P.run(lambda *a: None))
 
 
+class PublishHealthTest(unittest.TestCase):
+    """ops.sh health: fresh local files are not enough, the website must actually have been pushed."""
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.saved = {k: getattr(P, k) for k in ("ROOT", "CFG")}
+        P.ROOT, P.CFG = self.d, self.d + "/site.json"
+        with open(P.CFG, "w") as f:
+            json.dump({"repo": "x/y"}, f)
+        self.now = 1_800_000_000                                     # 2027-01-15 08:00 UTC
+
+    def tearDown(self):
+        for k, v in self.saved.items():
+            setattr(P, k, v)
+        shutil.rmtree(self.d, ignore_errors=True)
+
+    def status(self, mins_ago, expires="2027-02-01 00:00:00 UTC"):
+        from datetime import datetime, timezone
+        t = datetime.fromtimestamp(self.now - mins_ago * 60, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        with open(self.d + "/site_status.json", "w") as f:
+            json.dump({"published_utc": t, "token_expires_utc": expires}, f)
+
+    def test_recent_push_is_healthy(self):
+        self.status(25)
+        ok, msg = P.publish_health(self.now)
+        self.assertTrue(ok, msg)
+        self.assertIn("25 min ago", msg)
+        self.assertIn("token expires 2027-02-01", msg)
+
+    def test_pushes_failing_for_hours_is_unhealthy(self):
+        self.status(4 * 60)                                         # the 16-19 Nov case: data fresh, no push
+        ok, msg = P.publish_health(self.now)
+        self.assertFalse(ok)
+        self.assertIn("not published for 4.0 h", msg)
+
+    def test_no_record_is_unhealthy(self):
+        self.assertFalse(P.publish_health(self.now)[0])
+
+    def test_token_about_to_expire(self):
+        self.status(10, expires="2027-01-16 08:00:00 UTC")         # one day left
+        ok, msg = P.publish_health(self.now)
+        self.assertFalse(ok)
+        self.assertIn("token expires", msg)
+        self.status(10, expires=None)                               # unknown expiry: no opinion
+        self.assertTrue(P.publish_health(self.now)[0])
+
+    def test_not_a_github_publisher(self):
+        for flag in (".no_publish", ".publish_local_only"):
+            with open(self.d + "/" + flag, "w"):
+                pass
+            self.assertTrue(P.publish_health(self.now)[0])
+            os.remove(self.d + "/" + flag)
+        os.remove(P.CFG)
+        self.assertTrue(P.publish_health(self.now)[0])
+
+    def test_cli_exit_code(self):
+        r = subprocess.run([__import__("sys").executable, os.path.join(os.path.dirname(P.__file__), "publish_site.py"),
+                            "--health"], capture_output=True, text=True, timeout=30)
+        self.assertIn(r.returncode, (0, 1))                         # runs against the repo checkout; no network
+        self.assertTrue(r.stdout.strip())
+
+
 if __name__ == "__main__":
     unittest.main()
 

@@ -336,6 +336,40 @@ def _last_push():
         return None
 
 
+PUBLISH_STALE_S = 3 * 3600   # light refresh pushes every 30 minutes; 3 hours without a push means publishing is broken
+TOKEN_WARN_DAYS = 3
+
+
+def publish_health(now=None):
+    """(ok, message) for the server health check: has the website actually reached GitHub recently, and is the
+    token about to expire? Local data files can be fresh while every push fails (as on 16-19 Nov 2026, token
+    rejected), so this looks at the last successful push. Not applicable (ok) when this machine does not publish."""
+    now = time.time() if now is None else now
+    if os.path.exists(os.path.join(ROOT, ".no_publish")) or os.path.exists(os.path.join(ROOT, ".publish_local_only")) \
+            or not os.path.exists(CFG):
+        return True, "website: not published to GitHub from this machine"
+    last = _last_push()
+    if last is None:
+        return False, "UNHEALTHY: website configured but no successful publish recorded (site_status.json)"
+    age = now - last
+    if age > PUBLISH_STALE_S:
+        return False, f"UNHEALTHY: website not published for {age / 3600:.1f} h (last push {_ts(last)} UTC); see logs"
+    msg = f"website: last push {int(age / 60)} min ago"
+    try:
+        with open(os.path.join(ROOT, "site_status.json")) as f:
+            exp = json.load(f).get("token_expires_utc")
+        left = (datetime.strptime(exp[:19], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc).timestamp() - now) / 86400
+    except (OSError, ValueError, TypeError, AttributeError):
+        return True, msg
+    if left < TOKEN_WARN_DAYS:
+        return False, f"UNHEALTHY: website token expires {exp} ({left:.1f} days); save a new one before then"
+    return True, msg + f", token expires {exp[:10]}"
+
+
+def _ts(t):
+    return datetime.fromtimestamp(t, timezone.utc).strftime("%Y-%m-%d %H:%M")
+
+
 def _status(repo, domain, ov, stamp, expires):
     path = os.path.join(ROOT, "site_status.json")
     old = {}
@@ -350,6 +384,10 @@ def _status(repo, domain, ov, stamp, expires):
 
 
 if __name__ == "__main__":
+    if sys.argv[1:] == ["--health"]:                 # used by "ops.sh health"; reads local status only, no network
+        ok, msg = publish_health()
+        print(msg)
+        sys.exit(0 if ok else 1)
     try:
         run()
     except Exception as e:
