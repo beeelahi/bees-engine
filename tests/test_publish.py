@@ -93,7 +93,8 @@ class PublishHealthTest(unittest.TestCase):
         self.d = tempfile.mkdtemp()
         self.saved = {k: getattr(P, k) for k in ("ROOT", "CFG")}
         P.ROOT, P.CFG = self.d, self.d + "/site.json"
-        json.dump({"repo": "x/y"}, open(P.CFG, "w"))
+        with open(P.CFG, "w") as f:
+            json.dump({"repo": "x/y"}, f)
         self.now = 1_800_000_000                                     # 2027-01-15 08:00 UTC
 
     def tearDown(self):
@@ -104,7 +105,8 @@ class PublishHealthTest(unittest.TestCase):
     def status(self, mins_ago, expires="2027-02-01 00:00:00 UTC"):
         from datetime import datetime, timezone
         t = datetime.fromtimestamp(self.now - mins_ago * 60, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        json.dump({"published_utc": t, "token_expires_utc": expires}, open(self.d + "/site_status.json", "w"))
+        with open(self.d + "/site_status.json", "w") as f:
+            json.dump({"published_utc": t, "token_expires_utc": expires}, f)
 
     def test_recent_push_is_healthy(self):
         self.status(25)
@@ -132,7 +134,8 @@ class PublishHealthTest(unittest.TestCase):
 
     def test_not_a_github_publisher(self):
         for flag in (".no_publish", ".publish_local_only"):
-            open(self.d + "/" + flag, "w").close()
+            with open(self.d + "/" + flag, "w"):
+                pass
             self.assertTrue(P.publish_health(self.now)[0])
             os.remove(self.d + "/" + flag)
         os.remove(P.CFG)
