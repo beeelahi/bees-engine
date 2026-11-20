@@ -336,6 +336,24 @@ def _last_push():
         return None
 
 
+PUSH_STALE_S = 2 * 3600   # pushes normally land every 30 min (largest gap seen: 35 min); 2 h means several in a row failed
+
+
+def push_problem(now=None, limit_s=PUSH_STALE_S):
+    """Why the website is not being updated, or None when it is fine (or this machine does not publish).
+    The engine log only warns when a push fails, so without this the server looked healthy while the public
+    site sat 2.5 days old (16-19 Nov 2026, rejected GitHub token)."""
+    if os.path.exists(os.path.join(ROOT, ".no_publish")) or not os.path.exists(CFG):
+        return None
+    last = _last_push()
+    if last is None:
+        return "website never published from this server (no published_utc in site_status.json)"
+    age = (time.time() if now is None else now) - last
+    if age > limit_s:
+        return f"website last published {age / 3600:.1f} h ago (pushes are expected every 30 min): see the engine log for push errors"
+    return None
+
+
 def _status(repo, domain, ov, stamp, expires):
     path = os.path.join(ROOT, "site_status.json")
     old = {}
@@ -350,6 +368,10 @@ def _status(repo, domain, ov, stamp, expires):
 
 
 if __name__ == "__main__":
+    if sys.argv[1:] == ["--check"]:        # used by the server health check: exit 1 when the site is not updating
+        msg = push_problem()
+        print(msg or "website: published within the last 2 h")
+        sys.exit(1 if msg else 0)
     try:
         run()
     except Exception as e:
