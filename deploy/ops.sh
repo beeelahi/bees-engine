@@ -67,6 +67,8 @@ case "$CMD" in
       a=$(( now - $(stat -c %Y "$f") )); [ "$a" -gt "$lim" ] && stale="$stale $n($((a / 3600))h)"
     done
     [ -z "$stale" ] || { echo "UNHEALTHY: stale data files:$stale"; exit 1; }
+    # the data can be fresh on the server while GitHub refuses the pushes (16-19 Nov 2026): check the public site too
+    site=$(python3 "$ROOT/bin/publish_site.py" --check 2>&1) || { echo "UNHEALTHY: $site"; exit 1; }
     systemctl is-active --quiet bees-ma-lab.timer || echo "note: moving-average timer not active yet (it is enabled on the next deploy)"
     echo healthy ;;
   saad-user)       # Saad's own login with admin rights (sudo without a password: the account has no password at all,
