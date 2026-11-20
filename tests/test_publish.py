@@ -156,13 +156,18 @@ class AuthConfigTest(unittest.TestCase):
         self.assertNotIn("Contact", P.legal_page(*P.LEGAL["terms.html"], contact="<x>@bad"))
 
 
+def _write_json(path, obj):
+    with open(path, "w") as f:
+        json.dump(obj, f)
+
+
 class PushProblemTest(unittest.TestCase):
     """The health check fails when the public site stops being updated, even if the server's data is fresh."""
     def setUp(self):
         self.r = tempfile.mkdtemp()
         self.saved = {k: getattr(P, k) for k in ("ROOT", "CFG")}
         P.ROOT, P.CFG = self.r, os.path.join(self.r, "site.json")
-        json.dump({"repo": "x/y"}, open(P.CFG, "w"))
+        _write_json(P.CFG, {"repo": "x/y"})
         self.now = 1_800_000_000
 
     def tearDown(self):
@@ -173,7 +178,7 @@ class PushProblemTest(unittest.TestCase):
     def stamp(self, ago_s):
         from datetime import datetime, timezone
         s = datetime.fromtimestamp(self.now - ago_s, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        json.dump({"published_utc": s}, open(os.path.join(self.r, "site_status.json"), "w"))
+        _write_json(os.path.join(self.r, "site_status.json"), {"published_utc": s})
 
     def test_recent_push_is_fine(self):
         self.stamp(35 * 60)
@@ -202,11 +207,11 @@ class PushProblemTest(unittest.TestCase):
         # the script resolves ROOT from its own location, so check the exit code path on a copy
         root = os.path.join(self.r, "copy"); os.makedirs(root + "/bin")
         shutil.copy(script, root + "/bin/")
-        json.dump({"repo": "x/y"}, open(root + "/site.json", "w"))
+        _write_json(root + "/site.json", {"repo": "x/y"})
         bad = subprocess.run([sys.executable, root + "/bin/publish_site.py", "--check"], capture_output=True, text=True)
         self.assertEqual(bad.returncode, 1)
         self.assertIn("never published", bad.stdout)
         from datetime import datetime, timezone
-        json.dump({"published_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}, open(root + "/site_status.json", "w"))
+        _write_json(root + "/site_status.json", {"published_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")})
         ok = subprocess.run([sys.executable, root + "/bin/publish_site.py", "--check"], capture_output=True, text=True)
         self.assertEqual(ok.returncode, 0, ok.stdout + ok.stderr)
