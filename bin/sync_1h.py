@@ -16,7 +16,7 @@ import logging
 import time
 from datetime import datetime, timedelta, timezone
 
-log = logging.getLogger("binance")
+log = logging.getLogger("binance_sync")   # the engine logger: its handler writes sync.log (a bare "binance" logger had none)
 
 H1_DAYS = 365             # first download: 1 year back; accumulates from then on
 H1_MS = 3600 * 1000

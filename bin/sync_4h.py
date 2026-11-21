@@ -16,7 +16,7 @@ import logging
 import time
 from datetime import datetime, timedelta, timezone
 
-log = logging.getLogger("binance")
+log = logging.getLogger("binance_sync")   # the engine logger: its handler writes sync.log (a bare "binance" logger had none)
 
 H4_DAYS = 1095            # 3 years (approved 2026-10-25)
 H4_MS = 4 * 3600 * 1000
