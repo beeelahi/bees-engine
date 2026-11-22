@@ -416,6 +416,8 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100%); background: #0a1533; border-left: 1px solid var(--line); z-index: 40; display: flex; flex-direction: column; transform: translateX(105%); transition: transform .22s ease; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px); }
 .drawer.open { transform: none; }
 @media (max-width: 640px) { header .sm-hide { display: none; } #openFind, #themeBtn { padding: 6px 10px; } }
+/* iPhone Safari zooms the page in when a text box or menu under 16px is focused, and it stays zoomed (sideways scrolling); 16px on phones avoids it */
+@media (max-width: 640px) { input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea { font-size: 16px !important; } }
 @media (prefers-reduced-motion: reduce) { .drawer { transition: none; } }
 .drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--line); gap: 8px; }
 .drawer-tabs { display: flex; gap: 2px; padding: 0 12px; border-bottom: 1px solid var(--line); }
