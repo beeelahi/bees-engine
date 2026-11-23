@@ -444,6 +444,23 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
 #findList li b { min-width: 64px; } #findList li .nm { color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #findList li .px { font-variant-numeric: tabular-nums; } #findList .hd { font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); padding: 8px 10px 2px; cursor: default; }
 .find-foot { margin: 8px 4px 0; } #openFind kbd { font: inherit; font-size: 11px; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; color: var(--muted); margin-left: 4px; }
+.stf-mx th, .stf-mx td { text-align: left !important; } .stf-mx td { vertical-align: top; min-width: 150px; } .stf-mx td:first-child { min-width: 96px; }
+.stf-cell { display: flex; flex-direction: column; gap: 4px; } .stf-cell .w { color: var(--muted); font-size: 12px; }
+.stf-tag { display: inline-flex; gap: 6px; align-items: center; font-size: 12.5px; padding: 3px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); cursor: pointer; color: var(--fg); text-align: left; font: inherit; font-size: 12.5px; }
+.stf-tag:hover { border-color: var(--accent); } .stf-tag b.up, .stf-card b.up { color: var(--up); } .stf-tag b.down, .stf-card b.down { color: var(--down); }
+.stf-tag.hot { box-shadow: inset 3px 0 0 var(--accent); }
+.stf-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 14px; }
+.stf-card { border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: var(--panel-2); min-width: 0; scroll-margin-top: 90px; }
+.stf-card.flash { box-shadow: 0 0 0 2px var(--accent); }
+.stf-card .hd { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.stf-card .hd h3 { margin: 0; font-size: 15px; } .stf-card .st { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--fg); white-space: nowrap; }
+.stf-chart { height: 240px; margin: 10px 0; }
+.stf-kv { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 12px; font-size: 12.5px; }
+.stf-kv dt { color: var(--muted); font-size: 11px; } .stf-kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+.stf-h3 { font-size: 14px; margin: 16px 0 6px; } #v-stf td.up { color: var(--up); } #v-stf td.down { color: var(--down); }
+@media (max-width: 640px) { .stf-mx thead { display: none; } .stf-mx tr, .stf-mx td { display: block; min-width: 0 !important; } .stf-mx tr { border-bottom: 1px solid var(--line); padding: 6px 0; }
+  .stf-mx td { border: 0 !important; padding: 4px 10px !important; } .stf-mx td[data-l]::before { content: attr(data-l); display: block; font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+  .stf-list { grid-template-columns: 1fr; } .stf-kv { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stf-chart { height: 210px; } }
 .ma-home { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
 .ma-home > a { display: block; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; color: var(--fg); text-decoration: none; font-size: 12.5px; line-height: 1.45; }
 .ma-home > a:hover { border-color: var(--accent); } .ma-home .t { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
@@ -1541,6 +1558,31 @@ a { color: var(--accent); } a:hover { color: var(--accent-2); }
       <div class="tbl-wrap" style="max-height: 40vh"><table><thead><tr><th>Pair</th><th>Event</th><th>Date</th><th>24h vol</th></tr></thead><tbody id="uniLog"></tbody></table></div></div>
   </section>
 
+  <section class="view" id="v-stf" hidden>
+    <div class="card">
+      <div class="card-head"><h2>STF HNS · head and shoulders on 15 min, 1 hour and 4 hours</h2><span class="note" id="stfAsOf"></span></div>
+      <p class="note" id="stfLead" style="margin:0 0 12px"></p>
+      <div class="tbl-wrap"><table class="wl-tbl stf-mx"><thead><tr><th>Market</th><th>15 min</th><th>1 hour</th><th>4 hours</th></tr></thead><tbody id="stfMx"></tbody></table></div>
+      <p class="note" id="stfKey" style="margin:10px 0 0"></p>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Patterns now</h2><span class="note" id="stfCount"></span></div>
+      <div class="seg" id="stfFilter" style="margin-bottom:12px"><button type="button" data-v="all" aria-pressed="true">All</button><button type="button" data-v="XAU" aria-pressed="false">Gold</button><button type="button" data-v="XAG" aria-pressed="false">Silver</button><button type="button" data-v="BTC" aria-pressed="false">BTC</button><button type="button" data-v="ETH" aria-pressed="false">ETH</button><button type="button" data-v="SOL" aria-pressed="false">SOL</button></div>
+      <div class="stf-list" id="stfList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Alert log</h2><span class="note">every new stage, as it was seen</span></div>
+      <div class="tbl-wrap" style="max-height:60vh"><table class="wl-tbl"><thead><tr><th>Seen</th><th>Market</th><th>Chart</th><th>Pattern</th><th>Stage</th><th class="num">Price</th><th class="num">Neckline</th><th class="num">Target</th><th class="num">Stop</th></tr></thead><tbody id="stfLog"></tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Track record</h2><span class="note" id="stfRecSince"></span></div>
+      <p class="note" id="stfRecLead" style="margin:0 0 10px"></p>
+      <div class="ma-top" id="stfRec"></div>
+      <h3 class="stf-h3">Backtest: the same detector on past candles</h3>
+      <p class="note" id="stfBtLead" style="margin:0 0 10px"></p>
+      <div class="tbl-wrap"><table class="wl-tbl"><thead><tr><th>Chart</th><th>Set</th><th class="num">Trades</th><th class="num">Reached target</th><th class="num">Stopped</th><th class="num">Winners</th><th class="num">Average R</th><th class="num">Median R</th></tr></thead><tbody id="stfBt"></tbody></table></div>
+    </div>
+  </section>
   <section class="view" id="v-ma" hidden>
     <div class="card">
       <div class="card-head"><h2>Moving averages that work, pair by pair</h2><span class="note" id="maAsOf"></span></div>
@@ -4528,6 +4570,115 @@ function renderMARecord(D) {
     f.append(tr); });
   tb.replaceChildren(f); if (!R.rows.length) tb.innerHTML = '<tr><td colspan="9" class="empty">No crosses logged yet. The record fills in from the next update.</td></tr>';
 }
+// ---------- STF HNS: head and shoulders on 15m / 1h / 4h for gold, silver, BTC, ETH, SOL (bin/stf_hns.py, every 5 minutes)
+let stfLoading = null, stfTimer = null;
+const STF_TF = [["15m", "15 min"], ["1h", "1 hour"], ["4h", "4 hours"]];
+const STF_ORDER = { retest: 0, broken: 1, near_neckline: 2, forming: 3, pattern: 4, after_break: 5 };
+const stfLocal = ms => new Date(ms).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+const stfKind = r => r.kind === "top" ? ["▼ Top", "down"] : ["▲ Inverse", "up"];
+function stfLoad(force) {
+  if (stfLoading || (S.stf !== undefined && !force)) return;
+  stfLoading = j("data/stf_hns.json").then(d => { S.stf = d; }, () => { if (S.stf === undefined) S.stf = null; }).then(() => { stfLoading = null; if (!$("#v-stf").hidden) renderSTF(); });
+}
+function renderSTF() {
+  if (!stfTimer) stfTimer = setInterval(() => { if (!$("#v-stf").hidden && !document.hidden) stfLoad(true); }, 60000);   // picks up each publish
+  if (S.stf === undefined) { stfLoad(); $("#stfLead").textContent = "Loading…"; return; }
+  const D = S.stf;
+  if (!D) { $("#stfLead").textContent = "The short-timeframe watcher has not published yet. It starts with the next update."; return; }
+  const inst = Object.fromEntries(D.instruments.map(x => [x.code, x]));
+  const age = (Date.now() - Date.parse(D.generated_utc)) / 60000;
+  $("#stfAsOf").textContent = "checked " + mbAgo(D.generated_utc) + (age > 45 ? " · late" : "");
+  $("#stfAsOf").className = "note" + (age > 45 ? " down" : "");
+  $("#stfLead").textContent = "Gold, silver, BTC, ETH and SOL are checked every 5 minutes on closed 15-minute, 1-hour and 4-hour candles for head-and-shoulders tops (bearish) and inverse head and shoulders (bullish), from the moment a right shoulder starts forming to the target or failure. " +
+    "This page refreshes about every 30 minutes; Telegram alerts go out within 5 minutes of each new stage. Gold and silver are Binance's XAU and XAG perpetuals, which track spot gold and silver closely but not exactly; levels can differ slightly from your broker's chart. Times are in your local time.";
+  const by = {}; D.active.forEach(r => { (by[r.inst + ":" + r.tf] = by[r.inst + ":" + r.tf] || []).push(r); });
+  const mx = $("#stfMx"), f = document.createDocumentFragment();
+  D.instruments.forEach(x => { const tr = document.createElement("tr"), nm = document.createElement("td");
+    nm.innerHTML = "<b></b><div class='note'></div>"; nm.firstChild.textContent = x.name + " · " + x.code; nm.lastChild.textContent = x.ok ? x.symbol : "no data";
+    tr.append(nm);
+    STF_TF.forEach(([tf, tfn]) => { const td = document.createElement("td"), box = document.createElement("div"); box.className = "stf-cell"; td.dataset.l = tfn;
+      const se = D.series[x.code] && D.series[x.code][tf], rows = (by[x.code + ":" + tf] || []).sort((a, b) => STF_ORDER[a.status] - STF_ORDER[b.status]);
+      rows.forEach(r => { const b = document.createElement("button"), k = stfKind(r), kb = document.createElement("b"); b.type = "button"; b.className = "stf-tag" + (r.status === "broken" || r.status === "retest" ? " hot" : "");
+        kb.className = k[1]; kb.textContent = k[0]; b.append(kb, " " + r.label); b.title = `${r.context}; neckline ${fPx(r.neck)}, target ${fPx(r.target)}, stop ${fPx(r.stop)}`;
+        b.onclick = () => { S.stfFilter = "all"; renderSTF(); const c = document.getElementById("stf-" + r.key.replace(/[^A-Za-z0-9]/g, "-")); if (c) { c.scrollIntoView({ behavior: "smooth", block: "start" }); c.classList.add("flash"); setTimeout(() => c.classList.remove("flash"), 1800); } };
+        box.append(b); });
+      const w = document.createElement("span"); w.className = "w"; w.textContent = se ? (rows.length ? "" : "nothing forming · ") + fPx(se.close) + " at " + stfLocal(se.last_ms + { "15m": 9e5, "1h": 36e5, "4h": 144e5 }[tf]) : "no data";
+      box.append(w); td.append(box); tr.append(td); });
+    f.append(tr); });
+  mx.replaceChildren(f);
+  $("#stfKey").textContent = "Stages: right shoulder forming → near the neckline → neckline broken → retesting the neckline → target reached or failed. ▼ Top = bearish (break is down), ▲ Inverse = bullish (break is up). Reversal = formed after a move the other way; continuation = formed after a move in the break's direction (like your gold trade on 20–22 Nov). The price under each cell is the last closed candle.";
+  // pattern cards
+  const flt = S.stfFilter || "all";
+  $$("#stfFilter button").forEach(b => { b.setAttribute("aria-pressed", String(b.dataset.v === flt)); b.onclick = () => { S.stfFilter = b.dataset.v; renderSTF(); }; });
+  const list = D.active.filter(r => flt === "all" || r.inst === flt);
+  $("#stfCount").textContent = D.active.length ? `${D.active.length} active` : "";
+  const L = $("#stfList"); L.replaceChildren();
+  if (!list.length) { const p = document.createElement("p"); p.className = "note"; p.textContent = flt === "all" ? "No head and shoulders forming or active right now on any of the 15 charts. This updates by itself." : "Nothing on " + (inst[flt] || {}).name + " right now."; L.append(p); }
+  list.forEach(r => L.append(stfCard(r, D, inst)));
+  // log
+  const lg = $("#stfLog"), lf = document.createDocumentFragment();
+  (D.events || []).slice(0, 200).forEach(e => { const tr = document.createElement("tr"), k = stfKind(e);
+    tr.append(td(stfLocal(e.bar_ms + { "15m": 9e5, "1h": 36e5, "4h": 144e5 }[e.tf])), td((inst[e.inst] || {}).name || e.inst), td({ "15m": "15 min", "1h": "1 hour", "4h": "4 hours" }[e.tf]), td(k[0] + " · " + e.context, k[1]),
+      td((D.labels || {})[e.status] || e.status, e.status === "target" ? "up" : e.status === "failed" ? "down" : ""), td(fPx(e.price), "num"), td(fPx(e.neck), "num"), td(fPx(e.target), "num"), td(fPx(e.stop), "num"));
+    lf.append(tr); });
+  lg.replaceChildren(lf); if (!(D.events || []).length) lg.innerHTML = '<tr><td colspan="9" class="empty">No stage changes yet. Every new stage lands here (and on Telegram) as it happens.</td></tr>';
+  // record
+  const R = D.record || {}, box = $("#stfRec"); box.replaceChildren();
+  $("#stfRecSince").textContent = R.since ? "watching since " + stfLocal(Date.parse(R.since)) : "";
+  $("#stfRecLead").textContent = "Live record: every pattern this page showed that broke its neckline, from when it was first seen to its outcome. Nothing is back-filled. It starts empty and means something once there are dozens.";
+  STF_TF.forEach(([tf, nm]) => { const t = (R.by_tf || {})[tf] || {}, c = document.createElement("div"); c.className = "ma-card";
+    c.innerHTML = '<div class="r"></div><div class="n"></div><dl></dl>'; c.querySelector(".r").textContent = nm + " charts";
+    c.querySelector(".n").textContent = t.settled ? (t.hit_pct + "% reached target") : "no settled breaks yet";
+    const dl = c.querySelector("dl"), add = (k, v) => { const a = document.createElement("dt"), b = document.createElement("dd"); a.textContent = k; b.textContent = v; dl.append(a, b); };
+    add("Settled after a break", t.settled || 0); add("Target / failed / expired", `${t.target || 0} / ${t.failed || 0} / ${t.expired || 0}`); add("Active now", t.open || 0); box.append(c); });
+  const B = D.backtest, bt = $("#stfBt"); bt.replaceChildren();
+  $("#stfBtLead").textContent = B ? `Every pattern the detector would have found on past candles (15 min about 4 months, 1 hour about a year, 4 hours about 22 months; all five markets together), entered at the open after the neckline break, stop at the failure level, target the measured move, closed after 60 candles if neither. R = result in units of the risk. Last run ${mbAgo(B.generated_utc)}. Past results, not a forecast.` : "The backtest runs once a day; its first results appear after the next run.";
+  if (B) STF_TF.forEach(([tf, nm]) => { const T = B.tf[tf]; if (!T) return;
+    [["all", "All"], ["top", "Tops"], ["inverse", "Inverse"], ["reversal", "Reversal"], ["continuation", "Continuation"]].forEach(([k, lab], i) => { const x = T[k] || {}, tr = document.createElement("tr");
+      tr.append(td(i ? "" : nm), td(lab), td(x.n || 0, "num"), td(x.n ? x.target_pct + "%" : "—", "num"), td(x.n ? x.stop_pct + "%" : "—", "num"), td(x.n ? x.win_pct + "%" : "—", "num"),
+        td(x.n ? (x.avg_r > 0 ? "+" : "") + x.avg_r : "—", "num " + (x.n ? cls(x.avg_r) : "")), td(x.n ? (x.median_r > 0 ? "+" : "") + x.median_r : "—", "num"));
+      bt.append(tr); }); });
+}
+function stfCard(r, D, inst) {
+  const k = stfKind(r), card = document.createElement("article"); card.className = "stf-card"; card.id = "stf-" + r.key.replace(/[^A-Za-z0-9]/g, "-");
+  const hd = document.createElement("div"); hd.className = "hd";
+  const h3 = document.createElement("h3"), kb = document.createElement("b"); kb.className = k[1]; kb.textContent = k[0];
+  h3.append(((inst[r.inst] || {}).name || r.inst) + " · " + { "15m": "15 min", "1h": "1 hour", "4h": "4 hours" }[r.tf] + " · ", kb, " head & shoulders");
+  const stt = document.createElement("span"); stt.className = "st"; stt.textContent = r.label; hd.append(h3, stt);
+  const sub = document.createElement("p"); sub.className = "note"; sub.style.margin = "4px 0 0";
+  sub.textContent = (r.context === "continuation" ? "Continuation" : "Reversal") + " · " + (r.kind === "top" ? "a break below the neckline points down" : "a break above the neckline points up") +
+    (r.break_ms ? " · broke " + stfLocal(r.break_ms + { "15m": 9e5, "1h": 36e5, "4h": 144e5 }[r.tf]) : "") + (r.status === "forming" ? " · the right shoulder is not confirmed yet; it can still fail" : "");
+  const ch = document.createElement("div"); ch.className = "stf-chart";
+  const kv = document.createElement("dl"); kv.className = "stf-kv";
+  const add = (a, b, c) => { const dt = document.createElement("dt"), dd = document.createElement("dd"); dt.textContent = a; dd.textContent = b; if (c) dd.className = c; kv.append(dt, dd); };
+  add("Last close", fPx(r.close)); add("Neckline now", fPx(r.neck) + " (" + fPct(r.to_neck_pct, 2) + ")");
+  add("Target", fPx(r.target) + " (" + fPct(r.to_target_pct, 2) + ")", k[1]); add("Stop", fPx(r.stop) + " (" + fPct(r.to_stop_pct, 2) + ")");
+  add("Pattern height", fPct(r.height_pct, 2).replace("+", "")); add("Reward : risk now", isNum(r.rr) ? r.rr.toFixed(2) : "—");
+  add("Head", fPx(r.pts.head[1]) + " · " + stfLocal(r.pts.head[0])); add("Shoulders", fPx(r.pts.ls[1]) + " / " + fPx(r.pts.rs[1]));
+  card.append(hd, sub, ch, kv);
+  requestAnimationFrame(() => stfChart(ch, r, D));
+  return card;
+}
+function stfChart(el, r, D) {
+  const se = D.series[r.inst] && D.series[r.inst][r.tf]; if (!se || !window.LightweightCharts) return;
+  const off = -new Date().getTimezoneOffset() * 60, T = ms => Math.floor(ms / 1000) + off;     // chart in local time
+  const ch = newChart(el, { autoSize: true, layout: { background: { type: "solid", color: "transparent" }, textColor: css("--muted"), fontFamily: "Inter, sans-serif" },
+    grid: { vertLines: { color: css("--line") }, horzLines: { color: css("--line") } }, rightPriceScale: { borderColor: css("--line") },
+    timeScale: { borderColor: css("--line"), timeVisible: true, secondsVisible: false }, crosshair: { mode: 0 }, handleScroll: false, handleScale: false });
+  const prec = Math.max(0, Math.min(8, 4 - Math.floor(Math.log10(Math.abs(r.close) || 1)))), pf = { type: "price", precision: prec, minMove: Math.pow(10, -prec) };
+  const cs = ch.addCandlestickSeries({ upColor: css("--up"), downColor: css("--down"), wickUpColor: css("--up"), wickDownColor: css("--down"), borderVisible: false, priceFormat: pf });
+  const bars = se.bars.filter(b => b[0] >= r.pts.ls[0] - 30 * { "15m": 9e5, "1h": 36e5, "4h": 144e5 }[r.tf]);
+  cs.setData(bars.map(b => ({ time: T(b[0]), open: b[1], high: b[2], low: b[3], close: b[4] })));
+  const nl = ch.addLineSeries({ color: css("--accent"), lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: pf });
+  const t1 = r.pts.t1, nn = r.pts.neck_now, slope = (nn[1] - t1[1]) / ((nn[0] - t1[0]) || 1);
+  const start = Math.min(r.pts.ls[0], t1[0]);
+  nl.setData([{ time: T(start), value: t1[1] + slope * (start - t1[0]) }, { time: T(nn[0]), value: nn[1] }]);
+  cs.createPriceLine({ price: r.target, color: css(r.kind === "top" ? "--down" : "--up"), lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "target" });
+  cs.createPriceLine({ price: r.stop, color: css("--muted"), lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "stop" });
+  const top = r.kind === "top", mk = (p, txt) => ({ time: T(p[0]), position: top ? "aboveBar" : "belowBar", color: css("--accent"), shape: top ? "arrowDown" : "arrowUp", text: txt });
+  try { cs.setMarkers([mk(r.pts.ls, "LS"), mk(r.pts.head, "H"), mk(r.pts.rs, r.status === "forming" ? "RS?" : "RS")].sort((a, b) => a.time - b.time)); } catch (e) {}
+  ch.timeScale().fitContent();
+}
 function renderMA() {
   if (S.ma === undefined) { maLoad(); return; }
   const D = S.ma; if (!D) { $("#maLead").textContent = "The moving-average study is published with the next refresh."; return; }
@@ -5052,7 +5203,7 @@ function renderBot() {
 const fUsd2 = v => isNum(v) ? (v < 0 ? "−$" : "$") + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
 
 // ---------- routing + controls
-const VIEWS = ["me", "overview", "world", "coins", "bot", "strategies", "mmbee", "ma", "lab", "highlights", "screener", "watchlist", "signals", "listings", "stocks", "pair"];
+const VIEWS = ["me", "overview", "world", "coins", "bot", "strategies", "mmbee", "ma", "stf", "lab", "highlights", "screener", "watchlist", "signals", "listings", "stocks", "pair"];
 // sub-sections inside a tab (#bot/record, #signals/library ...); old tab names still open the right place
 const SUBS = { bot: ["portfolio", "each", "record", "fade"], signals: ["latest", "library"], mmbee: ["bots", "live", "livu", "backtest"], stocks: ["basket", "onchain", "binance"] };
 const ALIAS = { top50: ["overview", "t50"], record: ["bot", "record"], library: ["signals", "library"] };
@@ -5080,7 +5231,7 @@ function show(v) {
   if (!VIEWS.includes(v)) v = "overview"; VIEWS.forEach(x => { $("#v-" + x).hidden = x !== v; });
   setGroupNav(v);
   ({ me: () => { renderMe(); if (!ME.user && AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); }, overview: () => { renderOverview(); renderCaps("capsOv"); renderSectors(); renderTop50(); if (focus === "t50") setTimeout(() => $("#t50Card").scrollIntoView({ behavior: "smooth", block: "start" }), 150); },
-    bot: () => { $("#botNavFade").hidden = !S.p4; subCounts(); setSub("bot", S.sub.bot); }, mmbee: () => { renderMMHead(); setSub("mmbee", S.sub.mmbee); }, lab: renderLab, ma: renderMA, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch,
+    bot: () => { $("#botNavFade").hidden = !S.p4; subCounts(); setSub("bot", S.sub.bot); }, mmbee: () => { renderMMHead(); setSub("mmbee", S.sub.mmbee); }, lab: renderLab, ma: renderMA, stf: renderSTF, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch,
     signals: () => { subCounts(); setSub("signals", S.sub.signals); }, listings: renderListings, strategies: renderStrategies, stocks: () => setSub("stocks", S.sub.stocks), pair: renderPair, world: () => { renderWorld(); renderCaps("capsWx"); }, coins: renderCoins })[v](); }
 function subCounts() {
   const R = S.bot, PF = R && R.portfolio, fill = (view, sub, n, title) => { const b = $('.sub-nav[data-for="' + view + '"] button[data-s="' + sub + '"]'); if (!b) return; b.querySelector("i").textContent = n ? String(n) : ""; b.title = title || ""; };
@@ -5096,7 +5247,7 @@ function subCounts() {
 const GROUPS = [["me", "★ My dashboard", [["me", "My dashboard"]]], ["overview", "Home", [["overview", "Home"]]],
   ["markets", "Markets", [["world", "World"], ["stocks", "Stocks"]]],
   ["coins", "Coins", [["coins", "All coins"], ["screener", "Screener"], ["watchlist", "Watchlist"], ["listings", "New listings"]]],
-  ["ideas", "Ideas", [["highlights", "Trade ideas"], ["ma", "Moving averages"], ["signals", "Signals"], ["lab", "Setup Lab"]]],
+  ["ideas", "Ideas", [["highlights", "Trade ideas"], ["ma", "Moving averages"], ["signals", "Signals"], ["lab", "Setup Lab"], ["stf", "STF HNS"]]],
   ["bots", "Bots", [["bot", "Trading bots"], ["strategies", "Strategies"], ["mmbee", "MM-Bee"]]], ["chart", "Chart", [["pair", "Pair chart"]]]];
 const groupOf = v => (GROUPS.find(g => g[2].some(x => x[0] === v)) || GROUPS[1]);
 function setGroupNav(v) {

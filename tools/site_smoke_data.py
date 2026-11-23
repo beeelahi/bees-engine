@@ -76,6 +76,7 @@ def main(out):
     zig(E.OUT)
     library(E.OUT)
     ma_lab(E.OUT)
+    stf(E.OUT)
     import subprocess                                    # the Strategies tab: the strategy lab on the synthetic history
     subprocess.run([sys.executable, os.path.join(HERE, "..", "research", "strategy_lab.py"), db, os.path.join(E.OUT, "strategies.json")], check=True, capture_output=True)
     with open(os.path.join(HERE, "..", "web", "index.html"), encoding="utf-8") as f:
@@ -132,6 +133,24 @@ def library(out_data):
     CL.build(log=print, db=os.path.join(d, "l.db"), rows=ROWS, books=BOOKS, tr=[("CMC", "XMR", "Monero", 300, 3), ("CoinGecko", "NEW", "Newcoin", 1, None)],
              ext_file=os.path.join(d, "ext.json"), out_lib=os.path.join(out_data, "library.json"), out_caps=os.path.join(out_data, "caps.json"), totals=totals)
 
+
+
+def stf(out_data):
+    """STF HNS page data: a synthetic top (broken) and a forming inverse, through the real run()."""
+    import stf_hns as S
+    from tests.test_hs import TOP, ohlc, path
+    top = [100 + x * 0.1 for x in path([60, 80] + TOP[2:] + [84, 82])]
+    flat = [110.0 + (k % 9) * 0.05 for k in range(400 - len(top))]
+    c = flat + top
+    o, h, l, c = ohlc(c)
+    t = [1_790_000_000_000 + k * 900_000 for k in range(len(c))]
+    rows = list(zip(t, o, h, l, c))
+    S.OUT, S.STATE, S.BTSTATS = (os.path.join(out_data, "stf_hns.json"), os.path.join(out_data, "..", "stf_state.json"),
+                                 os.path.join(out_data, "..", "stf_bt.json"))
+    S.source_for = lambda code, log=print: ("spot", code + "USDT")
+    S.klines = lambda *a, **k: rows
+    S.send_alerts = lambda evs, log=print: 0
+    S.run(log=print)
 
 def ma_lab(out_data):
     """Moving-averages page from the unit tests' small database."""
