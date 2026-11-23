@@ -113,6 +113,27 @@ except Exception as e: print("error", type(e).__name__)')
     esac ;;
   stf-probe)       timeout 240 python3 "$ROOT/bin/stf_hns.py" --probe 2>&1 | tail -n "$N" ;;
   stf-case)        timeout 120 python3 "$ROOT/research/stf_case.py" 2>&1 | tail -n "$N" ;;
+  stf-status)      python3 - "$ROOT/web_export/stf_hns.json" <<'PY'
+import json, sys
+from datetime import datetime, timezone
+d = json.load(open(sys.argv[1]))
+f = lambda ms: datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%m-%d %H:%M")
+print("generated", d["generated_utc"], "| problems:", d.get("problems") or "none")
+print("sources:", "; ".join(f"{x['code']} {x['symbol']} ({x['source']})" for x in d["instruments"]))
+print(f"active ({len(d['active'])}):")
+for r in d["active"]:
+    print(f"  {r['inst']} {r['tf']:3s} {r['kind']:7s} {r['context']:12s} {r['status']:13s} close {r['close']} neck {r['neck']} target {r['target']} stop {r['stop']} head {f(r['pts']['head'][0])}")
+print("events:", len(d.get("events", [])))
+for e in d.get("events", [])[:12]:
+    print(f"  {f(e['bar_ms'])} {e['inst']} {e['tf']} {e['kind']} {e['status']} at {e['price']}")
+print("record:", json.dumps(d.get("record", {}).get("by_tf")))
+B = d.get("backtest") or {}
+for tf, T in (B.get("tf") or {}).items():
+    for k in ("all", "top", "inverse", "reversal", "continuation", "strict"):
+        x = T.get(k, {})
+        print(f"  backtest {tf} {k:12s} n={x.get('n')} target%={x.get('target_pct')} stop%={x.get('stop_pct')} win%={x.get('win_pct')} avgR={x.get('avg_r')} medR={x.get('median_r')}")
+PY
+    ;;
   stf-run)         sudo -n systemctl start --no-block bees-stf.service && echo "STF HNS run started (also every 5 minutes by timer); read it with stf-log" ;;
   stf-backtest)    sudo -n systemd-run --unit=bees-stf-bt --collect --uid=bees --gid=bees --nice=10 -p "WorkingDirectory=$ROOT" \
                      -p "StandardOutput=truncate:$ROOT/logs/stf_bt.txt" -p StandardError=inherit python3 -u "$ROOT/bin/stf_hns.py" --backtest \
@@ -219,5 +240,5 @@ PY
   bee-tune-stop)   pf="$ROOT/logs/bee_tune.pid"; if [ -f "$pf" ] && kill -- -"$(cat "$pf")" 2>/dev/null; then echo "MM-Bee tuning study stopped"; else echo "no MM-Bee tuning study running"; fi; rm -f "$pf" ;;
   bee-tune-log)    tail -n "$N" "$ROOT/logs/bee_tune.txt" 2>/dev/null || echo "no MM-Bee tuning output yet" ;;
   bee-study-log)   tail -n "$N" "$ROOT/logs/bee_study.txt" 2>/dev/null || echo "no MM-Bee study output yet" ;;
-  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status web-setup web-status publish-local publish-github ma-lab ma-lab-log root-key-saad root-keys root-login-keys root-login-off saad-user ssh-check token-check site-token-save stf-probe stf-case stf-run stf-backtest stf-log telegram-test"; exit 2 ;;
+  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status web-setup web-status publish-local publish-github ma-lab ma-lab-log root-key-saad root-keys root-login-keys root-login-off saad-user ssh-check token-check site-token-save stf-probe stf-case stf-status stf-run stf-backtest stf-log telegram-test"; exit 2 ;;
 esac
