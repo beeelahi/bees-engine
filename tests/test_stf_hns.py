@@ -7,7 +7,10 @@ import unittest
 
 from tests import _paths  # noqa: F401
 import stf_hns as S
-from tests.test_hs import TOP, ohlc, path
+from tests.test_hs import ohlc, path
+
+# a proper top: a real rise into it (more than one height below the neckline), shoulders at 100, neckline 85, head 120
+TOP = [40, 70, 100, 85, 120, 85, 100, 90]
 
 
 def series(c):
@@ -18,7 +21,7 @@ def series(c):
 class FormingTest(unittest.TestCase):
     def test_right_shoulder_forming_then_complete(self):
         # rise, LS 100, neck 85, head 120, neck 85, rally to 98 (inside the shoulder zone, below the head)
-        c = path([60, 80, 100, 85, 120, 85, 98])
+        c = path([40, 70, 100, 85, 120, 85, 99]) + [96, 95, 94]
         act = S.scan(*series(c))
         tops = [(p, s) for p, s in act if p["kind"] == "top"]
         self.assertTrue(tops)
@@ -30,7 +33,7 @@ class FormingTest(unittest.TestCase):
         self.assertNotIn("forming", st)
 
     def test_no_forming_past_the_head(self):
-        c = path([60, 80, 100, 85, 120, 85, 124])                 # rallied above the head: not a shoulder
+        c = path([40, 70, 100, 85, 120, 85, 124])                 # rallied above the head: not a shoulder
         self.assertFalse([p for p, s in S.scan(*series(c)) if p["kind"] == "top" and s["status"] == "forming"])
 
 
@@ -70,7 +73,7 @@ class LogTest(unittest.TestCase):
 
 class BacktestTest(unittest.TestCase):
     def test_replay_trades_the_break_alert(self):
-        S.REPLAY_W = 70
+        S.REPLAY_W = 100
         t, o, h, l, c = series([110.0] * 20 + path(TOP) + [84, 80, 75, 70, 62, 55, 50, 45, 40])
         rows = list(zip(t, o, h, l, c))
         br = [b for b in S.replay_breaks(rows, "BTC", "15m") if b["kind"] == "top"]
@@ -136,9 +139,10 @@ class GoldCaseTest(unittest.TestCase):
             for e in S.update_log(St, "XAU", "15m", tt, oo, hh, ll, cc, S.scan(tt, oo, hh, ll, cc), "x"):
                 if e["kind"] == "top" and (":" + str(t[p["hd"]])) in e["key"]:
                     seen.append((e["status"], f(t.index(e["bar_ms"])), e["key"].split("#")[1] if "#" in e["key"] else "1"))
-        # first attempt: a lower right shoulder at 13:00 broke at 13:15 and failed at 14:00 (a fake-out, reported as such);
+        # first attempt: a lower right shoulder at 13:00 broke at 13:15 (no "forming" first: the shoulder had not turned
+        # before the break) and failed at 14:00, a fake-out reported as such;
         # second attempt on the same head: right shoulder 15:00, break on the 15:15 candle, target reached by 18:45
-        self.assertEqual([x for x in seen if x[2] == "1"], [("forming", "11-20 13:00", "1"), ("broken", "11-20 13:15", "1"), ("failed", "11-20 14:00", "1")])
+        self.assertEqual([x for x in seen if x[2] == "1"], [("broken", "11-20 13:15", "1"), ("failed", "11-20 14:00", "1")])
         second = [x[:2] for x in seen if x[2] == "2"]
         self.assertIn(("broken", "11-20 15:15"), second)
         self.assertEqual(second[-1][0], "target")

@@ -138,8 +138,8 @@ def library(out_data):
 def stf(out_data):
     """STF HNS page data: a synthetic top (broken) and a forming inverse, through the real run()."""
     import stf_hns as S
-    from tests.test_hs import TOP, ohlc, path
-    top = [100 + x * 0.1 for x in path([60, 80] + TOP[2:] + [84, 82])]
+    from tests.test_hs import ohlc, path
+    top = [100 + x * 0.1 for x in path([40, 70, 100, 85, 120, 85, 100, 90] + [84, 82])]
     flat = [110.0 + (k % 9) * 0.05 for k in range(400 - len(top))]
     c = flat + top
     o, h, l, c = ohlc(c)

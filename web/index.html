@@ -1559,28 +1559,37 @@ a { color: var(--accent); } a:hover { color: var(--accent-2); }
   </section>
 
   <section class="view" id="v-stf" hidden>
+    <div class="card sub-head">
+      <div class="card-head"><h2>STF HNS · head and shoulders on short timeframes</h2><span class="note" id="stfAsOf"></span></div>
+      <p class="note sub-lead" id="stfLead"></p>
+      <div class="hl-nav sub-nav" data-for="stf" role="tablist" aria-label="Timeframes">
+        <button type="button" role="tab" data-s="15m">15 minutes<i></i></button>
+        <button type="button" role="tab" data-s="1h">1 hour<i></i></button>
+        <button type="button" role="tab" data-s="4h">4 hours<i></i></button>
+      </div>
+    </div>
     <div class="card">
-      <div class="card-head"><h2>STF HNS · head and shoulders on 15 min, 1 hour and 4 hours</h2><span class="note" id="stfAsOf"></span></div>
-      <p class="note" id="stfLead" style="margin:0 0 12px"></p>
-      <div class="tbl-wrap"><table class="wl-tbl stf-mx"><thead><tr><th>Market</th><th>15 min</th><th>1 hour</th><th>4 hours</th></tr></thead><tbody id="stfMx"></tbody></table></div>
+      <div class="card-head"><h2 id="stfMxH">Markets</h2><span class="note" id="stfMxNote"></span></div>
+      <div class="tbl-wrap"><table class="wl-tbl stf-mx"><thead><tr><th>Market</th><th>Patterns</th><th>Last close</th></tr></thead><tbody id="stfMx"></tbody></table></div>
       <p class="note" id="stfKey" style="margin:10px 0 0"></p>
     </div>
     <div class="card">
-      <div class="card-head"><h2>Patterns now</h2><span class="note" id="stfCount"></span></div>
-      <div class="seg" id="stfFilter" style="margin-bottom:12px"><button type="button" data-v="all" aria-pressed="true">All</button><button type="button" data-v="XAU" aria-pressed="false">Gold</button><button type="button" data-v="XAG" aria-pressed="false">Silver</button><button type="button" data-v="BTC" aria-pressed="false">BTC</button><button type="button" data-v="ETH" aria-pressed="false">ETH</button><button type="button" data-v="SOL" aria-pressed="false">SOL</button></div>
+      <div class="card-head"><h2 id="stfListH">Patterns now</h2><span class="note" id="stfCount"></span></div>
       <div class="stf-list" id="stfList"></div>
     </div>
     <div class="card">
-      <div class="card-head"><h2>Alert log</h2><span class="note">every new stage, as it was seen</span></div>
-      <div class="tbl-wrap" style="max-height:60vh"><table class="wl-tbl"><thead><tr><th>Seen</th><th>Market</th><th>Chart</th><th>Pattern</th><th>Stage</th><th class="num">Price</th><th class="num">Neckline</th><th class="num">Target</th><th class="num">Stop (shoulder)</th></tr></thead><tbody id="stfLog"></tbody></table></div>
+      <div class="card-head"><h2 id="stfLogH">Alert log</h2><span class="note">every new stage, as it was seen</span></div>
+      <div class="tbl-wrap" style="max-height:60vh"><table class="wl-tbl"><thead><tr><th>Seen</th><th>Market</th><th>Pattern</th><th>Stage</th><th class="num">Price</th><th class="num">Neckline</th><th class="num">Target</th><th class="num">Stop (shoulder)</th></tr></thead><tbody id="stfLog"></tbody></table></div>
     </div>
     <div class="card">
-      <div class="card-head"><h2>Track record</h2><span class="note" id="stfRecSince"></span></div>
+      <div class="card-head"><h2 id="stfRecH">Track record</h2><span class="note" id="stfRecSince"></span></div>
       <p class="note" id="stfRecLead" style="margin:0 0 10px"></p>
       <div class="ma-top" id="stfRec"></div>
-      <h3 class="stf-h3">Backtest: the same detector on past candles</h3>
+      <h3 class="stf-h3">Backtest: the watcher replayed on past candles</h3>
       <p class="note" id="stfBtLead" style="margin:0 0 10px"></p>
-      <div class="tbl-wrap"><table class="wl-tbl"><thead><tr><th>Chart</th><th>Stop</th><th>Set</th><th class="num">Trades</th><th class="num">Reached target</th><th class="num">Stopped</th><th class="num">Winners</th><th class="num">Average R</th><th class="num">Median R</th></tr></thead><tbody id="stfBt"></tbody></table></div>
+      <div class="tbl-wrap"><table class="wl-tbl"><thead><tr><th>Stop</th><th>Set</th><th class="num">Trades</th><th class="num">Reached target</th><th class="num">Stopped</th><th class="num">Winners</th><th class="num">Average R</th><th class="num">Median R</th></tr></thead><tbody id="stfBt"></tbody></table></div>
+      <h3 class="stf-h3">By market</h3>
+      <div class="tbl-wrap"><table class="wl-tbl"><thead><tr><th>Market</th><th class="num">Trades</th><th class="num">Reached target</th><th class="num">Winners</th><th class="num">Average R</th><th>History</th></tr></thead><tbody id="stfBtM"></tbody></table></div>
     </div>
   </section>
   <section class="view" id="v-ma" hidden>
@@ -4585,63 +4594,64 @@ function renderSTF() {
   if (S.stf === undefined) { stfLoad(); $("#stfLead").textContent = "Loading…"; return; }
   const D = S.stf;
   if (!D) { $("#stfLead").textContent = "The short-timeframe watcher has not published yet. It starts with the next update."; return; }
+  const tf = S.sub.stf || "15m", tfn = { "15m": "15-minute", "1h": "1-hour", "4h": "4-hour" }[tf], dur = { "15m": 9e5, "1h": 36e5, "4h": 144e5 }[tf];
   const inst = Object.fromEntries(D.instruments.map(x => [x.code, x]));
   const age = (Date.now() - Date.parse(D.generated_utc)) / 60000;
   $("#stfAsOf").textContent = "checked " + mbAgo(D.generated_utc) + (age > 45 ? " · late" : "");
   $("#stfAsOf").className = "note" + (age > 45 ? " down" : "");
-  $("#stfLead").textContent = "Gold, silver, BTC, ETH and SOL are checked every 5 minutes on closed 15-minute, 1-hour and 4-hour candles for head-and-shoulders tops (bearish) and inverse head and shoulders (bullish), from the moment a right shoulder starts forming to the target or failure. " +
-    "This page refreshes about every 30 minutes; Telegram alerts go out within 5 minutes of each new stage. Gold and silver are Binance's XAU and XAG perpetuals, which track spot gold and silver closely but not exactly; levels can differ slightly from your broker's chart. Times are in your local time.";
-  const by = {}; D.active.forEach(r => { (by[r.inst + ":" + r.tf] = by[r.inst + ":" + r.tf] || []).push(r); });
+  $("#stfLead").textContent = "Gold, silver, BTC, ETH and SOL, checked every 5 minutes on closed candles for proper head-and-shoulders patterns: tops (bearish) and inverse (bullish). Only textbook proportions count: a real move into the pattern, both shoulders real swings of similar size, a head that clearly stands out, a neckline that is not steep, and a pattern larger than normal candle noise. Each pattern is followed from its right shoulder to the target or failure. This page refreshes about every 30 minutes; Telegram alerts go out within 5 minutes. Gold and silver are Binance's XAU and XAG perpetuals (close to, but not exactly, your broker's prices). Times are in your local time.";
+  STF_TF.forEach(([t]) => { const b = $('.sub-nav[data-for="stf"] button[data-s="' + t + '"] i'); const n = D.active.filter(r => r.tf === t).length; if (b) { b.textContent = n ? " " + n : ""; } });
+  const act = D.active.filter(r => r.tf === tf).sort((a, b) => STF_ORDER[a.status] - STF_ORDER[b.status]);
+  // markets on this timeframe
+  $("#stfMxH").textContent = "Markets on the " + tfn + " chart";
   const mx = $("#stfMx"), f = document.createDocumentFragment();
-  D.instruments.forEach(x => { const tr = document.createElement("tr"), nm = document.createElement("td");
+  D.instruments.forEach(x => { const tr = document.createElement("tr"), nm = document.createElement("td"), cell = document.createElement("td"), box = document.createElement("div"); box.className = "stf-cell";
     nm.innerHTML = "<b></b><div class='note'></div>"; nm.firstChild.textContent = x.name + " · " + x.code; nm.lastChild.textContent = x.ok ? x.symbol : "no data";
-    tr.append(nm);
-    STF_TF.forEach(([tf, tfn]) => { const td = document.createElement("td"), box = document.createElement("div"); box.className = "stf-cell"; td.dataset.l = tfn;
-      const se = D.series[x.code] && D.series[x.code][tf], rows = (by[x.code + ":" + tf] || []).sort((a, b) => STF_ORDER[a.status] - STF_ORDER[b.status]);
-      rows.forEach(r => { const b = document.createElement("button"), k = stfKind(r), kb = document.createElement("b"); b.type = "button"; b.className = "stf-tag" + (r.status === "broken" || r.status === "retest" ? " hot" : "");
-        kb.className = k[1]; kb.textContent = k[0]; b.append(kb, " " + r.label); b.title = `${r.context}; neckline ${fPx(r.neck)}, target ${fPx(r.target)}, stop ${fPx(r.stop)}`;
-        b.onclick = () => { S.stfFilter = "all"; renderSTF(); const c = document.getElementById("stf-" + r.key.replace(/[^A-Za-z0-9]/g, "-")); if (c) { c.scrollIntoView({ behavior: "smooth", block: "start" }); c.classList.add("flash"); setTimeout(() => c.classList.remove("flash"), 1800); } };
-        box.append(b); });
-      const w = document.createElement("span"); w.className = "w"; w.textContent = se ? (rows.length ? "" : "nothing forming · ") + fPx(se.close) + " at " + stfLocal(se.last_ms + { "15m": 9e5, "1h": 36e5, "4h": 144e5 }[tf]) : "no data";
-      box.append(w); td.append(box); tr.append(td); });
-    f.append(tr); });
+    const rows = act.filter(r => r.inst === x.code);
+    rows.forEach(r => { const b = document.createElement("button"), k = stfKind(r), kb = document.createElement("b"); b.type = "button"; b.className = "stf-tag" + (r.status === "broken" || r.status === "retest" ? " hot" : "");
+      kb.className = k[1]; kb.textContent = k[0]; b.append(kb, " " + r.label); b.title = `neckline ${fPx(r.neck)}, target ${fPx(r.target)}, stop ${fPx(r.stop_shoulder)}`;
+      b.onclick = () => { const c = document.getElementById("stf-" + r.key.replace(/[^A-Za-z0-9]/g, "-")); if (c) { c.scrollIntoView({ behavior: "smooth", block: "start" }); c.classList.add("flash"); setTimeout(() => c.classList.remove("flash"), 1800); } };
+      box.append(b); });
+    if (!rows.length) { const w = document.createElement("span"); w.className = "w"; w.textContent = x.ok ? "nothing valid right now" : "no data"; box.append(w); }
+    cell.append(box); cell.dataset.l = "Patterns";
+    const se = D.series[x.code] && D.series[x.code][tf], lc = td(se ? fPx(se.close) + " · " + stfLocal(se.last_ms + dur) : "—"); lc.dataset.l = "Last close";
+    tr.append(nm, cell, lc); f.append(tr); });
   mx.replaceChildren(f);
-  $("#stfKey").textContent = "Stages: right shoulder forming → near the neckline → neckline broken → retesting the neckline → target reached or failed. ▼ Top = bearish (break is down), ▲ Inverse = bullish (break is up). Reversal = formed after a move the other way; continuation = formed after a move in the break's direction (like your gold trade on 20–22 Nov). The price under each cell is the last closed candle.";
-  // pattern cards
-  const flt = S.stfFilter || "all";
-  $$("#stfFilter button").forEach(b => { b.setAttribute("aria-pressed", String(b.dataset.v === flt)); b.onclick = () => { S.stfFilter = b.dataset.v; renderSTF(); }; });
-  const list = D.active.filter(r => flt === "all" || r.inst === flt);
-  $("#stfCount").textContent = D.active.length ? `${D.active.length} active` : "";
+  $("#stfMxNote").textContent = act.length ? `${act.length} active` : "none active";
+  $("#stfKey").textContent = "Stages: right shoulder forming → near the neckline → neckline broken → retesting the neckline → target reached or failed. ▼ Top = bearish (the break is down), ▲ Inverse = bullish (the break is up). The last close is the latest finished candle.";
+  // cards
+  $("#stfListH").textContent = "Patterns now · " + tfn;
+  $("#stfCount").textContent = act.length ? `${act.length}` : "";
   const L = $("#stfList"); L.replaceChildren();
-  if (!list.length) { const p = document.createElement("p"); p.className = "note"; p.textContent = flt === "all" ? "No head and shoulders forming or active right now on any of the 15 charts. This updates by itself." : "Nothing on " + (inst[flt] || {}).name + " right now."; L.append(p); }
-  list.forEach(r => L.append(stfCard(r, D, inst)));
-  // log
-  const lg = $("#stfLog"), lf = document.createDocumentFragment();
-  (D.events || []).slice(0, 200).forEach(e => { const tr = document.createElement("tr"), k = stfKind(e);
-    tr.append(td(stfLocal(e.bar_ms + { "15m": 9e5, "1h": 36e5, "4h": 144e5 }[e.tf])), td((inst[e.inst] || {}).name || e.inst), td({ "15m": "15 min", "1h": "1 hour", "4h": "4 hours" }[e.tf]), td(k[0] + " · " + e.context, k[1]),
+  if (!act.length) { const p = document.createElement("p"); p.className = "note"; p.textContent = `No valid head and shoulders on any ${tfn} chart right now. This page fills in by itself as soon as one forms.`; L.append(p); }
+  act.forEach(r => L.append(stfCard(r, D, inst)));
+  // log for this timeframe
+  $("#stfLogH").textContent = "Alert log · " + tfn;
+  const lg = $("#stfLog"), lf = document.createDocumentFragment(), evs = (D.events || []).filter(e => e.tf === tf);
+  evs.slice(0, 200).forEach(e => { const tr = document.createElement("tr"), k = stfKind(e);
+    tr.append(td(stfLocal(e.bar_ms + dur)), td((inst[e.inst] || {}).name || e.inst), td(k[0] + " · " + e.context, k[1]),
       td((D.labels || {})[e.status] || e.status, e.status === "target" ? "up" : e.status === "failed" ? "down" : ""), td(fPx(e.price), "num"), td(fPx(e.neck), "num"), td(fPx(e.target), "num"), td(fPx(isNum(e.stop_shoulder) ? e.stop_shoulder : e.stop), "num"));
     lf.append(tr); });
-  lg.replaceChildren(lf); if (!(D.events || []).length) lg.innerHTML = '<tr><td colspan="9" class="empty">No stage changes yet. Every new stage lands here (and on Telegram) as it happens.</td></tr>';
-  // record
-  const R = D.record || {}, box = $("#stfRec"); box.replaceChildren();
+  lg.replaceChildren(lf); if (!evs.length) lg.innerHTML = '<tr><td colspan="8" class="empty">No stage changes on this timeframe yet. Every new stage lands here (and on Telegram) as it happens.</td></tr>';
+  // record for this timeframe
+  const R = D.record || {}, t = (R.by_tf || {})[tf] || {}, box = $("#stfRec"); box.replaceChildren();
+  $("#stfRecH").textContent = "Track record · " + tfn;
   $("#stfRecSince").textContent = R.since ? "watching since " + stfLocal(Date.parse(R.since)) : "";
-  $("#stfRecLead").textContent = "Live record: every pattern this page showed that broke its neckline, from when it was first seen to its outcome. Nothing is back-filled. It starts empty and means something once there are dozens.";
-  STF_TF.forEach(([tf, nm]) => { const t = (R.by_tf || {})[tf] || {}, c = document.createElement("div"); c.className = "ma-card";
-    c.innerHTML = '<div class="r"></div><div class="n"></div><dl></dl>'; c.querySelector(".r").textContent = nm + " charts";
-    c.querySelector(".n").textContent = t.settled ? (t.hit_pct + "% reached target") : "no settled breaks yet";
-    const dl = c.querySelector("dl"), add = (k, v) => { const a = document.createElement("dt"), b = document.createElement("dd"); a.textContent = k; b.textContent = v; dl.append(a, b); };
-    add("Settled after a break", t.settled || 0); add("Target / failed / expired", `${t.target || 0} / ${t.failed || 0} / ${t.expired || 0}`); add("Active now", t.open || 0); box.append(c); });
-  const B = D.backtest, bt = $("#stfBt"); bt.replaceChildren();
-  $("#stfBtLead").textContent = B ? `The watcher replayed candle by candle on past candles (15 min about 4 months, 1 hour about a year, 4 hours up to 22 months; all five markets together): every "neckline broken" alert it would have sent, traded at the next candle's open, target the measured move, closed after ${(D.rules || {}).max_age || 60} candles if neither stop nor target was hit. Two stop rules: beyond the right shoulder (what most traders use) and the tight one (35% of the height back through the neckline). R = result in units of the risk taken. "Daily rules" = the stricter shape limits of the daily patterns page. Last run ${mbAgo(B.generated_utc)}. Past results, not a forecast.` : "The backtest runs once a day; its first results appear after the next run.";
-  if (B && B.method === "replay") STF_TF.forEach(([tf, nm]) => { const T = B.tf[tf]; if (!T) return; let first = true;
-    const line = (stop, lab, x) => { x = x || {}; const tr = document.createElement("tr");
-      tr.append(td(first ? nm : ""), td(stop), td(lab), td(x.n || 0, "num"), td(x.n ? x.target_pct + "%" : "—", "num"), td(x.n ? x.stop_pct + "%" : "—", "num"), td(x.n ? x.win_pct + "%" : "—", "num"),
-        td(x.n ? (x.avg_r > 0 ? "+" : "") + x.avg_r : "—", "num " + (x.n ? cls(x.avg_r) : "")), td(x.n ? (x.median_r > 0 ? "+" : "") + x.median_r : "—", "num"));
-      first = false; bt.append(tr); };
-    [["all", "All break alerts"], ["top", "Tops"], ["inverse", "Inverse"], ["reversal", "Reversal"], ["continuation", "Continuation"], ["early", "Early breaks"], ["confirmed", "Confirmed shoulder"]]
-      .forEach(([k, lab]) => line("Right shoulder", lab, (T.shoulder || {})[k]));
+  $("#stfRecLead").textContent = "Live: every pattern this page showed that broke its neckline, followed to its outcome. Nothing is back-filled; it means something once there are dozens.";
+  [["Settled after a break", t.settled || 0], ["Reached target", t.settled ? t.hit_pct + "%" : "—"], ["Target / failed / expired", `${t.target || 0} / ${t.failed || 0} / ${t.expired || 0}`], ["Active now", t.open || 0]]
+    .forEach(([a, b]) => { const c = document.createElement("div"); c.className = "ma-card"; c.innerHTML = '<div class="r"></div><div class="n"></div>'; c.querySelector(".r").textContent = a; c.querySelector(".n").textContent = b; box.append(c); });
+  const B = D.backtest, bt = $("#stfBt"), bm = $("#stfBtM"); bt.replaceChildren(); bm.replaceChildren();
+  const T = B && B.method === "replay" ? B.tf[tf] : null;
+  $("#stfBtLead").textContent = T ? `The watcher replayed candle by candle on past ${tfn} candles (all five markets): every "neckline broken" alert it would have sent, traded at the next candle's open, target the measured move, closed after ${(D.rules || {}).max_age || 60} candles if neither. Stop beyond the right shoulder (what most traders use) or the tight one (35% of the height back through the neckline). R = result in units of the risk. "Daily rules" = the stricter shapes of the daily patterns page. Last run ${mbAgo(B.generated_utc)}. Past results, not a forecast.` : "The backtest runs once a day; its results appear after the next run.";
+  if (T) { const line = (stop, lab, x) => { x = x || {}; const tr = document.createElement("tr");
+      tr.append(td(stop), td(lab), td(x.n || 0, "num"), td(x.n ? x.target_pct + "%" : "—", "num"), td(x.n ? x.stop_pct + "%" : "—", "num"), td(x.n ? x.win_pct + "%" : "—", "num"),
+        td(x.n ? (x.avg_r > 0 ? "+" : "") + x.avg_r : "—", "num " + (x.n ? cls(x.avg_r) : "")), td(x.n ? (x.median_r > 0 ? "+" : "") + x.median_r : "—", "num")); bt.append(tr); };
+    [["all", "All break alerts"], ["top", "Tops"], ["inverse", "Inverse"], ["early", "Early breaks"], ["confirmed", "Confirmed shoulder"]].forEach(([k, lab]) => line("Right shoulder", lab, (T.shoulder || {})[k]));
     line("Tight", "All break alerts", (T.neckline || {}).all);
-    if (T.strict) { line("Right shoulder", "Daily rules", T.strict.shoulder); line("Tight", "Daily rules", T.strict.neckline); } });
+    if (T.strict) { line("Right shoulder", "Daily rules", T.strict.shoulder); line("Tight", "Daily rules", T.strict.neckline); }
+    D.instruments.forEach(x => { const m = (B.series || {})[x.code + ":" + tf]; if (!m) return; const tr = document.createElement("tr");
+      tr.append(td(x.name), td(m.n || 0, "num"), td(m.n ? m.target_pct + "%" : "—", "num"), td(m.n ? m.win_pct + "%" : "—", "num"), td(m.n ? (m.avg_r > 0 ? "+" : "") + m.avg_r : "—", "num " + (m.n ? cls(m.avg_r) : "")),
+        td(m.bars ? `${m.bars.toLocaleString()} candles from ${new Date(m.first_ms).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}` : "—")); bm.append(tr); }); }
 }
 function stfCard(r, D, inst) {
   const k = stfKind(r), card = document.createElement("article"); card.className = "stf-card"; card.id = "stf-" + r.key.replace(/[^A-Za-z0-9]/g, "-");
@@ -5213,16 +5223,16 @@ const fUsd2 = v => isNum(v) ? (v < 0 ? "−$" : "$") + Math.abs(v).toLocaleStrin
 // ---------- routing + controls
 const VIEWS = ["me", "overview", "world", "coins", "bot", "strategies", "mmbee", "ma", "stf", "lab", "highlights", "screener", "watchlist", "signals", "listings", "stocks", "pair"];
 // sub-sections inside a tab (#bot/record, #signals/library ...); old tab names still open the right place
-const SUBS = { bot: ["portfolio", "each", "record", "fade"], signals: ["latest", "library"], mmbee: ["bots", "live", "livu", "backtest"], stocks: ["basket", "onchain", "binance"] };
+const SUBS = { stf: ["15m", "1h", "4h"], bot: ["portfolio", "each", "record", "fade"], signals: ["latest", "library"], mmbee: ["bots", "live", "livu", "backtest"], stocks: ["basket", "onchain", "binance"] };
 const ALIAS = { top50: ["overview", "t50"], record: ["bot", "record"], library: ["signals", "library"] };
-S.sub = { bot: "portfolio", signals: "latest", mmbee: "bots", stocks: "basket" };
+S.sub = { stf: "15m", bot: "portfolio", signals: "latest", mmbee: "bots", stocks: "basket" };
 function setSub(view, sub) {
   const list = SUBS[view]; if (!list) return;
   if (!list.includes(sub) || (view === "bot" && sub === "fade" && $("#botNavFade").hidden)) sub = list[0];
   S.sub[view] = sub;
   $$('.sub-nav[data-for="' + view + '"] button').forEach(b => { const on = b.dataset.s === sub; b.setAttribute("aria-selected", String(on)); if (on && !$("#v-" + view).hidden) b.scrollIntoView({ block: "nearest", inline: "nearest" }); });
   $$("#v-" + view + " > .sub-panel").forEach(x => { x.hidden = x.dataset.s !== sub; });
-  ({ bot: { portfolio: renderBot, each: renderBot, record: renderRecord, fade: renderBot }, signals: { latest: renderSignals, library: renderLibrary }, mmbee: { bots: renderMMBots, live: renderMMBee, livu: renderLiveU, backtest: renderMBBacktest },
+  ({ stf: { "15m": renderSTF, "1h": renderSTF, "4h": renderSTF }, bot: { portfolio: renderBot, each: renderBot, record: renderRecord, fade: renderBot }, signals: { latest: renderSignals, library: renderLibrary }, mmbee: { bots: renderMMBots, live: renderMMBee, livu: renderLiveU, backtest: renderMBBacktest },
     stocks: { basket: renderBasket, onchain: renderOnchain, binance: renderStocks } })[view][sub]();
 }
 $$(".sub-nav button").forEach(b => b.onclick = () => { location.hash = b.closest(".sub-nav").dataset.for + "/" + b.dataset.s; });
@@ -5239,7 +5249,7 @@ function show(v) {
   if (!VIEWS.includes(v)) v = "overview"; VIEWS.forEach(x => { $("#v-" + x).hidden = x !== v; });
   setGroupNav(v);
   ({ me: () => { renderMe(); if (!ME.user && AUTH) setTimeout(() => openAuth("signin", "Sign in to see your dashboard."), 50); }, overview: () => { renderOverview(); renderCaps("capsOv"); renderSectors(); renderTop50(); if (focus === "t50") setTimeout(() => $("#t50Card").scrollIntoView({ behavior: "smooth", block: "start" }), 150); },
-    bot: () => { $("#botNavFade").hidden = !S.p4; subCounts(); setSub("bot", S.sub.bot); }, mmbee: () => { renderMMHead(); setSub("mmbee", S.sub.mmbee); }, lab: renderLab, ma: renderMA, stf: renderSTF, highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch,
+    bot: () => { $("#botNavFade").hidden = !S.p4; subCounts(); setSub("bot", S.sub.bot); }, mmbee: () => { renderMMHead(); setSub("mmbee", S.sub.mmbee); }, lab: renderLab, ma: renderMA, stf: () => setSub("stf", S.sub.stf), highlights: renderHighlights, screener: renderScreener, watchlist: renderWatch,
     signals: () => { subCounts(); setSub("signals", S.sub.signals); }, listings: renderListings, strategies: renderStrategies, stocks: () => setSub("stocks", S.sub.stocks), pair: renderPair, world: () => { renderWorld(); renderCaps("capsWx"); }, coins: renderCoins })[v](); }
 function subCounts() {
   const R = S.bot, PF = R && R.portfolio, fill = (view, sub, n, title) => { const b = $('.sub-nav[data-for="' + view + '"] button[data-s="' + sub + '"]'); if (!b) return; b.querySelector("i").textContent = n ? String(n) : ""; b.title = title || ""; };

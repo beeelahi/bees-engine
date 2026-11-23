@@ -134,6 +134,9 @@ for tf, T in (B.get("tf") or {}).items():
         print(f"  backtest {tf} {k:12s} n={x.get('n')} target%={x.get('target_pct')} stop%={x.get('stop_pct')} win%={x.get('win_pct')} avgR={x.get('avg_r')} medR={x.get('median_r')}")
 PY
     ;;
+  stf-reset)       # start the live log afresh (after a rules change); the old one is kept as a dated backup
+    f="$ROOT/data/stf_hns_state.json"; [ -f "$f" ] && mv "$f" "$f.$(date -u +%Y%m%dT%H%M%SZ).bak" && echo "old log kept as backup"
+    sudo -n systemctl start --no-block bees-stf.service && echo "fresh run started: it learns what is there now without alerting" ;;
   stf-run)         sudo -n systemctl start --no-block bees-stf.service && echo "STF HNS run started (also every 5 minutes by timer); read it with stf-log" ;;
   stf-backtest)    sudo -n systemctl start --no-block bees-stf-bt.service && echo "STF HNS backtest started (also daily at 01:37 UTC); read it with stf-log" ;;
   stf-log)         echo "-- timer: $(systemctl is-active bees-stf.timer) next: $(systemctl show bees-stf.timer -p NextElapseUSecRealtime --value)"
@@ -238,5 +241,5 @@ PY
   bee-tune-stop)   pf="$ROOT/logs/bee_tune.pid"; if [ -f "$pf" ] && kill -- -"$(cat "$pf")" 2>/dev/null; then echo "MM-Bee tuning study stopped"; else echo "no MM-Bee tuning study running"; fi; rm -f "$pf" ;;
   bee-tune-log)    tail -n "$N" "$ROOT/logs/bee_tune.txt" 2>/dev/null || echo "no MM-Bee tuning output yet" ;;
   bee-study-log)   tail -n "$N" "$ROOT/logs/bee_study.txt" 2>/dev/null || echo "no MM-Bee study output yet" ;;
-  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status web-setup web-status publish-local publish-github ma-lab ma-lab-log root-key-saad root-keys root-login-keys root-login-off saad-user ssh-check token-check site-token-save stf-probe stf-case stf-status stf-run stf-backtest stf-log telegram-test"; exit 2 ;;
+  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status web-setup web-status publish-local publish-github ma-lab ma-lab-log root-key-saad root-keys root-login-keys root-login-off saad-user ssh-check token-check site-token-save stf-probe stf-case stf-status stf-reset stf-run stf-backtest stf-log telegram-test"; exit 2 ;;
 esac
