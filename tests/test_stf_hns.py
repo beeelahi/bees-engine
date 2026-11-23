@@ -9,8 +9,9 @@ from tests import _paths  # noqa: F401
 import stf_hns as S
 from tests.test_hs import ohlc, path
 
-# a proper top: a real rise into it (more than one height below the neckline), shoulders at 100, neckline 85, head 120
-TOP = [40, 70, 100, 85, 120, 85, 100, 90]
+# a proper top: a real rise into it (more than one height below the neckline), shoulders at 104, flat neckline 85,
+# head 120 (shoulders 54% of the height above the neckline, head 46% above the shoulders)
+TOP = [30, 60, 104, 85, 120, 85, 104, 90]
 
 
 def series(c):
@@ -21,7 +22,7 @@ def series(c):
 class FormingTest(unittest.TestCase):
     def test_right_shoulder_forming_then_complete(self):
         # rise, LS 100, neck 85, head 120, neck 85, rally to 98 (inside the shoulder zone, below the head)
-        c = path([40, 70, 100, 85, 120, 85, 99]) + [96, 95, 94]
+        c = path([30, 60, 104, 85, 120, 85, 103]) + [100, 99, 98]
         act = S.scan(*series(c))
         tops = [(p, s) for p, s in act if p["kind"] == "top"]
         self.assertTrue(tops)
@@ -33,7 +34,7 @@ class FormingTest(unittest.TestCase):
         self.assertNotIn("forming", st)
 
     def test_no_forming_past_the_head(self):
-        c = path([40, 70, 100, 85, 120, 85, 124])                 # rallied above the head: not a shoulder
+        c = path([30, 60, 104, 85, 120, 85, 124])                 # rallied above the head: not a shoulder
         self.assertFalse([p for p, s in S.scan(*series(c)) if p["kind"] == "top" and s["status"] == "forming"])
 
 
@@ -107,9 +108,12 @@ if __name__ == "__main__":
 
 
 class GoldCaseTest(unittest.TestCase):
-    """Bilal's trade: XAUUSDT 15m, 20 Nov 2026 (real candles, tests/data_xau_15m_20nov.txt). The top must be found,
-    broken at 15:15 UTC, and reach its target the same evening (it did: low 3,509 at 18:45)."""
-    def test_found_broken_target(self):
+    """Bilal's trade: XAUUSDT 15m, 20 Nov 2026 (real candles, tests/data_xau_15m_20nov.txt). Left shoulder 3,595.9
+    (08:30 UTC), head 3,600.8 (10:30), right shoulder 3,591.9 (15:00). Its textbook neckline (the lows between the
+    shoulders and the head: 3,572.5 at 09:45 and 3,555.7 at 14:30) slopes DOWN about 37 degrees (pattern drawn as tall
+    as it is wide), far past the 5 degrees Bilal's rule allows for a top, so the watcher does not report it. (On his
+    chart he drew the neckline from the low before the left shoulder instead, which slopes up.)"""
+    def test_excluded_by_the_neckline_rule(self):
         from datetime import datetime, timezone
         rows = []
         with open(os.path.join(os.path.dirname(__file__), "data_xau_15m_20nov.txt")) as f:
@@ -119,39 +123,47 @@ class GoldCaseTest(unittest.TestCase):
                 rows.append((ms, float(o), float(h), float(l), float(c)))
         t, o, h, l, c = S._series(rows)
         f = lambda k: datetime.fromtimestamp(t[k] / 1000, timezone.utc).strftime("%m-%d %H:%M")   # noqa: E731
-        tops = [p for P in S.P_SIZES for p in S.HS.find(h, l, c, P, max_span=S.SPAN, continuation=True,
-                                                         head_min=S.HEAD_MIN, trough_max=S.TROUGH_MAX) if p["kind"] == "top"]
-        hit = [p for p in tops if f(p["hd"]) == "11-20 10:30"]
-        self.assertTrue(hit, "the 20 Nov gold top was not found")
-        p = hit[0]
-        self.assertEqual((f(p["lsh"]), f(p["rsh"])), ("11-20 08:30", "11-20 15:00"))
-        # the daily limits would have missed it
-        self.assertFalse([q for q in S.HS.find(h, l, c, p["P"], max_span=S.SPAN, continuation=True) if q["hd"] == p["hd"]])
-        why, k = S.exit_reason(p, h, l, c, len(c) - 1)
-        self.assertEqual(why, "target")
-        self.assertLessEqual(f(k), "11-20 18:45")
-        # replay the watcher candle by candle, as the 5-minute timer would have seen it: the break must be reported on
-        # the 15:15 candle itself (the right shoulder is only confirmed at 16:15), and the target reached after it
-        St, seen = {"since": None, "patterns": {}, "events": []}, []
-        start = next(k for k in range(len(t)) if f(k) == "11-20 12:00")
-        for n in range(start, len(t)):
+        k = {f(x): x for x in range(len(t))}
+        lsh, hd, rsh, t1, t2 = k["11-20 08:30"], k["11-20 10:30"], k["11-20 15:00"], k["11-20 09:45"], k["11-20 14:30"]
+        m = (l[t2] - l[t1]) / (t2 - t1)
+        p = {"kind": "top", "sg": 1, "P": 5, "lsh": lsh, "hd": hd, "rsh": rsh, "t1": t1, "t2": t2, "m": m, "b": l[t1] - m * t1,
+             "height": h[hd] - (l[t1] + m * (hd - t1)), "known": rsh + 5, "context": "reversal"}
+        slope = (S.HS.neck(p, rsh) - S.HS.neck(p, lsh)) / p["height"]
+        import math
+        self.assertLess(math.degrees(math.atan(slope)), -30)              # about -37 degrees
+        self.assertFalse(S.valid(p, h, l, c))
+        self.assertFalse([q for P in S.P_SIZES for q in S.find(h, l, c, P) if q["hd"] == hd])
+        St = {"since": None, "patterns": {}, "events": []}
+        for n in range(60, len(t)):
             tt, oo, hh, ll, cc = t[:n + 1], o[:n + 1], h[:n + 1], l[:n + 1], c[:n + 1]
-            for e in S.update_log(St, "XAU", "15m", tt, oo, hh, ll, cc, S.scan(tt, oo, hh, ll, cc), "x"):
-                if e["kind"] == "top" and (":" + str(t[p["hd"]])) in e["key"]:
-                    seen.append((e["status"], f(t.index(e["bar_ms"])), e["key"].split("#")[1] if "#" in e["key"] else "1"))
-        # first attempt: a lower right shoulder at 13:00 broke at 13:15 (no "forming" first: the shoulder had not turned
-        # before the break) and failed at 14:00, a fake-out reported as such;
-        # second attempt on the same head: right shoulder 15:00, break on the 15:15 candle, target reached by 18:45
-        # the 13:00 "shoulder" (left shoulder to it: 18 candles) is too narrow to count; the real pattern is the only one
-        self.assertFalse([x for x in seen if x[2] != "1"])
-        second = [x[:2] for x in seen]
-        self.assertIn(("broken", "11-20 15:15"), second)
-        self.assertEqual(second[-1][0], "target")
-        self.assertLessEqual(second[-1][1], "11-20 18:45")
-        # the backtest replays exactly these alerts: the fake-out is a loss either way; the real break reaches its
-        # target with the stop beyond the right shoulder but is stopped first with the tight neckline stop
-        S.REPLAY_W = 60
-        br = [b for b in S.replay_breaks(rows, "XAU", "15m") if b["kind"] == "top" and f(b["n"]).startswith("11-20 1")]
-        self.assertEqual([f(b["n"]) for b in br], ["11-20 15:15"])
-        self.assertEqual(S.trade(rows, br[0], "stop_shoulder")["exit"], "target")
-        self.assertEqual(S.trade(rows, br[0], "stop_neck")["exit"], "stop")
+            self.assertFalse([e for e in S.update_log(St, "XAU", "15m", tt, oo, hh, ll, cc, S.scan(tt, oo, hh, ll, cc), "x")
+                              if (":" + str(t[hd])) in e["key"]])
+
+
+class NecklineRuleTest(unittest.TestCase):
+    def tilt(self, kind, d):
+        """A clean pattern whose neckline moves d heights from the left to the right shoulder (+ = up for a top):
+        shoulders 19 and head 35 above the neckline wherever they are, 13 candles per leg."""
+        k = d * 35 / 52                                   # neckline slope per candle (shoulders are 52 candles apart)
+        nk = lambda x: 85 + k * (x - 52)                  # noqa: E731
+        pts = [nk(0) - 55, nk(13) - 25, nk(26) + 19, nk(39), nk(52) + 35, nk(65), nk(78) + 19, nk(91) - 10]
+        if kind == "inverse":
+            pts = [200 - x for x in pts]
+        return ohlc(path(pts, 13))
+
+    def found(self, kind, d):
+        o, h, l, c = self.tilt(kind, d)
+        return [p for P in S.P_SIZES for p in S.find(h, l, c, P) if p["kind"] == kind]
+
+    def test_top_allowed_and_refused(self):
+        self.assertTrue(self.found("top", 0.0))           # flat
+        self.assertTrue(self.found("top", 0.3))           # slopes up (shoulders at matching heights above the neckline)
+        self.assertFalse(self.found("top", -0.3))         # slopes down well past 5 degrees
+        self.assertTrue(self.found("top", -0.08))         # 4.6 degrees down: allowed
+        self.assertFalse(self.found("top", -0.10))        # 5.7 degrees down: refused
+
+    def test_inverse_mirror(self):
+        # in the inverse pattern, d > 0 here means the neckline slopes DOWN (the points are mirrored)
+        self.assertTrue(self.found("inverse", 0.0))
+        self.assertTrue(self.found("inverse", 0.3))
+        self.assertFalse(self.found("inverse", -0.3))

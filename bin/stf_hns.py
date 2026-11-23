@@ -60,9 +60,17 @@ SPAN = 200                   # longest pattern (left shoulder to right shoulder)
 # Short-timeframe shape limits (daily page: 0.2 and 0.5). Intraday heads are often flatter: the gold 15-minute top of
 # 20 Nov 2026 (the case in tests/test_stf_hns.py) had its head 16% of the height above the shoulders and troughs 54%
 # apart. The backtest reports both settings side by side, so the cost of the looser limits is visible.
-HEAD_MIN, TROUGH_MAX = 0.12, 0.6
+HEAD_MIN, TROUGH_MAX = 0.2, 0.6    # head at least 20% of the height beyond the higher shoulder
 # What makes it a proper head and shoulders, not a random wiggle (all as a share of the height, head to neckline):
-SHOULDER_MIN = 0.4           # each shoulder is a real swing: it reaches at least 40% of the head's distance past the neckline
+SHOULDER_MIN = 0.5           # each shoulder is a real swing: it reaches at least half the head's distance past the neckline
+SYM_MAX = 0.25               # the shoulders are a matching pair: within 25% of the height of each other
+TIME_RATIO = (0.5, 2.0)      # and roughly evenly spaced: head-to-right-shoulder time 0.5 to 2 x left-shoulder-to-head time
+# Neckline direction (Bilal's rule): a top's neckline slopes up, is flat, or slopes down by at most 5 degrees; an inverse
+# pattern's slopes down, is flat, or slopes up by at most 5 degrees. Degrees are measured with the pattern drawn as tall
+# as it is wide (left shoulder to right shoulder = head to neckline), so 5 degrees = a change of tan(5) = 8.75% of the
+# height across the pattern against the break direction. With it the other way, up to 45 degrees (one full height).
+NECK_AGAINST = 0.0875
+NECK_WITH = 1.0
 PRIOR_MIN = 1.0              # a real move into the pattern (it is a reversal): within 30 candles before the left shoulder,
                              # price was at least one height on the other side of the neckline
 ATR_MIN = 2.0                # the pattern stands out from the noise: height at least 2 x the typical candle range, the larger
@@ -71,8 +79,6 @@ ATR_MIN = 2.0                # the pattern stands out from the noise: height at 
 WIDTH_MIN, SIDE_MIN = 20, 6  # a pattern, not a wiggle: at least 20 candles shoulder to shoulder, 6 on each side of the head
 HEAD_CLOSE = True            # the head is a real peak, not a one-candle wick: its closes (2 candles either side) go beyond
                              # the shoulders' closes too
-BREAK_GAP = 1                # an early break may come on the candle right after the right shoulder (it did on 20 Nov)
-SLOPE_MAX = 0.8              # the neckline is not steep: it moves at most 0.8 of a height from shoulder to shoulder
 TURN_MIN = 0.25              # a right shoulder still forming has turned: price came back at least 25% of its depth
 CHART_BARS = 240             # candles per series sent to the page
 BT_BARS = {"15m": 12000, "1h": 9000, "4h": 4000}   # backtest history: about 4 months, 1 year, 22 months
@@ -139,19 +145,24 @@ def typical_range(h, l, c, k):
 
 
 def valid(p, h, l, c, atr=None):
-    """The proportions of a textbook head and shoulders (see SHOULDER_MIN, PRIOR_MIN, ATR_MIN, SLOPE_MAX): both
-    shoulders are real swings of comparable size, the head is the extreme, the neckline is not steep, the pattern
-    stands out from normal candle ranges, and price came into it from the other side (a reversal)."""
+    """The proportions of a textbook head and shoulders (the constants above): wide enough, both shoulders real swings
+    of matching size and spacing, a head that clearly stands out (on closes too), the neckline sloping the allowed
+    way, the pattern larger than normal candle noise, and price coming into it from the other side (a reversal)."""
     sg, H = p["sg"], p["height"]
     X, Y = (h, l) if sg == 1 else (l, h)
     rs = p["rsh"] if p["rsh"] is not None else p["rs_k"]
     nk = lambda k: p["m"] * k + p["b"]  # noqa: E731
     if rs - p["lsh"] < WIDTH_MIN or p["hd"] - p["lsh"] < SIDE_MIN or rs - p["hd"] < SIDE_MIN:
         return False
-    for k in (p["lsh"], rs):
-        if sg * (X[k] - nk(k)) < SHOULDER_MIN * H:
-            return False
-    if abs(nk(rs) - nk(p["lsh"])) > SLOPE_MAX * H:
+    if min(sg * (X[p["lsh"]] - nk(p["lsh"])), sg * (X[rs] - nk(rs))) < SHOULDER_MIN * H:
+        return False
+    d = sg * (nk(rs) - nk(p["lsh"])) / H                  # > 0: neckline slopes up (tops) / down (inverse)
+    if d < -NECK_AGAINST or d > NECK_WITH:
+        return False
+    dl, dr = sg * (X[p["lsh"]] - nk(p["lsh"])), sg * (X[rs] - nk(rs))   # each shoulder's height above the neckline
+    if H - max(dl, dr) < HEAD_MIN * H or abs(dl - dr) > SYM_MAX * H:   # (measured from the neckline, so a sloped
+        return False                                                   # neckline does not distort the comparison)
+    if not TIME_RATIO[0] <= (rs - p["hd"]) / (p["hd"] - p["lsh"]) <= TIME_RATIO[1]:
         return False
     if HEAD_CLOSE:
         zone = lambda k: max(sg * c[j] for j in range(max(0, k - 2), min(len(c), k + 3)))  # noqa: E731
@@ -165,77 +176,101 @@ def valid(p, h, l, c, atr=None):
     return True
 
 
+def find(h, l, c, P):
+    """Complete patterns (right shoulder confirmed: a swing point P candles either side), the STF rules (valid()).
+    The left shoulder may be the swing just before the head or the one before that, so a small wiggle between them
+    does not hide a proper shoulder. Same dict shape as hs.find, usable with hs.state."""
+    out = []
+    for kind, X, Y, sg in (("top", h, l, 1), ("inverse", l, h, -1)):
+        peaks = HS.pivots(X, P, sg == 1)
+        pick = (lambda t: Y[t]) if sg == 1 else (lambda t: -Y[t])
+        for j in range(2, len(peaks)):
+            hd, rsh = peaks[j - 1], peaks[j]
+            for lsh in [peaks[j - 2]] + ([peaks[j - 3]] if j >= 3 else []):
+                if rsh - lsh > SPAN or hd - lsh < 3 or rsh - hd < 3:
+                    continue
+                Hd = sg * X[hd]
+                if max(sg * X[k] for k in range(lsh, rsh + 1)) > Hd:   # the head is the extreme of the pattern
+                    continue
+                t1, t2 = min(range(lsh + 1, hd), key=pick), min(range(hd + 1, rsh), key=pick)
+                m = (Y[t2] - Y[t1]) / (t2 - t1)
+                height = Hd - sg * (Y[t1] + m * (hd - t1))
+                if height <= 0 or abs(Y[t1] - Y[t2]) > TROUGH_MAX * height:
+                    continue
+                p = {"kind": kind, "sg": sg, "P": P, "lsh": lsh, "hd": hd, "rsh": rsh, "t1": t1, "t2": t2, "m": m,
+                     "b": Y[t1] - m * t1, "height": height, "known": rsh + P, "context": "reversal"}
+                if valid(p, h, l, c):
+                    out.append(p)
+                    break
+    return out
+
+
 def forming(h, l, c, P):
     """Patterns whose right shoulder is not confirmed yet (a confirmed one needs P more candles; hs.find takes over
     then). The last two swing points are the left shoulder and the head; the right shoulder candidate is the highest
     point (tops; lowest for inverse) since the head that nothing later has exceeded, with the second trough the
-    deepest point between the head and it. Same shape rules as the complete patterns. Each comes with its state:
-    'forming' (price in the right-shoulder zone, no break yet) or 'broken' / 'after_break' when a close has already
-    gone through the neckline, so a break is reported on its own candle, not P candles later. Returns [(p, state)]."""
+    deepest point between the head and it. Same rules as the complete patterns, and the right shoulder must have turned.
+    Only 'forming' is reported here: a break before the shoulder is confirmed is reported once it is (early breaks did
+    clearly worse in the backtest). Returns [(p, state)]."""
     out, n, i = [], len(c), len(c) - 1
-    atr = None
     for kind, X, Y, sg in (("top", h, l, 1), ("inverse", l, h, -1)):
         peaks = HS.pivots(X, P, sg == 1)
         pick = (lambda t: Y[t]) if sg == 1 else (lambda t: -Y[t])
         if len(peaks) < 2:
             continue
-        lsh, hd = peaks[-2], peaks[-1]
-        if hd - lsh < 3 or n - 1 - lsh > SPAN:
-            continue
-        Hd, Ls = sg * X[hd], sg * X[lsh]
-        if not Hd > Ls or max(sg * X[k] for k in range(lsh, n)) > Hd:   # the head is the extreme of the whole pattern
-            continue
-        t1 = min(range(lsh + 1, hd), key=pick)
-        cands, top_ = [], None                              # right-shoulder candidates: never exceeded afterwards
-        for k in range(n - 1, hd + 1, -1):
-            if top_ is None or sg * X[k] > top_:
-                top_ = sg * X[k]
-                cands.append(k)
-        for rs_k in reversed(cands):                         # earliest (highest) first
-            if not 0.4 * (hd - lsh) <= rs_k - hd <= 2.5 * (hd - lsh) or rs_k - hd < 2:
-                continue
-            t2 = min(range(hd + 1, rs_k), key=pick)
-            m = (Y[t2] - Y[t1]) / (t2 - t1)
-            nk_hd = Y[t1] + m * (hd - t1)
-            height = Hd - sg * nk_hd
-            Rs = sg * X[rs_k]
-            if height <= 0 or Hd - max(Ls, Rs) < HEAD_MIN * height or abs(Ls - Rs) > 0.35 * height:
-                continue
-            if abs(Y[t1] - Y[t2]) > TROUGH_MAX * height or Rs <= sg * (Y[t2]):
-                continue
-            neck = lambda k: m * k + Y[t1] - m * t1  # noqa: E731
-            if any(sg * c[k] < sg * neck(k) for k in range(t2, rs_k + 1)):
-                continue                                     # already through the neckline before the shoulder
-            pre = max(0, lsh - 30)
-            prior = min(sg * Y[k] for k in range(pre, lsh + 1))
-            context = "reversal" if prior < sg * nk_hd - 0.5 * height else "continuation"
-            p = {"kind": kind, "sg": sg, "P": P, "lsh": lsh, "hd": hd, "rsh": None, "rs_k": rs_k, "t1": t1, "t2": t2,
-                 "m": m, "b": Y[t1] - m * t1, "height": height, "context": context, "early": True}
-            if not valid(p, h, l, c, atr):
-                continue
-            brk = next((k for k in range(rs_k + 1, n) if sg * c[k] < sg * neck(k)), None)
-            if brk is not None and brk - rs_k < BREAK_GAP:
-                continue                                     # a break straight off a one-candle "shoulder" is not a pattern
-            if brk is None:                                  # no break yet: the right shoulder must have turned
-                turn = sg * (Rs - min(sg * Y[k] for k in range(rs_k, n))) if rs_k < n - 1 else 0.0
-                if n - 1 - rs_k < 2 or turn < TURN_MIN * sg * (X[rs_k] - neck(rs_k)):
-                    continue
-            nk = neck(i)
-            st = {"dist": sg * (nk - c[i]) / height, "neck": nk, "target": nk - sg * height, "brk": brk}
-            if brk is None:
-                if i - rs_k > HS.MAX_WAIT:
-                    break
-                st["status"] = "forming"
-            else:
-                over = any(sg * c[k] > sg * neck(k) + HS.FAIL * height or
-                           (sg == 1 and l[k] <= neck(k) - height) or (sg == -1 and h[k] >= neck(k) + height)
-                           for k in range(brk + 1, n))
-                if over:
-                    break                                    # failed or done before the shoulder was confirmed
-                st["status"] = "broken" if i - brk < HS.BREAK_FRESH else "after_break"
-            out.append((p, st))
-            break
+        hd = peaks[-1]
+        for lsh in peaks[-3:-1][::-1]:                       # the left shoulder: the swing before the head, or the one before
+            got = _forming_one(h, l, c, P, kind, X, Y, sg, pick, lsh, hd, n, i)
+            if got:
+                out.append(got)
+                break
     return out
+
+
+def _forming_one(h, l, c, P, kind, X, Y, sg, pick, lsh, hd, n, i):
+    if hd - lsh < 3 or n - 1 - lsh > SPAN:
+        return None
+    Hd, Ls = sg * X[hd], sg * X[lsh]
+    if not Hd > Ls or max(sg * X[k] for k in range(lsh, n)) > Hd:   # the head is the extreme of the whole pattern
+        return None
+    t1 = min(range(lsh + 1, hd), key=pick)
+    cands, top_ = [], None                              # right-shoulder candidates: never exceeded afterwards
+    for k in range(n - 1, hd + 1, -1):
+        if top_ is None or sg * X[k] > top_:
+            top_ = sg * X[k]
+            cands.append(k)
+    for rs_k in reversed(cands):                         # earliest (highest) first
+        if not TIME_RATIO[0] * (hd - lsh) <= rs_k - hd <= TIME_RATIO[1] * (hd - lsh) or rs_k - hd < 2:
+            continue
+        t2 = min(range(hd + 1, rs_k), key=pick)
+        m = (Y[t2] - Y[t1]) / (t2 - t1)
+        nk_hd = Y[t1] + m * (hd - t1)
+        height = Hd - sg * nk_hd
+        Rs = sg * X[rs_k]
+        if height <= 0 or Rs >= Hd:
+            continue
+        if abs(Y[t1] - Y[t2]) > TROUGH_MAX * height or Rs <= sg * (Y[t2]):
+            continue
+        neck = lambda k: m * k + Y[t1] - m * t1  # noqa: E731
+        if any(sg * c[k] < sg * neck(k) for k in range(t2, rs_k + 1)):
+            continue                                     # already through the neckline before the shoulder
+        pre = max(0, lsh - 30)
+        prior = min(sg * Y[k] for k in range(pre, lsh + 1))
+        context = "reversal" if prior < sg * nk_hd - 0.5 * height else "continuation"
+        p = {"kind": kind, "sg": sg, "P": P, "lsh": lsh, "hd": hd, "rsh": None, "rs_k": rs_k, "t1": t1, "t2": t2,
+             "m": m, "b": Y[t1] - m * t1, "height": height, "context": context, "early": True}
+        if not valid(p, h, l, c):
+            continue
+        if any(sg * c[k] < sg * neck(k) for k in range(rs_k + 1, n)):
+            return None      # already through the neckline: it is reported (as broken) once the shoulder is confirmed
+        turn = sg * (Rs - min(sg * Y[k] for k in range(rs_k, n))) if rs_k < n - 1 else 0.0
+        if n - 1 - rs_k < 2 or turn < TURN_MIN * sg * (X[rs_k] - neck(rs_k)):
+            continue                                     # the right shoulder has not turned yet
+        if i - rs_k > HS.MAX_WAIT:
+            return None
+        nk = neck(i)
+        return (p, {"status": "forming", "dist": sg * (nk - c[i]) / height, "neck": nk, "target": nk - sg * height, "brk": None})
+    return None
 
 
 def exit_reason(p, h, l, c, i):
@@ -265,10 +300,9 @@ def exit_reason(p, h, l, c, i):
 def scan(t, o, h, l, c):
     """Active patterns at the last candle: complete ones (hs.state) and right shoulders forming."""
     i, out, heads = len(c) - 1, [], set()
-    atr = None
     for P in P_SIZES:
-        for p in HS.find(h, l, c, P, max_span=SPAN, continuation=True, head_min=HEAD_MIN, trough_max=TROUGH_MAX):
-            if p["hd"] in heads or not valid(p, h, l, c, atr):
+        for p in find(h, l, c, P):
+            if p["hd"] in heads:
                 continue
             s = HS.state(p, o, h, l, c, i)
             if s:
@@ -669,7 +703,7 @@ def probe(log=print):
             f = lambda ms: datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%m-%d %H:%M")  # noqa: E731
             log(f"  {tf}: {len(rows)} candles {f(t[0])} .. {f(t[-1])} close {c[-1]}")
             for P in P_SIZES:
-                for p in HS.find(h, l, c, P, max_span=SPAN, continuation=True, head_min=HEAD_MIN, trough_max=TROUGH_MAX):
+                for p in find(h, l, c, P):
                     log(f"    P{P} {p['kind']:7s} {p['context']:12s} LS {f(t[p['lsh']])} {fmt((h if p['sg'] == 1 else l)[p['lsh']])}"
                         f" H {f(t[p['hd']])} {fmt((h if p['sg'] == 1 else l)[p['hd']])} RS {f(t[p['rsh']])} {fmt((h if p['sg'] == 1 else l)[p['rsh']])}"
                         f" neck {fmt(HS.neck(p, p['t1']))}->{fmt(HS.neck(p, p['t2']))} exit {exit_reason(p, h, l, c, len(c) - 1)[0]}")
