@@ -69,6 +69,8 @@ ATR_MIN = 2.0                # the pattern stands out from the noise: height at 
                              # of the last 14 candles' average and the last 100 candles' median (spikes do not inflate it,
                              # quiet spells do not shrink it)
 WIDTH_MIN, SIDE_MIN = 20, 6  # a pattern, not a wiggle: at least 20 candles shoulder to shoulder, 6 on each side of the head
+HEAD_CLOSE = True            # the head is a real peak, not a one-candle wick: its closes (2 candles either side) go beyond
+                             # the shoulders' closes too
 BREAK_GAP = 1                # an early break may come on the candle right after the right shoulder (it did on 20 Nov)
 SLOPE_MAX = 0.8              # the neckline is not steep: it moves at most 0.8 of a height from shoulder to shoulder
 TURN_MIN = 0.25              # a right shoulder still forming has turned: price came back at least 25% of its depth
@@ -151,6 +153,10 @@ def valid(p, h, l, c, atr=None):
             return False
     if abs(nk(rs) - nk(p["lsh"])) > SLOPE_MAX * H:
         return False
+    if HEAD_CLOSE:
+        zone = lambda k: max(sg * c[j] for j in range(max(0, k - 2), min(len(c), k + 3)))  # noqa: E731
+        if zone(p["hd"]) <= max(zone(p["lsh"]), zone(rs)):
+            return False
     if H < ATR_MIN * typical_range(h, l, c, p["hd"]):
         return False
     pre = max(0, p["lsh"] - 30)
