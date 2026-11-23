@@ -457,6 +457,8 @@ textarea { width: 100%; border: 1px solid var(--line); background: var(--bg); bo
 .stf-chart { height: 240px; margin: 10px 0; }
 .stf-kv { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 12px; font-size: 12.5px; }
 .stf-kv dt { color: var(--muted); font-size: 11px; } .stf-kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+.stf-exrow td { padding: 4px 0 12px !important; background: var(--panel-2); } .stf-exrow .stf-chart { margin: 0 8px; min-width: 300px; }
+#v-stf .wl-tbl th:not(.num), #v-stf .wl-tbl td:not(.num) { text-align: left; }
 .stf-h3 { font-size: 14px; margin: 16px 0 6px; } #v-stf td.up { color: var(--up); } #v-stf td.down { color: var(--down); }
 @media (max-width: 640px) { .stf-mx thead { display: none; } .stf-mx tr, .stf-mx td { display: block; min-width: 0 !important; } .stf-mx tr { border-bottom: 1px solid var(--line); padding: 6px 0; }
   .stf-mx td { border: 0 !important; padding: 4px 10px !important; } .stf-mx td[data-l]::before { content: attr(data-l); display: block; font-size: 11px; color: var(--muted); margin-bottom: 2px; }
@@ -1574,13 +1576,13 @@ a { color: var(--accent); } a:hover { color: var(--accent-2); }
       <p class="note" id="stfKey" style="margin:10px 0 0"></p>
     </div>
     <div class="card">
-      <div class="card-head"><h2 id="stfListH">Patterns now</h2><span class="note" id="stfCount"></span></div>
+      <div class="card-head"><h2 id="stfListH">Active</h2><span class="note" id="stfCount"></span></div>
       <div class="stf-list" id="stfList"></div>
     </div>
     <div class="card">
-      <div class="card-head"><h2 id="stfExH">Recent examples</h2><span class="note">from the backtest</span></div>
+      <div class="card-head"><h2 id="stfExH">Inactive · last 100 days</h2><span class="note" id="stfExNote"></span></div>
       <p class="note" id="stfExLead" style="margin:0 0 12px"></p>
-      <div class="stf-list" id="stfEx"></div>
+      <div class="tbl-wrap" style="max-height:70vh"><table class="wl-tbl stf-ex"><thead><tr><th>Broke</th><th>Market</th><th>Pattern</th><th class="num">Entry</th><th class="num">Target</th><th class="num">Stop</th><th>Outcome</th><th class="num">Result</th></tr></thead><tbody id="stfEx"></tbody></table></div>
     </div>
     <div class="card">
       <div class="card-head"><h2 id="stfLogH">Alert log</h2><span class="note">every new stage, as it was seen</span></div>
@@ -4625,10 +4627,10 @@ function renderSTF() {
   $("#stfMxNote").textContent = act.length ? `${act.length} active` : "none active";
   $("#stfKey").textContent = "Stages: right shoulder forming → near the neckline → neckline broken → retesting the neckline → target reached or failed. ▼ Top = bearish (the break is down), ▲ Inverse = bullish (the break is up). The last close is the latest finished candle.";
   // cards
-  $("#stfListH").textContent = "Patterns now · " + tfn;
+  $("#stfListH").textContent = "Active · " + tfn;
   $("#stfCount").textContent = act.length ? `${act.length}` : "";
   const L = $("#stfList"); L.replaceChildren();
-  if (!act.length) { const p = document.createElement("p"); p.className = "note"; p.textContent = `No valid head and shoulders on any ${tfn} chart right now. This page fills in by itself as soon as one forms.`; L.append(p); }
+  if (!act.length) { const p = document.createElement("p"); p.className = "note"; p.textContent = `None right now. No valid head and shoulders is forming or under way on any ${tfn} chart; this fills in by itself as soon as one forms (and Telegram tells you).`; L.append(p); }
   act.forEach(r => L.append(stfCard(r, D, inst)));
   stfExamples(tf, inst);
   // log for this timeframe
@@ -4684,22 +4686,25 @@ function stfCard(r, D, inst) {
 }
 let stfExLoading = null;
 function stfExamples(tf, inst) {
-  const box = $("#stfEx"), tfn = { "15m": "15-minute", "1h": "1-hour", "4h": "4-hour" }[tf];
-  $("#stfExH").textContent = "Recent examples · " + tfn;
+  const box = $("#stfEx"), tfn = { "15m": "15-minute", "1h": "1-hour", "4h": "4-hour" }[tf], dur = { "15m": 9e5, "1h": 36e5, "4h": 144e5 }[tf];
+  $("#stfExH").textContent = "Inactive · last 100 days · " + tfn;
   if (S.stfEx === undefined) { if (!stfExLoading) stfExLoading = j("data/stf_examples.json").then(d => { S.stfEx = d; }, () => { S.stfEx = null; }).then(() => { stfExLoading = null; if (!$("#v-stf").hidden) renderSTF(); }); return; }
   const E = S.stfEx, list = E ? E.examples.filter(x => x.tf === tf).sort((a, b) => b.break_ms - a.break_ms) : [];
-  $("#stfExLead").textContent = E ? `The latest patterns the watcher would have alerted on, replayed on past ${tfn} candles (up to ${3} per market), each with what happened next using the stop beyond the right shoulder. This is what counts as a valid pattern here. Updated ${mbAgo(E.generated_utc)}.` : "Examples appear after the daily backtest has run.";
-  box.replaceChildren();
-  list.forEach(x => { const k = stfKind(x), card = document.createElement("article"); card.className = "stf-card";
-    const hd = document.createElement("div"); hd.className = "hd"; const h3 = document.createElement("h3"), kb = document.createElement("b"); kb.className = k[1]; kb.textContent = k[0];
-    h3.append(((inst[x.inst] || {}).name || x.inst) + " · ", kb, " · broke " + stfLocal(x.break_ms + { "15m": 9e5, "1h": 36e5, "4h": 144e5 }[tf]));
-    const o = x.outcome || {}, st = document.createElement("span"); st.className = "st"; st.textContent = o.exit === "target" ? "Reached target" : o.exit === "stop" ? "Stopped out" : o.exit === "time" ? "Closed after 60 candles" : "—";
-    hd.append(h3, st);
-    const sub = document.createElement("p"); sub.className = "note"; sub.style.margin = "4px 0 0";
-    sub.textContent = `${x.context === "continuation" ? "Continuation" : "Reversal"}${x.early ? " · early break" : ""} · entry next candle after ${fPx(x.price)} · target ${fPx(x.target)} · stop ${fPx(x.stop_shoulder)} · result ${isNum(o.r) ? (o.r > 0 ? "+" : "") + o.r.toFixed(2) + "R" : "—"}`;
-    const ch = document.createElement("div"); ch.className = "stf-chart"; card.append(hd, sub, ch); box.append(card);
-    requestAnimationFrame(() => stfChart(ch, Object.assign({ status: "broken", close: x.price }, x, { pts: Object.assign({}, x.pts, { neck_now: [x.break_ms, x.neck] }) }), null, x.bars)); });
-  if (E && !list.length) { const p = document.createElement("p"); p.className = "note"; p.textContent = "No break alerts in the replayed history for this timeframe."; box.append(p); }
+  const done = list.filter(x => x.outcome), hit = done.filter(x => x.outcome.exit === "target").length, rs = done.map(x => x.outcome.r);
+  $("#stfExNote").textContent = done.length ? `${done.length} · ${Math.round(100 * hit / done.length)}% reached target · average ${(rs.reduce((a, b) => a + b, 0) / rs.length).toFixed(2)}R` : "";
+  $("#stfExLead").textContent = E ? `Every valid pattern on the ${tfn} charts of the last 100 days that broke its neckline, as the watcher would have alerted it (replayed candle by candle), and what happened next: entry at the next candle's open, the measured target, the stop beyond the right shoulder, closed after 60 candles if neither. Tap a row to see it on its chart. Updated ${mbAgo(E.generated_utc)}.` : "This list appears after the daily backtest has run.";
+  const f = document.createDocumentFragment();
+  list.forEach(x => { const k = stfKind(x), o = x.outcome || {}, tr = document.createElement("tr"); tr.className = "clickable";
+    tr.append(td(stfLocal(x.break_ms + dur)), td((inst[x.inst] || {}).name || x.inst), td(k[0] + (x.early ? " · early" : ""), k[1]), td(fPx(x.price), "num"), td(fPx(x.target), "num"), td(fPx(x.stop_shoulder), "num"),
+      td(o.exit === "target" ? "Reached target" : o.exit === "stop" ? "Stopped out" : o.exit === "time" ? "Closed at 60 candles" : "—", o.exit === "target" ? "up" : o.exit === "stop" ? "down" : ""),
+      td(isNum(o.r) ? (o.r > 0 ? "+" : "") + o.r.toFixed(2) + "R" : "—", "num " + (isNum(o.r) ? cls(o.r) : "")));
+    tr.title = "Tap to see this pattern on its chart";
+    tr.onclick = () => { const nx = tr.nextElementSibling; if (nx && nx.classList.contains("stf-exrow")) { nx.remove(); return; }
+      const r2 = document.createElement("tr"), c2 = document.createElement("td"), ch = document.createElement("div"); r2.className = "stf-exrow"; c2.colSpan = 8; ch.className = "stf-chart"; c2.append(ch); r2.append(c2); tr.after(r2);
+      requestAnimationFrame(() => stfChart(ch, Object.assign({ status: "broken", close: x.price }, x, { pts: Object.assign({}, x.pts, { neck_now: [x.break_ms, x.neck] }) }), null, x.bars)); };
+    f.append(tr); });
+  box.replaceChildren(f);
+  if (E && !list.length) box.innerHTML = '<tr><td colspan="8" class="empty">No valid pattern broke its neckline on these charts in the last 100 days.</td></tr>';
 }
 function stfChart(el, r, D, own) {
   const se = own ? { bars: own } : D.series[r.inst] && D.series[r.inst][r.tf]; if (!se || !window.LightweightCharts) return;

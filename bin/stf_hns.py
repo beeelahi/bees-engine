@@ -475,18 +475,20 @@ def _sets(rows_breaks):
     return res
 
 
-EX_PER = 3                   # recent examples per market and timeframe shown on the page
+EX_DAYS = 100                # the page's "Inactive" section: every break alert of the last 100 days
 
 
 def example_cards(rows, breaks, code, tf):
     """The latest break alerts of one series with their candles (left shoulder to 40 candles after the break) and
     their outcome with the stop beyond the right shoulder: what the watcher counts as a proper pattern."""
-    out = []
-    for b in breaks[-EX_PER:]:
+    out, since = [], (time.time() - EX_DAYS * 86400) * 1000
+    for b in breaks:
+        if b["bar_ms"] < since:
+            continue
         res = trade(rows, b, "stop_shoulder")
         ls_ms = b["pts"]["ls"][0]
         a = next((k for k in range(len(rows)) if rows[k][0] >= ls_ms), 0)
-        lo, hi = max(0, a - 25), min(len(rows), b["n"] + 41)
+        lo, hi = max(0, a - 15), min(len(rows), b["n"] + 31)
         out.append({"inst": code, "tf": tf, "kind": b["kind"], "context": b["context"], "early": b["early"], "pts": b["pts"],
                     "break_ms": b["bar_ms"], "price": b["price"], "neck": b["neck"], "target": b["target"],
                     "stop_shoulder": b["stop_shoulder"], "stop": b["stop_neck"], "outcome": res,

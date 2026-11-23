@@ -129,9 +129,12 @@ for e in d.get("events", [])[:12]:
 print("record:", json.dumps(d.get("record", {}).get("by_tf")))
 B = d.get("backtest") or {}
 for tf, T in (B.get("tf") or {}).items():
-    for k in ("all", "top", "inverse", "reversal", "continuation", "strict"):
-        x = T.get(k, {})
-        print(f"  backtest {tf} {k:12s} n={x.get('n')} target%={x.get('target_pct')} stop%={x.get('stop_pct')} win%={x.get('win_pct')} avgR={x.get('avg_r')} medR={x.get('median_r')}")
+    for stop in ("shoulder", "neckline"):
+        for k in ("all", "top", "inverse", "early", "confirmed"):
+            x = (T.get(stop) or {}).get(k) or {}
+            print(f"  backtest {tf} {stop:8s} {k:9s} n={x.get('n')} target%={x.get('target_pct')} stop%={x.get('stop_pct')} win%={x.get('win_pct')} avgR={x.get('avg_r')} medR={x.get('median_r')}")
+    for stop, x in (T.get("strict") or {}).items():
+        print(f"  backtest {tf} {stop:8s} daily-rules n={x.get('n')} target%={x.get('target_pct')} avgR={x.get('avg_r')}")
 PY
     ;;
   stf-reset)       # start the live log afresh (after a rules change); the old one is kept as a dated backup
