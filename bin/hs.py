@@ -38,10 +38,12 @@ def pivots(x, P, high):
     return out
 
 
-def find(h, l, c, P, max_span=None, continuation=False):
+def find(h, l, c, P, max_span=None, continuation=False, head_min=0.2, trough_max=0.5):
     """All patterns in the series (each usable only from its 'known' candle on). By default only reversals (price came
     into the pattern from the other side of the neckline); continuation=True also keeps patterns that form after a
-    move in the break direction, tagged context='continuation' (the short-timeframe page shows both)."""
+    move in the break direction, tagged context='continuation' (the short-timeframe page shows both). head_min: how far
+    the head must stand above the higher shoulder, and trough_max: how far apart the two troughs may be, both as a
+    share of the height (the daily defaults; the short-timeframe watcher uses its own)."""
     span = max_span or MAX_SPAN
     out = []
     for kind, X, Y, sg in (("top", h, l, 1), ("inverse", l, h, -1)):
@@ -60,9 +62,9 @@ def find(h, l, c, P, max_span=None, continuation=False):
             m = (Y[t2] - Y[t1]) / (t2 - t1)
             neck_hd = Y[t1] + m * (hd - t1)
             height = Hd - sg * neck_hd
-            if height <= 0 or abs(Ls - Rs) > 0.35 * height or Hd - max(Ls, Rs) < 0.2 * height:
+            if height <= 0 or abs(Ls - Rs) > 0.35 * height or Hd - max(Ls, Rs) < head_min * height:
                 continue
-            if not (0.4 <= (hd - lsh) / max(1, rsh - hd) <= 2.5) or abs(Y[t1] - Y[t2]) > 0.5 * height:
+            if not (0.4 <= (hd - lsh) / max(1, rsh - hd) <= 2.5) or abs(Y[t1] - Y[t2]) > trough_max * height:
                 continue
             pre = max(0, lsh - 30)
             prior = min(sg * Y[k] for k in range(pre, lsh + 1))

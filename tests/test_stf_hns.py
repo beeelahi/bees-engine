@@ -98,3 +98,45 @@ class RunTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GoldCaseTest(unittest.TestCase):
+    """Bilal's trade: XAUUSDT 15m, 20 Nov 2026 (real candles, tests/data_xau_15m_20nov.txt). The top must be found,
+    broken at 15:15 UTC, and reach its target the same evening (it did: low 3,509 at 18:45)."""
+    def test_found_broken_target(self):
+        from datetime import datetime, timezone
+        rows = []
+        with open(os.path.join(os.path.dirname(__file__), "data_xau_15m_20nov.txt")) as f:
+            for ln in f:
+                d, tm, o, h, l, c = ln.split()
+                ms = int(datetime.strptime(f"2026-{d} {tm}", "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc).timestamp() * 1000)
+                rows.append((ms, float(o), float(h), float(l), float(c)))
+        t, o, h, l, c = S._series(rows)
+        f = lambda k: datetime.fromtimestamp(t[k] / 1000, timezone.utc).strftime("%m-%d %H:%M")   # noqa: E731
+        tops = [p for P in S.P_SIZES for p in S.HS.find(h, l, c, P, max_span=S.SPAN, continuation=True,
+                                                         head_min=S.HEAD_MIN, trough_max=S.TROUGH_MAX) if p["kind"] == "top"]
+        hit = [p for p in tops if f(p["hd"]) == "11-20 10:30"]
+        self.assertTrue(hit, "the 20 Nov gold top was not found")
+        p = hit[0]
+        self.assertEqual((f(p["lsh"]), f(p["rsh"])), ("11-20 08:30", "11-20 15:00"))
+        # the daily limits would have missed it
+        self.assertFalse([q for q in S.HS.find(h, l, c, p["P"], max_span=S.SPAN, continuation=True) if q["hd"] == p["hd"]])
+        why, k = S.exit_reason(p, h, l, c, len(c) - 1)
+        self.assertEqual(why, "target")
+        self.assertLessEqual(f(k), "11-20 18:45")
+        # replay the watcher candle by candle, as the 5-minute timer would have seen it: the break must be reported on
+        # the 15:15 candle itself (the right shoulder is only confirmed at 16:15), and the target reached after it
+        St, seen = {"since": None, "patterns": {}, "events": []}, []
+        start = next(k for k in range(len(t)) if f(k) == "11-20 12:00")
+        for n in range(start, len(t)):
+            tt, oo, hh, ll, cc = t[:n + 1], o[:n + 1], h[:n + 1], l[:n + 1], c[:n + 1]
+            for e in S.update_log(St, "XAU", "15m", tt, oo, hh, ll, cc, S.scan(tt, oo, hh, ll, cc), "x"):
+                if e["kind"] == "top" and (":" + str(t[p["hd"]])) in e["key"]:
+                    seen.append((e["status"], f(t.index(e["bar_ms"])), e["key"].split("#")[1] if "#" in e["key"] else "1"))
+        # first attempt: a lower right shoulder at 13:00 broke at 13:15 and failed at 14:00 (a fake-out, reported as such);
+        # second attempt on the same head: right shoulder 15:00, break on the 15:15 candle, target reached by 18:45
+        self.assertEqual([x for x in seen if x[2] == "1"], [("forming", "11-20 13:00", "1"), ("broken", "11-20 13:15", "1"), ("failed", "11-20 14:00", "1")])
+        second = [x[:2] for x in seen if x[2] == "2"]
+        self.assertIn(("broken", "11-20 15:15"), second)
+        self.assertEqual(second[-1][0], "target")
+        self.assertLessEqual(second[-1][1], "11-20 18:45")

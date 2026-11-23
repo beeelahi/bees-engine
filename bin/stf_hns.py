@@ -55,6 +55,10 @@ TFS = {"15m": 900_000, "1h": 3_600_000, "4h": 14_400_000}
 LIMIT = 1000                 # candles fetched per series each run
 P_SIZES = (5, 10)
 SPAN = 200                   # longest pattern (left shoulder to right shoulder), candles
+# Short-timeframe shape limits (daily page: 0.2 and 0.5). Intraday heads are often flatter: the gold 15-minute top of
+# 20 Nov 2026 (the case in tests/test_stf_hns.py) had its head 16% of the height above the shoulders and troughs 54%
+# apart. The backtest reports both settings side by side, so the cost of the looser limits is visible.
+HEAD_MIN, TROUGH_MAX = 0.12, 0.6
 CHART_BARS = 240             # candles per series sent to the page
 BT_BARS = {"15m": 12000, "1h": 9000, "4h": 4000}   # backtest history: about 4 months, 1 year, 22 months
 STAGE = {"forming": 0, "near_neckline": 1, "pattern": 1, "broken": 2, "retest": 3, "after_break": 3}
@@ -113,43 +117,66 @@ def _series(rows):
 
 
 def forming(h, l, c, P):
-    """Early stage: left shoulder, head and first trough confirmed; price back in the left shoulder's zone, the right
-    shoulder not confirmed yet. Same shape rules as hs.find. Returns pattern-like dicts (rsh = None)."""
-    out, n = [], len(c)
+    """Patterns whose right shoulder is not confirmed yet (a confirmed one needs P more candles; hs.find takes over
+    then). The last two swing points are the left shoulder and the head; the right shoulder candidate is the highest
+    point (tops; lowest for inverse) since the head that nothing later has exceeded, with the second trough the
+    deepest point between the head and it. Same shape rules as the complete patterns. Each comes with its state:
+    'forming' (price in the right-shoulder zone, no break yet) or 'broken' / 'after_break' when a close has already
+    gone through the neckline, so a break is reported on its own candle, not P candles later. Returns [(p, state)]."""
+    out, n, i = [], len(c), len(c) - 1
     for kind, X, Y, sg in (("top", h, l, 1), ("inverse", l, h, -1)):
         peaks = HS.pivots(X, P, sg == 1)
         pick = (lambda t: Y[t]) if sg == 1 else (lambda t: -Y[t])
         if len(peaks) < 2:
             continue
         lsh, hd = peaks[-2], peaks[-1]
-        if hd - lsh < 3 or n - 1 - lsh > SPAN or n - 1 - hd < 3:
+        if hd - lsh < 3 or n - 1 - lsh > SPAN:
             continue
         Hd, Ls = sg * X[hd], sg * X[lsh]
-        if not Hd > Ls:
+        if not Hd > Ls or max(sg * X[k] for k in range(lsh, n)) > Hd:   # the head is the extreme of the whole pattern
             continue
         t1 = min(range(lsh + 1, hd), key=pick)
-        t2 = min(range(hd + 1, n), key=pick)
-        if t2 >= n - 2:                                   # no bounce off the second trough yet
-            continue
-        m = (Y[t2] - Y[t1]) / (t2 - t1)
-        nk_hd = Y[t1] + m * (hd - t1)
-        height = Hd - sg * nk_hd
-        if height <= 0 or Hd - Ls < 0.2 * height or abs(Y[t1] - Y[t2]) > 0.5 * height:
-            continue
-        run = [sg * X[k] for k in range(t2 + 1, n)]       # the rally (tops) / dip (inverse) after the second trough
-        best = max(run)
-        if best >= Hd or best < Ls - 0.35 * height:        # past the head, or not yet in the shoulder zone
-            continue
-        if (n - 1 - hd) < 0.4 * (hd - lsh) or (n - 1 - hd) > 2.5 * (hd - lsh):
-            continue
-        if max(sg * X[k] for k in range(lsh, n)) > Hd:     # the head must be the extreme of the whole pattern
-            continue
-        pre = max(0, lsh - 30)
-        prior = min(sg * Y[k] for k in range(pre, lsh + 1))
-        context = "reversal" if prior < sg * nk_hd - 0.5 * height else "continuation"
-        rs_k = t2 + 1 + run.index(best)
-        out.append({"kind": kind, "sg": sg, "P": P, "lsh": lsh, "hd": hd, "rsh": None, "rs_k": rs_k, "t1": t1, "t2": t2,
-                    "m": m, "b": Y[t1] - m * t1, "height": height, "context": context})
+        cands, top_ = [], None                              # right-shoulder candidates: never exceeded afterwards
+        for k in range(n - 1, hd + 1, -1):
+            if top_ is None or sg * X[k] > top_:
+                top_ = sg * X[k]
+                cands.append(k)
+        for rs_k in reversed(cands):                         # earliest (highest) first
+            if not 0.4 * (hd - lsh) <= rs_k - hd <= 2.5 * (hd - lsh) or rs_k - hd < 2:
+                continue
+            t2 = min(range(hd + 1, rs_k), key=pick)
+            m = (Y[t2] - Y[t1]) / (t2 - t1)
+            nk_hd = Y[t1] + m * (hd - t1)
+            height = Hd - sg * nk_hd
+            Rs = sg * X[rs_k]
+            if height <= 0 or Hd - max(Ls, Rs) < HEAD_MIN * height or abs(Ls - Rs) > 0.35 * height:
+                continue
+            if abs(Y[t1] - Y[t2]) > TROUGH_MAX * height or Rs <= sg * (Y[t2]):
+                continue
+            neck = lambda k: m * k + Y[t1] - m * t1  # noqa: E731
+            if any(sg * c[k] < sg * neck(k) for k in range(t2, rs_k + 1)):
+                continue                                     # already through the neckline before the shoulder
+            pre = max(0, lsh - 30)
+            prior = min(sg * Y[k] for k in range(pre, lsh + 1))
+            context = "reversal" if prior < sg * nk_hd - 0.5 * height else "continuation"
+            p = {"kind": kind, "sg": sg, "P": P, "lsh": lsh, "hd": hd, "rsh": None, "rs_k": rs_k, "t1": t1, "t2": t2,
+                 "m": m, "b": Y[t1] - m * t1, "height": height, "context": context, "early": True}
+            brk = next((k for k in range(rs_k + 1, n) if sg * c[k] < sg * neck(k)), None)
+            nk = neck(i)
+            st = {"dist": sg * (nk - c[i]) / height, "neck": nk, "target": nk - sg * height, "brk": brk}
+            if brk is None:
+                if i - rs_k > HS.MAX_WAIT:
+                    break
+                st["status"] = "forming"
+            else:
+                over = any(sg * c[k] > sg * neck(k) + HS.FAIL * height or
+                           (sg == 1 and l[k] <= neck(k) - height) or (sg == -1 and h[k] >= neck(k) + height)
+                           for k in range(brk + 1, n))
+                if over:
+                    break                                    # failed or done before the shoulder was confirmed
+                st["status"] = "broken" if i - brk < HS.BREAK_FRESH else "after_break"
+            out.append((p, st))
+            break
     return out
 
 
@@ -181,7 +208,7 @@ def scan(t, o, h, l, c):
     """Active patterns at the last candle: complete ones (hs.state) and right shoulders forming."""
     i, out, heads = len(c) - 1, [], set()
     for P in P_SIZES:
-        for p in HS.find(h, l, c, P, max_span=SPAN, continuation=True):
+        for p in HS.find(h, l, c, P, max_span=SPAN, continuation=True, head_min=HEAD_MIN, trough_max=TROUGH_MAX):
             if p["hd"] in heads:
                 continue
             s = HS.state(p, o, h, l, c, i)
@@ -189,13 +216,11 @@ def scan(t, o, h, l, c):
                 heads.add(p["hd"])
                 out.append((p, s))
     for P in P_SIZES:
-        for p in forming(h, l, c, P):
+        for p, st_ in forming(h, l, c, P):
             if p["hd"] in heads:
                 continue
             heads.add(p["hd"])
-            nk = HS.neck(p, i)
-            sg, H = p["sg"], p["height"]
-            out.append((p, {"status": "forming", "dist": sg * (nk - c[i]) / H, "neck": nk, "target": nk - sg * H, "brk": None}))
+            out.append((p, st_))
     return out
 
 
@@ -208,17 +233,19 @@ def row(code, tf, t, o, h, l, c, p, s):
     ext = (h if sg == 1 else l)
     rs = p["rsh"] if p["rsh"] is not None else p["rs_k"]
     if s["brk"] is None:
-        stop = ext[p["rsh"]] if p["rsh"] is not None else ext[p["hd"]]
+        stop = ext[rs]
     else:
         stop = s["neck"] + sg * HS.FAIL * H
     nk = s["neck"]
     return {"key": f"{code}:{tf}:{p['kind']}:{t[p['hd']]}", "inst": code, "tf": tf, "kind": p["kind"], "context": p["context"],
-            "status": s["status"], "label": LABEL[s["status"]], "P": p["P"], "close": _r(c[i]), "bar_ms": t[i],
+            "status": s["status"], "label": LABEL[s["status"]], "P": p["P"], "rs_confirmed": p["rsh"] is not None, "close": _r(c[i]), "bar_ms": t[i],
             "neck": _r(nk), "target": _r(s["target"]), "stop": _r(stop), "height_pct": round(100 * H / nk, 2) if nk else None,
             "dist_h": round(s["dist"], 2), "to_neck_pct": round(100 * (nk / c[i] - 1), 2), "to_target_pct": round(100 * (s["target"] / c[i] - 1), 2),
             "to_stop_pct": round(100 * (stop / c[i] - 1), 2), "rr": round(abs(s["target"] - c[i]) / abs(stop - c[i]), 2) if stop != c[i] else None,
             "break_ms": t[s["brk"]] if s.get("brk") is not None else None,
             "retest_ms": t[s["retest_k"]] if s.get("retest_k") is not None else None,
+            "geo": {"t1_ms": t[p["t1"]], "y1": HS.neck(p, p["t1"]), "slope_ms": p["m"] / (t[1] - t[0]) if len(t) > 1 else 0.0,
+                    "height": H, "sg": sg, "rs_px": ext[rs], "rs_ms": t[rs], "brk_ms": t[s["brk"]] if s.get("brk") is not None else None},
             "pts": {"ls": [t[p["lsh"]], _r(ext[p["lsh"]])], "head": [t[p["hd"]], _r(ext[p["hd"]])], "rs": [t[rs], _r(ext[rs])],
                     "t1": [t[p["t1"]], _r(HS.neck(p, p["t1"]))], "t2": [t[p["t2"]], _r(HS.neck(p, p["t2"]))],
                     "neck_now": [t[i], _r(nk)]}}
@@ -241,48 +268,72 @@ def save_json(path, d):
     os.replace(tmp, path)
 
 
+def settle(e, t, h, l, c):
+    """Why a logged pattern left the active list, from its stored levels and the candles after it was last active:
+    target | failed | expired, or 'dropped' when it never broke and simply stopped qualifying (shape changed)."""
+    g, last = e["last"].get("geo"), e["last"]
+    if not g:
+        return "dropped"
+    sg, H = g["sg"], g["height"]
+    neck = lambda ms: g["y1"] + g["slope_ms"] * (ms - g["t1_ms"])  # noqa: E731
+    brk_ms = g.get("brk_ms")
+    step = t[1] - t[0] if len(t) > 1 else 1
+    for k in range(len(t)):
+        if t[k] <= last["bar_ms"]:
+            continue
+        if brk_ms is None:
+            if sg * (h if sg == 1 else l)[k] > sg * g["rs_px"]:
+                return "failed"                              # right shoulder taken out before the break
+            if sg * c[k] < sg * neck(t[k]):
+                brk_ms = t[k]
+            elif (t[k] - g["rs_ms"]) / step > HS.MAX_WAIT:
+                return "expired"
+            continue
+        if sg * c[k] > sg * neck(t[k]) + HS.FAIL * H:
+            return "failed"
+        if (sg == 1 and l[k] <= neck(t[k]) - H) or (sg == -1 and h[k] >= neck(t[k]) + H):
+            return "target"
+        if (t[k] - brk_ms) / step > HS.MAX_AGE:
+            return "expired"
+    return "dropped" if brk_ms is None else "expired"
+
+
 def update_log(S, code, tf, t, o, h, l, c, active, now_s):
-    """New patterns and stage changes become events; patterns that left the active list get their outcome."""
+    """New patterns and stage changes become events; patterns that left the active list get their outcome. A new
+    pattern on a head whose earlier pattern is already settled is a new record (key suffix #2, #3, ...)."""
     events, keys = [], set()
+    alias = S.setdefault("alias", {})
     for p, s in active:
         r = row(code, tf, t, o, h, l, c, p, s)
-        keys.add(r["key"])
-        e = S["patterns"].get(r["key"])
+        base = r["key"]
+        key = alias.get(base, base)
+        e = S["patterns"].get(key)
+        if e is not None and not e.get("open"):
+            n = 2
+            while f"{base}#{n}" in S["patterns"]:
+                n += 1
+            key = alias[base] = f"{base}#{n}"
+            e = None
+        r["key"] = key
+        keys.add(key)
         if e is None:
-            e = S["patterns"][r["key"]] = {"inst": code, "tf": tf, "kind": r["kind"], "context": r["context"], "first_ms": r["bar_ms"],
-                                            "first_px": r["close"], "first_status": r["status"], "stages": [], "open": True}
+            e = S["patterns"][key] = {"inst": code, "tf": tf, "kind": r["kind"], "context": r["context"], "first_ms": r["bar_ms"],
+                                      "first_px": r["close"], "first_status": r["status"], "stages": [], "open": True}
         e.update(last=r, open=True)
         st_now = r["status"]
         seen = [x[0] for x in e["stages"]]
         if st_now not in seen and st_now not in ("pattern", "after_break"):
-            # never report a later stage as new if a later one was already seen (e.g. retest -> broken again)
-            if not seen or STAGE.get(st_now, 0) >= STAGE.get(seen[-1], 0):
+            if not seen or STAGE.get(st_now, 0) >= STAGE.get(seen[-1], 0):   # never step back to an earlier stage
                 e["stages"].append([st_now, r["bar_ms"], r["close"]])
-                ev = {"key": r["key"], "inst": code, "tf": tf, "kind": r["kind"], "context": r["context"], "status": st_now,
-                      "bar_ms": r["bar_ms"], "price": r["close"], "neck": r["neck"], "target": r["target"], "stop": r["stop"],
-                      "logged_utc": now_s}
-                events.append(ev)
-    # patterns of this series that are no longer active: settle them
+                events.append({"key": key, "inst": code, "tf": tf, "kind": r["kind"], "context": r["context"], "status": st_now,
+                               "bar_ms": r["bar_ms"], "price": r["close"], "neck": r["neck"], "target": r["target"], "stop": r["stop"],
+                               "rs_confirmed": r["rs_confirmed"], "logged_utc": now_s})
     for k, e in S["patterns"].items():
         if not e.get("open") or e["inst"] != code or e["tf"] != tf or k in keys:
             continue
         e["open"] = False
+        out = settle(e, t, h, l, c)
         last = e.get("last") or {}
-        out = "expired"
-        if last.get("status") == "forming":
-            out = "dropped"                                   # the right shoulder never confirmed (went past the head or out of shape)
-        else:
-            # re-find it in the current candles to read why it ended
-            head_ms = last.get("pts", {}).get("head", [None])[0]
-            if head_ms in t:
-                hd = t.index(head_ms)
-                for P in P_SIZES:
-                    for p in HS.find(h, l, c, P, max_span=SPAN, continuation=True):
-                        if p["hd"] == hd and p["kind"] == e["kind"]:
-                            why, k_ = exit_reason(p, h, l, c, len(c) - 1)
-                            if why:
-                                out = why
-                            break
         e["outcome"], e["end_ms"], e["end_px"] = out, t[-1], c[-1]
         if out != "dropped":
             events.append({"key": k, "inst": code, "tf": tf, "kind": e["kind"], "context": e["context"], "status": out,
@@ -305,13 +356,14 @@ def record(S):
 
 
 # ------------------------------------------------------------------ backtest (history, no look-ahead)
-def backtest_series(t, o, h, l, c):
+def backtest_series(t, o, h, l, c, head_min=None, trough_max=None):
     """Every pattern that broke its neckline: entry at the next candle's open after the break close, stop at the
     failure level (neckline + 35% of the height against the trade), target = the measured move, first hit within
     MAX_AGE candles, else closed at that candle. R capped at -1.5 (gaps)."""
     trades, used = [], set()
     for P in P_SIZES:
-        for p in HS.find(h, l, c, P, max_span=SPAN, continuation=True):
+        for p in HS.find(h, l, c, P, max_span=SPAN, continuation=True, head_min=HEAD_MIN if head_min is None else head_min,
+                           trough_max=TROUGH_MAX if trough_max is None else trough_max):
             if p["hd"] in used:
                 continue
             sg, H = p["sg"], p["height"]
@@ -364,7 +416,7 @@ def summarize(tr):
 
 
 def backtest(log=print):
-    res, per = {}, {}
+    res, per, strict = {}, {}, {}
     for code, _ in INSTR:
         src, sym = source_for(code, log)
         if not src:
@@ -373,8 +425,10 @@ def backtest(log=print):
             rows = long_history(src, sym, tf, BT_BARS[tf])
             if len(rows) < 300:
                 continue
-            tr = backtest_series(*_series(rows))
+            sr = _series(rows)
+            tr = backtest_series(*sr)
             per.setdefault(tf, []).extend(tr)
+            strict.setdefault(tf, []).extend(backtest_series(*sr, head_min=0.2, trough_max=0.5))
             res[f"{code}:{tf}"] = dict(summarize(tr), first_ms=rows[0][0], last_ms=rows[-1][0], bars=len(rows))
             log(f"stf backtest {code} {tf}: {len(rows)} candles, {len(tr)} trades")
     out = {"generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "series": res, "tf": {}}
@@ -382,7 +436,9 @@ def backtest(log=print):
         out["tf"][tf] = {"all": summarize(tr), "top": summarize([x for x in tr if x["kind"] == "top"]),
                          "inverse": summarize([x for x in tr if x["kind"] == "inverse"]),
                          "reversal": summarize([x for x in tr if x["context"] == "reversal"]),
-                         "continuation": summarize([x for x in tr if x["context"] == "continuation"])}
+                         "continuation": summarize([x for x in tr if x["context"] == "continuation"]),
+                         "strict": summarize(strict.get(tf, []))}
+    out["limits"] = {"stf": {"head_min": HEAD_MIN, "trough_max": TROUGH_MAX}, "strict": {"head_min": 0.2, "trough_max": 0.5}}
     save_json(BTSTATS, out)
     return out
 
@@ -503,7 +559,7 @@ def probe(log=print):
             f = lambda ms: datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%m-%d %H:%M")  # noqa: E731
             log(f"  {tf}: {len(rows)} candles {f(t[0])} .. {f(t[-1])} close {c[-1]}")
             for P in P_SIZES:
-                for p in HS.find(h, l, c, P, max_span=SPAN, continuation=True):
+                for p in HS.find(h, l, c, P, max_span=SPAN, continuation=True, head_min=HEAD_MIN, trough_max=TROUGH_MAX):
                     log(f"    P{P} {p['kind']:7s} {p['context']:12s} LS {f(t[p['lsh']])} {fmt((h if p['sg'] == 1 else l)[p['lsh']])}"
                         f" H {f(t[p['hd']])} {fmt((h if p['sg'] == 1 else l)[p['hd']])} RS {f(t[p['rsh']])} {fmt((h if p['sg'] == 1 else l)[p['rsh']])}"
                         f" neck {fmt(HS.neck(p, p['t1']))}->{fmt(HS.neck(p, p['t2']))} exit {exit_reason(p, h, l, c, len(c) - 1)[0]}")

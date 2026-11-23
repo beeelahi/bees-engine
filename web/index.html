@@ -4647,7 +4647,7 @@ function stfCard(r, D, inst) {
   const stt = document.createElement("span"); stt.className = "st"; stt.textContent = r.label; hd.append(h3, stt);
   const sub = document.createElement("p"); sub.className = "note"; sub.style.margin = "4px 0 0";
   sub.textContent = (r.context === "continuation" ? "Continuation" : "Reversal") + " · " + (r.kind === "top" ? "a break below the neckline points down" : "a break above the neckline points up") +
-    (r.break_ms ? " · broke " + stfLocal(r.break_ms + { "15m": 9e5, "1h": 36e5, "4h": 144e5 }[r.tf]) : "") + (r.status === "forming" ? " · the right shoulder is not confirmed yet; it can still fail" : "");
+    (r.break_ms ? " · broke " + stfLocal(r.break_ms + { "15m": 9e5, "1h": 36e5, "4h": 144e5 }[r.tf]) : "") + (r.status === "forming" ? " · the right shoulder is still forming; it can still fail" : r.rs_confirmed === false ? " · broke before the right shoulder was confirmed (early break)" : "");
   const ch = document.createElement("div"); ch.className = "stf-chart";
   const kv = document.createElement("dl"); kv.className = "stf-kv";
   const add = (a, b, c) => { const dt = document.createElement("dt"), dd = document.createElement("dd"); dt.textContent = a; dd.textContent = b; if (c) dd.className = c; kv.append(dt, dd); };
