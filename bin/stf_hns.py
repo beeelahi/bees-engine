@@ -44,6 +44,7 @@ import hs as HS  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 OUT = os.path.join(ROOT, "web_export", "stf_hns.json")
+EXAMPLES = os.path.join(ROOT, "web_export", "stf_examples.json")
 STATE = os.path.join(ROOT, "data", "stf_hns_state.json")
 BTSTATS = os.path.join(ROOT, "data", "stf_hns_backtest.json")
 
@@ -419,9 +420,11 @@ def replay_breaks(rows, code, tf):
         t, o, h, l, c = _series(rows[n - REPLAY_W:n + 1])
         for e in update_log(St, code, tf, t, o, h, l, c, scan(t, o, h, l, c), "replay"):
             if e["status"] == "broken":
-                g = St["patterns"][e["key"]]["last"]["geo"]
+                last = St["patterns"][e["key"]]["last"]
+                g = last["geo"]
                 out.append({"n": n, "kind": e["kind"], "context": e["context"], "early": not e["rs_confirmed"],
-                            "target": e["target"], "stop_neck": e["stop"], "stop_shoulder": g["rs_px"], "sg": g["sg"]})
+                            "target": e["target"], "stop_neck": e["stop"], "stop_shoulder": g["rs_px"], "sg": g["sg"],
+                            "pts": last["pts"], "neck": e["neck"], "price": e["price"], "bar_ms": e["bar_ms"]})
     return out
 
 
@@ -472,9 +475,28 @@ def _sets(rows_breaks):
     return res
 
 
+EX_PER = 3                   # recent examples per market and timeframe shown on the page
+
+
+def example_cards(rows, breaks, code, tf):
+    """The latest break alerts of one series with their candles (left shoulder to 40 candles after the break) and
+    their outcome with the stop beyond the right shoulder: what the watcher counts as a proper pattern."""
+    out = []
+    for b in breaks[-EX_PER:]:
+        res = trade(rows, b, "stop_shoulder")
+        ls_ms = b["pts"]["ls"][0]
+        a = next((k for k in range(len(rows)) if rows[k][0] >= ls_ms), 0)
+        lo, hi = max(0, a - 25), min(len(rows), b["n"] + 41)
+        out.append({"inst": code, "tf": tf, "kind": b["kind"], "context": b["context"], "early": b["early"], "pts": b["pts"],
+                    "break_ms": b["bar_ms"], "price": b["price"], "neck": b["neck"], "target": b["target"],
+                    "stop_shoulder": b["stop_shoulder"], "stop": b["stop_neck"], "outcome": res,
+                    "bars": [[r[0], _r(r[1]), _r(r[2]), _r(r[3]), _r(r[4])] for r in rows[lo:hi]]})
+    return out
+
+
 def backtest(log=print, strict=True):
     global HEAD_MIN, TROUGH_MAX
-    hist, per, per_strict, series = {}, {}, {}, {}
+    hist, per, per_strict, series, examples = {}, {}, {}, {}, []
     for code, _ in INSTR:
         src, sym = source_for(code, log)
         if not src:
@@ -485,6 +507,7 @@ def backtest(log=print, strict=True):
                 continue
             hist[(code, tf)] = rows
             br = replay_breaks(rows, code, tf)
+            examples += example_cards(rows, br, code, tf)
             per.setdefault(tf, []).extend((rows, b) for b in br)
             series[f"{code}:{tf}"] = dict(_sets([(rows, b) for b in br])["shoulder"]["all"], first_ms=rows[0][0], last_ms=rows[-1][0], bars=len(rows))
             log(f"stf backtest {code} {tf}: {len(rows)} candles, {len(br)} break alerts")
@@ -505,6 +528,7 @@ def backtest(log=print, strict=True):
             if tf in per_strict:
                 out["tf"][tf]["strict"] = {k: v["all"] for k, v in _sets(per_strict[tf]).items()}
     save_json(BTSTATS, out)
+    save_json(EXAMPLES, {"generated_utc": out["generated_utc"], "examples": examples})
     for tf, T in out["tf"].items():
         for sk in ("shoulder", "neckline"):
             a = T[sk]["all"]

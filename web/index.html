@@ -1578,6 +1578,11 @@ a { color: var(--accent); } a:hover { color: var(--accent-2); }
       <div class="stf-list" id="stfList"></div>
     </div>
     <div class="card">
+      <div class="card-head"><h2 id="stfExH">Recent examples</h2><span class="note">from the backtest</span></div>
+      <p class="note" id="stfExLead" style="margin:0 0 12px"></p>
+      <div class="stf-list" id="stfEx"></div>
+    </div>
+    <div class="card">
       <div class="card-head"><h2 id="stfLogH">Alert log</h2><span class="note">every new stage, as it was seen</span></div>
       <div class="tbl-wrap" style="max-height:60vh"><table class="wl-tbl"><thead><tr><th>Seen</th><th>Market</th><th>Pattern</th><th>Stage</th><th class="num">Price</th><th class="num">Neckline</th><th class="num">Target</th><th class="num">Stop (shoulder)</th></tr></thead><tbody id="stfLog"></tbody></table></div>
     </div>
@@ -4625,6 +4630,7 @@ function renderSTF() {
   const L = $("#stfList"); L.replaceChildren();
   if (!act.length) { const p = document.createElement("p"); p.className = "note"; p.textContent = `No valid head and shoulders on any ${tfn} chart right now. This page fills in by itself as soon as one forms.`; L.append(p); }
   act.forEach(r => L.append(stfCard(r, D, inst)));
+  stfExamples(tf, inst);
   // log for this timeframe
   $("#stfLogH").textContent = "Alert log · " + tfn;
   const lg = $("#stfLog"), lf = document.createDocumentFragment(), evs = (D.events || []).filter(e => e.tf === tf);
@@ -4676,8 +4682,27 @@ function stfCard(r, D, inst) {
   requestAnimationFrame(() => stfChart(ch, r, D));
   return card;
 }
-function stfChart(el, r, D) {
-  const se = D.series[r.inst] && D.series[r.inst][r.tf]; if (!se || !window.LightweightCharts) return;
+let stfExLoading = null;
+function stfExamples(tf, inst) {
+  const box = $("#stfEx"), tfn = { "15m": "15-minute", "1h": "1-hour", "4h": "4-hour" }[tf];
+  $("#stfExH").textContent = "Recent examples · " + tfn;
+  if (S.stfEx === undefined) { if (!stfExLoading) stfExLoading = j("data/stf_examples.json").then(d => { S.stfEx = d; }, () => { S.stfEx = null; }).then(() => { stfExLoading = null; if (!$("#v-stf").hidden) renderSTF(); }); return; }
+  const E = S.stfEx, list = E ? E.examples.filter(x => x.tf === tf).sort((a, b) => b.break_ms - a.break_ms) : [];
+  $("#stfExLead").textContent = E ? `The latest patterns the watcher would have alerted on, replayed on past ${tfn} candles (up to ${3} per market), each with what happened next using the stop beyond the right shoulder. This is what counts as a valid pattern here. Updated ${mbAgo(E.generated_utc)}.` : "Examples appear after the daily backtest has run.";
+  box.replaceChildren();
+  list.forEach(x => { const k = stfKind(x), card = document.createElement("article"); card.className = "stf-card";
+    const hd = document.createElement("div"); hd.className = "hd"; const h3 = document.createElement("h3"), kb = document.createElement("b"); kb.className = k[1]; kb.textContent = k[0];
+    h3.append(((inst[x.inst] || {}).name || x.inst) + " · ", kb, " · broke " + stfLocal(x.break_ms + { "15m": 9e5, "1h": 36e5, "4h": 144e5 }[tf]));
+    const o = x.outcome || {}, st = document.createElement("span"); st.className = "st"; st.textContent = o.exit === "target" ? "Reached target" : o.exit === "stop" ? "Stopped out" : o.exit === "time" ? "Closed after 60 candles" : "—";
+    hd.append(h3, st);
+    const sub = document.createElement("p"); sub.className = "note"; sub.style.margin = "4px 0 0";
+    sub.textContent = `${x.context === "continuation" ? "Continuation" : "Reversal"}${x.early ? " · early break" : ""} · entry next candle after ${fPx(x.price)} · target ${fPx(x.target)} · stop ${fPx(x.stop_shoulder)} · result ${isNum(o.r) ? (o.r > 0 ? "+" : "") + o.r.toFixed(2) + "R" : "—"}`;
+    const ch = document.createElement("div"); ch.className = "stf-chart"; card.append(hd, sub, ch); box.append(card);
+    requestAnimationFrame(() => stfChart(ch, Object.assign({ status: "broken", close: x.price }, x, { pts: Object.assign({}, x.pts, { neck_now: [x.break_ms, x.neck] }) }), null, x.bars)); });
+  if (E && !list.length) { const p = document.createElement("p"); p.className = "note"; p.textContent = "No break alerts in the replayed history for this timeframe."; box.append(p); }
+}
+function stfChart(el, r, D, own) {
+  const se = own ? { bars: own } : D.series[r.inst] && D.series[r.inst][r.tf]; if (!se || !window.LightweightCharts) return;
   const off = -new Date().getTimezoneOffset() * 60, T = ms => Math.floor(ms / 1000) + off;     // chart in local time
   const ch = newChart(el, { autoSize: true, layout: { background: { type: "solid", color: "transparent" }, textColor: css("--muted"), fontFamily: "Inter, sans-serif" },
     grid: { vertLines: { color: css("--line") }, horzLines: { color: css("--line") } }, rightPriceScale: { borderColor: css("--line") },

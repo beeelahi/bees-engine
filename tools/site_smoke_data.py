@@ -147,6 +147,7 @@ def stf(out_data):
     rows = list(zip(t, o, h, l, c))
     S.OUT, S.STATE, S.BTSTATS = (os.path.join(out_data, "stf_hns.json"), os.path.join(out_data, "..", "stf_state.json"),
                                  os.path.join(out_data, "..", "stf_bt.json"))
+    S.EXAMPLES = os.path.join(out_data, "stf_examples.json")
     S.source_for = lambda code, log=print: ("spot", code + "USDT")
     S.klines = lambda *a, **k: rows
     S.send_alerts = lambda evs, log=print: 0
