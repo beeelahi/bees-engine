@@ -142,8 +142,9 @@ class GoldCaseTest(unittest.TestCase):
         # first attempt: a lower right shoulder at 13:00 broke at 13:15 (no "forming" first: the shoulder had not turned
         # before the break) and failed at 14:00, a fake-out reported as such;
         # second attempt on the same head: right shoulder 15:00, break on the 15:15 candle, target reached by 18:45
-        self.assertEqual([x for x in seen if x[2] == "1"], [("broken", "11-20 13:15", "1"), ("failed", "11-20 14:00", "1")])
-        second = [x[:2] for x in seen if x[2] == "2"]
+        # the 13:00 "shoulder" (left shoulder to it: 18 candles) is too narrow to count; the real pattern is the only one
+        self.assertFalse([x for x in seen if x[2] != "1"])
+        second = [x[:2] for x in seen]
         self.assertIn(("broken", "11-20 15:15"), second)
         self.assertEqual(second[-1][0], "target")
         self.assertLessEqual(second[-1][1], "11-20 18:45")
@@ -151,6 +152,6 @@ class GoldCaseTest(unittest.TestCase):
         # target with the stop beyond the right shoulder but is stopped first with the tight neckline stop
         S.REPLAY_W = 60
         br = [b for b in S.replay_breaks(rows, "XAU", "15m") if b["kind"] == "top" and f(b["n"]).startswith("11-20 1")]
-        self.assertEqual([f(b["n"]) for b in br], ["11-20 13:15", "11-20 15:15"])
-        self.assertEqual([S.trade(rows, b, "stop_shoulder")["exit"] for b in br], ["stop", "target"])
-        self.assertEqual(S.trade(rows, br[1], "stop_neck")["exit"], "stop")
+        self.assertEqual([f(b["n"]) for b in br], ["11-20 15:15"])
+        self.assertEqual(S.trade(rows, br[0], "stop_shoulder")["exit"], "target")
+        self.assertEqual(S.trade(rows, br[0], "stop_neck")["exit"], "stop")

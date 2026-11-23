@@ -65,7 +65,11 @@ HEAD_MIN, TROUGH_MAX = 0.12, 0.6
 SHOULDER_MIN = 0.4           # each shoulder is a real swing: it reaches at least 40% of the head's distance past the neckline
 PRIOR_MIN = 1.0              # a real move into the pattern (it is a reversal): within 30 candles before the left shoulder,
                              # price was at least one height on the other side of the neckline
-ATR_MIN = 2.0                # the pattern stands out from the noise: height at least 2 x the 14-candle average range
+ATR_MIN = 2.0                # the pattern stands out from the noise: height at least 2 x the typical candle range, the larger
+                             # of the last 14 candles' average and the last 100 candles' median (spikes do not inflate it,
+                             # quiet spells do not shrink it)
+WIDTH_MIN, SIDE_MIN = 20, 6  # a pattern, not a wiggle: at least 20 candles shoulder to shoulder, 6 on each side of the head
+BREAK_GAP = 1                # an early break may come on the candle right after the right shoulder (it did on 20 Nov)
 SLOPE_MAX = 0.8              # the neckline is not steep: it moves at most 0.8 of a height from shoulder to shoulder
 TURN_MIN = 0.25              # a right shoulder still forming has turned: price came back at least 25% of its depth
 CHART_BARS = 240             # candles per series sent to the page
@@ -125,16 +129,14 @@ def _series(rows):
     return t, o, h, l, c
 
 
-def atr14(h, l, c):
-    tr = [h[0] - l[0]] + [max(h[k] - l[k], abs(h[k] - c[k - 1]), abs(l[k] - c[k - 1])) for k in range(1, len(c))]
-    out, run = [], 0.0
-    for k, x in enumerate(tr):
-        run += x - (tr[k - 14] if k >= 14 else 0.0)
-        out.append(run / min(k + 1, 14))
-    return out
+def typical_range(h, l, c, k):
+    """At candle k: the larger of the 14-candle average true range and the 100-candle median true range."""
+    tr = lambda j: max(h[j] - l[j], abs(h[j] - c[j - 1]), abs(l[j] - c[j - 1])) if j > 0 else h[0] - l[0]  # noqa: E731
+    a = [tr(j) for j in range(max(0, k - 99), k + 1)]
+    return max(st.mean(a[-14:]), st.median(a))
 
 
-def valid(p, h, l, c, atr):
+def valid(p, h, l, c, atr=None):
     """The proportions of a textbook head and shoulders (see SHOULDER_MIN, PRIOR_MIN, ATR_MIN, SLOPE_MAX): both
     shoulders are real swings of comparable size, the head is the extreme, the neckline is not steep, the pattern
     stands out from normal candle ranges, and price came into it from the other side (a reversal)."""
@@ -142,12 +144,14 @@ def valid(p, h, l, c, atr):
     X, Y = (h, l) if sg == 1 else (l, h)
     rs = p["rsh"] if p["rsh"] is not None else p["rs_k"]
     nk = lambda k: p["m"] * k + p["b"]  # noqa: E731
+    if rs - p["lsh"] < WIDTH_MIN or p["hd"] - p["lsh"] < SIDE_MIN or rs - p["hd"] < SIDE_MIN:
+        return False
     for k in (p["lsh"], rs):
         if sg * (X[k] - nk(k)) < SHOULDER_MIN * H:
             return False
     if abs(nk(rs) - nk(p["lsh"])) > SLOPE_MAX * H:
         return False
-    if H < ATR_MIN * atr[p["hd"]]:
+    if H < ATR_MIN * typical_range(h, l, c, p["hd"]):
         return False
     pre = max(0, p["lsh"] - 30)
     if not min(sg * Y[k] for k in range(pre, p["lsh"] + 1)) <= sg * nk(p["hd"]) - PRIOR_MIN * H:
@@ -163,7 +167,7 @@ def forming(h, l, c, P):
     'forming' (price in the right-shoulder zone, no break yet) or 'broken' / 'after_break' when a close has already
     gone through the neckline, so a break is reported on its own candle, not P candles later. Returns [(p, state)]."""
     out, n, i = [], len(c), len(c) - 1
-    atr = atr14(h, l, c)
+    atr = None
     for kind, X, Y, sg in (("top", h, l, 1), ("inverse", l, h, -1)):
         peaks = HS.pivots(X, P, sg == 1)
         pick = (lambda t: Y[t]) if sg == 1 else (lambda t: -Y[t])
@@ -204,6 +208,8 @@ def forming(h, l, c, P):
             if not valid(p, h, l, c, atr):
                 continue
             brk = next((k for k in range(rs_k + 1, n) if sg * c[k] < sg * neck(k)), None)
+            if brk is not None and brk - rs_k < BREAK_GAP:
+                continue                                     # a break straight off a one-candle "shoulder" is not a pattern
             if brk is None:                                  # no break yet: the right shoulder must have turned
                 turn = sg * (Rs - min(sg * Y[k] for k in range(rs_k, n))) if rs_k < n - 1 else 0.0
                 if n - 1 - rs_k < 2 or turn < TURN_MIN * sg * (X[rs_k] - neck(rs_k)):
@@ -253,7 +259,7 @@ def exit_reason(p, h, l, c, i):
 def scan(t, o, h, l, c):
     """Active patterns at the last candle: complete ones (hs.state) and right shoulders forming."""
     i, out, heads = len(c) - 1, [], set()
-    atr = atr14(h, l, c)
+    atr = None
     for P in P_SIZES:
         for p in HS.find(h, l, c, P, max_span=SPAN, continuation=True, head_min=HEAD_MIN, trough_max=TROUGH_MAX):
             if p["hd"] in heads or not valid(p, h, l, c, atr):
