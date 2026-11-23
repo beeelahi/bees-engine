@@ -63,7 +63,7 @@ case "$CMD" in
     stale=""; now=$(date +%s)
     for f in "$ROOT"/web_export/*.json; do
       [ -f "$f" ] || continue; n=$(basename "$f"); lim=93600
-      case "$n" in ma_lab.json|ma_summary.json) lim=21600 ;; esac
+      case "$n" in ma_lab.json|ma_summary.json) lim=21600 ;; stf_hns.json) lim=1800 ;; esac
       a=$(( now - $(stat -c %Y "$f") )); [ "$a" -gt "$lim" ] && stale="$stale $n($((a / 3600))h)"
     done
     [ -z "$stale" ] || { echo "UNHEALTHY: stale data files:$stale"; exit 1; }
@@ -111,6 +111,24 @@ except Exception as e: print("error", type(e).__name__)')
       nopush*) unset T; echo "REFUSED: GitHub accepts the token but it cannot write to beeelahi/beesells (needs Contents: Read and write). Nothing changed." ; exit 1 ;;
       *) unset T; echo "REFUSED: GitHub did not accept the token ($R). Nothing changed."; exit 1 ;;
     esac ;;
+  stf-probe)       timeout 240 python3 "$ROOT/bin/stf_hns.py" --probe 2>&1 | tail -n "$N" ;;
+  stf-run)         sudo -n systemctl start --no-block bees-stf.service && echo "STF HNS run started (also every 5 minutes by timer); read it with stf-log" ;;
+  stf-backtest)    sudo -n systemd-run --unit=bees-stf-bt --collect --uid=bees --gid=bees --nice=10 -p "WorkingDirectory=$ROOT" \
+                     -p "StandardOutput=truncate:$ROOT/logs/stf_bt.txt" -p StandardError=inherit python3 -u "$ROOT/bin/stf_hns.py" --backtest \
+                     && echo "STF HNS backtest started; read it with stf-log" ;;
+  stf-log)         echo "-- timer: $(systemctl is-active bees-stf.timer) next: $(systemctl show bees-stf.timer -p NextElapseUSecRealtime --value)"
+                   tail -n "$N" "$ROOT/logs/stf.log" 2>/dev/null; echo "-- backtest"; tail -n 20 "$ROOT/logs/stf_bt.txt" 2>/dev/null ;;
+  telegram-test)   python3 - <<'PY'
+import sys; sys.path.insert(0, "/home/bees/BinanceData/bin")
+import alerts
+c = alerts.read_cred()
+if not c:
+    print("Telegram not set up yet: run  sudo -u bees python3 /home/bees/BinanceData/bin/alerts.py --setup")
+else:
+    alerts.send(*c, "Bee's Dashboard: test message. Telegram alerts are working (bot trades, setups and STF HNS).")
+    print("test message sent")
+PY
+    ;;
   token-check)     # the GitHub token's state WITHOUT showing it: file facts, format, and whether GitHub accepts it
     F="$ROOT/.github_token"
     echo "file: $(stat -c '%U:%G mode %a, %s bytes, changed %y' "$F" 2>&1)"
@@ -200,5 +218,5 @@ PY
   bee-tune-stop)   pf="$ROOT/logs/bee_tune.pid"; if [ -f "$pf" ] && kill -- -"$(cat "$pf")" 2>/dev/null; then echo "MM-Bee tuning study stopped"; else echo "no MM-Bee tuning study running"; fi; rm -f "$pf" ;;
   bee-tune-log)    tail -n "$N" "$ROOT/logs/bee_tune.txt" 2>/dev/null || echo "no MM-Bee tuning output yet" ;;
   bee-study-log)   tail -n "$N" "$ROOT/logs/bee_study.txt" 2>/dev/null || echo "no MM-Bee study output yet" ;;
-  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status web-setup web-status publish-local publish-github ma-lab ma-lab-log root-key-saad root-keys root-login-keys root-login-off saad-user ssh-check token-check site-token-save"; exit 2 ;;
+  *) echo "unknown command: $CMD"; echo "commands: status logs deploy-log mm-log health run-sync deploy rollback mm-start mm-stop mm-paper-start mm-paper-stop mm-paper-report mm-paper-data mm-paper-log trading-stop trading-resume carry-study shortlist-study calls-study study-log bee-study bee-study-log bee-tune bee-tune-stop bee-tune-log mm-preflight mm-plan mm-status live-drill world-probe world-refresh dns-check call-lab call-lab-log onchain-probe onchain-refresh strategy-lab strategy-lab-log zig-probe zig-status zig-refresh library-probe library-refresh library-status web-setup web-status publish-local publish-github ma-lab ma-lab-log root-key-saad root-keys root-login-keys root-login-off saad-user ssh-check token-check site-token-save stf-probe stf-run stf-backtest stf-log telegram-test"; exit 2 ;;
 esac

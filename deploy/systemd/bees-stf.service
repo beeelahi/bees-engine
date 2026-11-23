@@ -1,0 +1,18 @@
+[Unit]
+Description=Bee's Dashboard STF HNS: head and shoulders on 15m / 1h / 4h for gold, silver, BTC, ETH, SOL
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=bees
+WorkingDirectory=/home/bees/BinanceData
+ExecStart=/usr/bin/python3 -u /home/bees/BinanceData/bin/stf_hns.py
+StandardOutput=append:/home/bees/BinanceData/logs/stf.log
+StandardError=inherit
+Nice=5
+TimeoutStartSec=8min
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/bees/BinanceData

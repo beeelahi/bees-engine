@@ -38,8 +38,11 @@ def pivots(x, P, high):
     return out
 
 
-def find(h, l, c, P):
-    """All patterns in the series (each usable only from its 'known' candle on)."""
+def find(h, l, c, P, max_span=None, continuation=False):
+    """All patterns in the series (each usable only from its 'known' candle on). By default only reversals (price came
+    into the pattern from the other side of the neckline); continuation=True also keeps patterns that form after a
+    move in the break direction, tagged context='continuation' (the short-timeframe page shows both)."""
+    span = max_span or MAX_SPAN
     out = []
     for kind, X, Y, sg in (("top", h, l, 1), ("inverse", l, h, -1)):
         # sg = +1: peaks are highs, troughs are lows; inverse: peaks are lows (sg flips comparisons)
@@ -47,7 +50,7 @@ def find(h, l, c, P):
         pick = (lambda t: Y[t]) if sg == 1 else (lambda t: -Y[t])
         for j in range(2, len(peaks)):
             lsh, hd, rsh = peaks[j - 2], peaks[j - 1], peaks[j]
-            if rsh - lsh > MAX_SPAN or hd - lsh < 3 or rsh - hd < 3:
+            if rsh - lsh > span or hd - lsh < 3 or rsh - hd < 3:
                 continue
             # the troughs: the deepest point between each shoulder and the head (as a trader draws the neckline)
             t1, t2 = min(range(lsh + 1, hd), key=pick), min(range(hd + 1, rsh), key=pick)
@@ -63,12 +66,13 @@ def find(h, l, c, P):
                 continue
             pre = max(0, lsh - 30)
             prior = min(sg * Y[k] for k in range(pre, lsh + 1))
-            if not prior < sg * neck_hd - 0.5 * height:
+            context = "reversal" if prior < sg * neck_hd - 0.5 * height else "continuation"
+            if context == "continuation" and not continuation:
                 continue
             if neck_hd <= 0 or (sg == -1 and Y[t1] <= 0):
                 continue
             out.append({"kind": kind, "sg": sg, "P": P, "lsh": lsh, "hd": hd, "rsh": rsh, "t1": t1, "t2": t2, "m": m,
-                        "b": Y[t1] - m * t1, "height": height, "known": rsh + P})
+                        "b": Y[t1] - m * t1, "height": height, "known": rsh + P, "context": context})
     return out
 
 
