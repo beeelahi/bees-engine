@@ -135,9 +135,7 @@ for tf, T in (B.get("tf") or {}).items():
 PY
     ;;
   stf-run)         sudo -n systemctl start --no-block bees-stf.service && echo "STF HNS run started (also every 5 minutes by timer); read it with stf-log" ;;
-  stf-backtest)    sudo -n systemd-run --unit=bees-stf-bt --collect --uid=bees --gid=bees --nice=10 -p "WorkingDirectory=$ROOT" \
-                     -p "StandardOutput=truncate:$ROOT/logs/stf_bt.txt" -p StandardError=inherit python3 -u "$ROOT/bin/stf_hns.py" --backtest \
-                     && echo "STF HNS backtest started; read it with stf-log" ;;
+  stf-backtest)    sudo -n systemctl start --no-block bees-stf-bt.service && echo "STF HNS backtest started (also daily at 01:37 UTC); read it with stf-log" ;;
   stf-log)         echo "-- timer: $(systemctl is-active bees-stf.timer) next: $(systemctl show bees-stf.timer -p NextElapseUSecRealtime --value)"
                    tail -n "$N" "$ROOT/logs/stf.log" 2>/dev/null; echo "-- backtest"; tail -n 20 "$ROOT/logs/stf_bt.txt" 2>/dev/null ;;
   telegram-test)   python3 - <<'PY'

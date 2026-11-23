@@ -1572,7 +1572,7 @@ a { color: var(--accent); } a:hover { color: var(--accent-2); }
     </div>
     <div class="card">
       <div class="card-head"><h2>Alert log</h2><span class="note">every new stage, as it was seen</span></div>
-      <div class="tbl-wrap" style="max-height:60vh"><table class="wl-tbl"><thead><tr><th>Seen</th><th>Market</th><th>Chart</th><th>Pattern</th><th>Stage</th><th class="num">Price</th><th class="num">Neckline</th><th class="num">Target</th><th class="num">Stop</th></tr></thead><tbody id="stfLog"></tbody></table></div>
+      <div class="tbl-wrap" style="max-height:60vh"><table class="wl-tbl"><thead><tr><th>Seen</th><th>Market</th><th>Chart</th><th>Pattern</th><th>Stage</th><th class="num">Price</th><th class="num">Neckline</th><th class="num">Target</th><th class="num">Stop (shoulder)</th></tr></thead><tbody id="stfLog"></tbody></table></div>
     </div>
     <div class="card">
       <div class="card-head"><h2>Track record</h2><span class="note" id="stfRecSince"></span></div>
@@ -1580,7 +1580,7 @@ a { color: var(--accent); } a:hover { color: var(--accent-2); }
       <div class="ma-top" id="stfRec"></div>
       <h3 class="stf-h3">Backtest: the same detector on past candles</h3>
       <p class="note" id="stfBtLead" style="margin:0 0 10px"></p>
-      <div class="tbl-wrap"><table class="wl-tbl"><thead><tr><th>Chart</th><th>Set</th><th class="num">Trades</th><th class="num">Reached target</th><th class="num">Stopped</th><th class="num">Winners</th><th class="num">Average R</th><th class="num">Median R</th></tr></thead><tbody id="stfBt"></tbody></table></div>
+      <div class="tbl-wrap"><table class="wl-tbl"><thead><tr><th>Chart</th><th>Stop</th><th>Set</th><th class="num">Trades</th><th class="num">Reached target</th><th class="num">Stopped</th><th class="num">Winners</th><th class="num">Average R</th><th class="num">Median R</th></tr></thead><tbody id="stfBt"></tbody></table></div>
     </div>
   </section>
   <section class="view" id="v-ma" hidden>
@@ -4619,7 +4619,7 @@ function renderSTF() {
   const lg = $("#stfLog"), lf = document.createDocumentFragment();
   (D.events || []).slice(0, 200).forEach(e => { const tr = document.createElement("tr"), k = stfKind(e);
     tr.append(td(stfLocal(e.bar_ms + { "15m": 9e5, "1h": 36e5, "4h": 144e5 }[e.tf])), td((inst[e.inst] || {}).name || e.inst), td({ "15m": "15 min", "1h": "1 hour", "4h": "4 hours" }[e.tf]), td(k[0] + " · " + e.context, k[1]),
-      td((D.labels || {})[e.status] || e.status, e.status === "target" ? "up" : e.status === "failed" ? "down" : ""), td(fPx(e.price), "num"), td(fPx(e.neck), "num"), td(fPx(e.target), "num"), td(fPx(e.stop), "num"));
+      td((D.labels || {})[e.status] || e.status, e.status === "target" ? "up" : e.status === "failed" ? "down" : ""), td(fPx(e.price), "num"), td(fPx(e.neck), "num"), td(fPx(e.target), "num"), td(fPx(isNum(e.stop_shoulder) ? e.stop_shoulder : e.stop), "num"));
     lf.append(tr); });
   lg.replaceChildren(lf); if (!(D.events || []).length) lg.innerHTML = '<tr><td colspan="9" class="empty">No stage changes yet. Every new stage lands here (and on Telegram) as it happens.</td></tr>';
   // record
@@ -4632,12 +4632,16 @@ function renderSTF() {
     const dl = c.querySelector("dl"), add = (k, v) => { const a = document.createElement("dt"), b = document.createElement("dd"); a.textContent = k; b.textContent = v; dl.append(a, b); };
     add("Settled after a break", t.settled || 0); add("Target / failed / expired", `${t.target || 0} / ${t.failed || 0} / ${t.expired || 0}`); add("Active now", t.open || 0); box.append(c); });
   const B = D.backtest, bt = $("#stfBt"); bt.replaceChildren();
-  $("#stfBtLead").textContent = B ? `Every pattern the detector would have found on past candles (15 min about 4 months, 1 hour about a year, 4 hours about 22 months; all five markets together), entered at the open after the neckline break, stop at the failure level, target the measured move, closed after 60 candles if neither. R = result in units of the risk. Last run ${mbAgo(B.generated_utc)}. Past results, not a forecast.` : "The backtest runs once a day; its first results appear after the next run.";
-  if (B) STF_TF.forEach(([tf, nm]) => { const T = B.tf[tf]; if (!T) return;
-    [["all", "All"], ["top", "Tops"], ["inverse", "Inverse"], ["reversal", "Reversal"], ["continuation", "Continuation"]].forEach(([k, lab], i) => { const x = T[k] || {}, tr = document.createElement("tr");
-      tr.append(td(i ? "" : nm), td(lab), td(x.n || 0, "num"), td(x.n ? x.target_pct + "%" : "—", "num"), td(x.n ? x.stop_pct + "%" : "—", "num"), td(x.n ? x.win_pct + "%" : "—", "num"),
+  $("#stfBtLead").textContent = B ? `The watcher replayed candle by candle on past candles (15 min about 4 months, 1 hour about a year, 4 hours up to 22 months; all five markets together): every "neckline broken" alert it would have sent, traded at the next candle's open, target the measured move, closed after ${(D.rules || {}).max_age || 60} candles if neither stop nor target was hit. Two stop rules: beyond the right shoulder (what most traders use) and the tight one (35% of the height back through the neckline). R = result in units of the risk taken. "Daily rules" = the stricter shape limits of the daily patterns page. Last run ${mbAgo(B.generated_utc)}. Past results, not a forecast.` : "The backtest runs once a day; its first results appear after the next run.";
+  if (B && B.method === "replay") STF_TF.forEach(([tf, nm]) => { const T = B.tf[tf]; if (!T) return; let first = true;
+    const line = (stop, lab, x) => { x = x || {}; const tr = document.createElement("tr");
+      tr.append(td(first ? nm : ""), td(stop), td(lab), td(x.n || 0, "num"), td(x.n ? x.target_pct + "%" : "—", "num"), td(x.n ? x.stop_pct + "%" : "—", "num"), td(x.n ? x.win_pct + "%" : "—", "num"),
         td(x.n ? (x.avg_r > 0 ? "+" : "") + x.avg_r : "—", "num " + (x.n ? cls(x.avg_r) : "")), td(x.n ? (x.median_r > 0 ? "+" : "") + x.median_r : "—", "num"));
-      bt.append(tr); }); });
+      first = false; bt.append(tr); };
+    [["all", "All break alerts"], ["top", "Tops"], ["inverse", "Inverse"], ["reversal", "Reversal"], ["continuation", "Continuation"], ["early", "Early breaks"], ["confirmed", "Confirmed shoulder"]]
+      .forEach(([k, lab]) => line("Right shoulder", lab, (T.shoulder || {})[k]));
+    line("Tight", "All break alerts", (T.neckline || {}).all);
+    if (T.strict) { line("Right shoulder", "Daily rules", T.strict.shoulder); line("Tight", "Daily rules", T.strict.neckline); } });
 }
 function stfCard(r, D, inst) {
   const k = stfKind(r), card = document.createElement("article"); card.className = "stf-card"; card.id = "stf-" + r.key.replace(/[^A-Za-z0-9]/g, "-");
@@ -4652,8 +4656,11 @@ function stfCard(r, D, inst) {
   const kv = document.createElement("dl"); kv.className = "stf-kv";
   const add = (a, b, c) => { const dt = document.createElement("dt"), dd = document.createElement("dd"); dt.textContent = a; dd.textContent = b; if (c) dd.className = c; kv.append(dt, dd); };
   add("Last close", fPx(r.close)); add("Neckline now", fPx(r.neck) + " (" + fPct(r.to_neck_pct, 2) + ")");
-  add("Target", fPx(r.target) + " (" + fPct(r.to_target_pct, 2) + ")", k[1]); add("Stop", fPx(r.stop) + " (" + fPct(r.to_stop_pct, 2) + ")");
-  add("Pattern height", fPct(r.height_pct, 2).replace("+", "")); add("Reward : risk now", isNum(r.rr) ? r.rr.toFixed(2) : "—");
+  add("Target", fPx(r.target) + " (" + fPct(r.to_target_pct, 2) + ")", k[1]); add("Stop beyond right shoulder", fPx(r.stop_shoulder) + " (" + fPct(r.to_stop_shoulder_pct, 2) + ")");
+  add("Tight stop", fPx(r.stop) + " (" + fPct(r.to_stop_pct, 2) + ")");
+  add("Pattern height", fPct(r.height_pct, 2).replace("+", ""));
+  const rrS = isNum(r.stop_shoulder) && r.stop_shoulder !== r.close ? Math.abs(r.target - r.close) / Math.abs(r.stop_shoulder - r.close) : null;
+  add("Reward : risk now", (isNum(rrS) ? rrS.toFixed(2) : "—") + " (tight " + (isNum(r.rr) ? r.rr.toFixed(2) : "—") + ")");
   add("Head", fPx(r.pts.head[1]) + " · " + stfLocal(r.pts.head[0])); add("Shoulders", fPx(r.pts.ls[1]) + " / " + fPx(r.pts.rs[1]));
   card.append(hd, sub, ch, kv);
   requestAnimationFrame(() => stfChart(ch, r, D));
@@ -4674,7 +4681,8 @@ function stfChart(el, r, D) {
   const start = Math.min(r.pts.ls[0], t1[0]);
   nl.setData([{ time: T(start), value: t1[1] + slope * (start - t1[0]) }, { time: T(nn[0]), value: nn[1] }]);
   cs.createPriceLine({ price: r.target, color: css(r.kind === "top" ? "--down" : "--up"), lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "target" });
-  cs.createPriceLine({ price: r.stop, color: css("--muted"), lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "stop" });
+  cs.createPriceLine({ price: r.stop_shoulder, color: css("--muted"), lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "stop" });
+  if (isNum(r.stop) && r.stop !== r.stop_shoulder) cs.createPriceLine({ price: r.stop, color: css("--muted"), lineWidth: 1, lineStyle: 3, axisLabelVisible: false, title: "tight" });
   const top = r.kind === "top", mk = (p, txt) => ({ time: T(p[0]), position: top ? "aboveBar" : "belowBar", color: css("--accent"), shape: top ? "arrowDown" : "arrowUp", text: txt });
   try { cs.setMarkers([mk(r.pts.ls, "LS"), mk(r.pts.head, "H"), mk(r.pts.rs, r.status === "forming" ? "RS?" : "RS")].sort((a, b) => a.time - b.time)); } catch (e) {}
   ch.timeScale().fitContent();

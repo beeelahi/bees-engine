@@ -1,0 +1,18 @@
+[Unit]
+Description=Bee's Dashboard STF HNS backtest: the watcher replayed candle by candle on long history
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=bees
+WorkingDirectory=/home/bees/BinanceData
+ExecStart=/usr/bin/python3 -u /home/bees/BinanceData/bin/stf_hns.py --backtest
+StandardOutput=truncate:/home/bees/BinanceData/logs/stf_bt.txt
+StandardError=inherit
+Nice=15
+TimeoutStartSec=90min
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/bees/BinanceData

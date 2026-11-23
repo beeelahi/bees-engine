@@ -28,7 +28,8 @@ Levels (same rules as the daily patterns)
 
 Usage: python3 bin/stf_hns.py            one run (what the timer does)
        python3 bin/stf_hns.py --probe    data availability and the patterns in the last 1,000 candles (no writes)
-       python3 bin/stf_hns.py --backtest the detector's historical record on long history (writes the stats)
+       python3 bin/stf_hns.py --backtest the watcher replayed candle by candle on long history: every break alert it
+                                         would have sent, traded with two stop rules (daily, bees-stf-bt.timer)
 """
 import json
 import os
@@ -241,7 +242,7 @@ def row(code, tf, t, o, h, l, c, p, s):
             "status": s["status"], "label": LABEL[s["status"]], "P": p["P"], "rs_confirmed": p["rsh"] is not None, "close": _r(c[i]), "bar_ms": t[i],
             "neck": _r(nk), "target": _r(s["target"]), "stop": _r(stop), "height_pct": round(100 * H / nk, 2) if nk else None,
             "dist_h": round(s["dist"], 2), "to_neck_pct": round(100 * (nk / c[i] - 1), 2), "to_target_pct": round(100 * (s["target"] / c[i] - 1), 2),
-            "to_stop_pct": round(100 * (stop / c[i] - 1), 2), "rr": round(abs(s["target"] - c[i]) / abs(stop - c[i]), 2) if stop != c[i] else None,
+            "to_stop_pct": round(100 * (stop / c[i] - 1), 2), "stop_shoulder": _r(ext[rs]), "to_stop_shoulder_pct": round(100 * (ext[rs] / c[i] - 1), 2), "rr": round(abs(s["target"] - c[i]) / abs(stop - c[i]), 2) if stop != c[i] else None,
             "break_ms": t[s["brk"]] if s.get("brk") is not None else None,
             "retest_ms": t[s["retest_k"]] if s.get("retest_k") is not None else None,
             "geo": {"t1_ms": t[p["t1"]], "y1": HS.neck(p, p["t1"]), "slope_ms": p["m"] / (t[1] - t[0]) if len(t) > 1 else 0.0,
@@ -327,7 +328,7 @@ def update_log(S, code, tf, t, o, h, l, c, active, now_s):
                 e["stages"].append([st_now, r["bar_ms"], r["close"]])
                 events.append({"key": key, "inst": code, "tf": tf, "kind": r["kind"], "context": r["context"], "status": st_now,
                                "bar_ms": r["bar_ms"], "price": r["close"], "neck": r["neck"], "target": r["target"], "stop": r["stop"],
-                               "rs_confirmed": r["rs_confirmed"], "logged_utc": now_s})
+                               "stop_shoulder": r["stop_shoulder"], "rs_confirmed": r["rs_confirmed"], "logged_utc": now_s})
     for k, e in S["patterns"].items():
         if not e.get("open") or e["inst"] != code or e["tf"] != tf or k in keys:
             continue
@@ -355,57 +356,47 @@ def record(S):
     return out
 
 
-# ------------------------------------------------------------------ backtest (history, no look-ahead)
-def backtest_series(t, o, h, l, c, head_min=None, trough_max=None):
-    """Every pattern that broke its neckline: entry at the next candle's open after the break close, stop at the
-    failure level (neckline + 35% of the height against the trade), target = the measured move, first hit within
-    MAX_AGE candles, else closed at that candle. R capped at -1.5 (gaps)."""
-    trades, used = [], set()
-    for P in P_SIZES:
-        for p in HS.find(h, l, c, P, max_span=SPAN, continuation=True, head_min=HEAD_MIN if head_min is None else head_min,
-                           trough_max=TROUGH_MAX if trough_max is None else trough_max):
-            if p["hd"] in used:
-                continue
-            sg, H = p["sg"], p["height"]
-            ext = (h if sg == 1 else l)
-            brk = None
-            for k in range(p["known"] - p["P"] + 1, len(c)):
-                if k < p["known"]:
-                    if sg * ext[k] > sg * ext[p["rsh"]]:
-                        break
-                    if sg * c[k] < sg * HS.neck(p, k):
-                        break                                 # broke before the pattern was even known: not tradable
-                    continue
-                if sg * ext[k] > sg * ext[p["rsh"]] or k - p["rsh"] > HS.MAX_WAIT:
-                    break
-                if sg * c[k] < sg * HS.neck(p, k):
-                    brk = k
-                    break
-            if brk is None or brk + 1 >= len(c):
-                continue
-            used.add(p["hd"])
-            e = o[brk + 1]
-            nk = HS.neck(p, brk)
-            stop, target = nk + sg * HS.FAIL * H, nk - sg * H
-            risk = sg * (stop - e)
-            if risk <= 0 or sg * (e - target) <= 0:
-                continue
-            res, end = None, min(len(c) - 1, brk + HS.MAX_AGE)
-            for k in range(brk + 1, end + 1):
-                if (sg == 1 and h[k] >= stop) or (sg == -1 and l[k] <= stop):
-                    fill = max(o[k], stop) if sg == 1 else min(o[k], stop)      # a gap through the stop fills at the open
-                    res = ("stop", max(-1.5, sg * (e - fill) / risk))
-                    break
-                if (sg == 1 and l[k] <= target) or (sg == -1 and h[k] >= target):
-                    res = ("target", sg * (e - target) / risk)
-                    break
-            if res is None:
-                res = ("time", max(-1.5, sg * (e - c[end]) / risk))
-            trades.append({"kind": p["kind"], "context": p["context"], "r": round(res[1], 3), "exit": res[0], "brk_ms": t[brk]})
-    return trades
+# ------------------------------------------------------------------ backtest: a replay of the watcher itself
+REPLAY_W = 600               # candles the replay sees at each step (patterns are at most SPAN = 200 long)
+
+
+def replay_breaks(rows, code, tf):
+    """Run the watcher candle by candle over past candles, exactly as the timer would have (same scan, same log),
+    and return every 'Neckline broken' alert it would have sent, with what was known at that moment."""
+    St, out = {"since": None, "patterns": {}, "events": []}, []
+    for n in range(REPLAY_W, len(rows)):
+        t, o, h, l, c = _series(rows[n - REPLAY_W:n + 1])
+        for e in update_log(St, code, tf, t, o, h, l, c, scan(t, o, h, l, c), "replay"):
+            if e["status"] == "broken":
+                g = St["patterns"][e["key"]]["last"]["geo"]
+                out.append({"n": n, "kind": e["kind"], "context": e["context"], "early": not e["rs_confirmed"],
+                            "target": e["target"], "stop_neck": e["stop"], "stop_shoulder": g["rs_px"], "sg": g["sg"]})
+    return out
+
+
+def trade(rows, b, stop_key):
+    """Entry at the open after the alert candle, the alert's target, the chosen stop; first hit within MAX_AGE
+    candles, else closed then. A gap through the stop fills at the open; R capped at -1.5."""
+    n, sg = b["n"], b["sg"]
+    if n + 1 >= len(rows):
+        return None
+    e, stop, target = rows[n + 1][1], b[stop_key], b["target"]
+    risk = sg * (stop - e)
+    if risk <= 0 or sg * (e - target) <= 0:
+        return None
+    end = min(len(rows) - 1, n + HS.MAX_AGE)
+    for k in range(n + 1, end + 1):
+        _, o, h, l, c = rows[k]
+        if (sg == 1 and h >= stop) or (sg == -1 and l <= stop):
+            fill = max(o, stop) if sg == 1 else min(o, stop)
+            return {"exit": "stop", "r": round(max(-1.5, sg * (e - fill) / risk), 3)}
+        if (sg == 1 and l <= target) or (sg == -1 and h >= target):
+            return {"exit": "target", "r": round(sg * (e - target) / risk, 3)}
+    return {"exit": "time", "r": round(max(-1.5, sg * (e - rows[end][4]) / risk), 3)}
 
 
 def summarize(tr):
+    tr = [x for x in tr if x]
     if not tr:
         return {"n": 0}
     rs = [x["r"] for x in tr]
@@ -415,31 +406,58 @@ def summarize(tr):
             "win_pct": round(100 * sum(r > 0 for r in rs) / len(rs), 1)}
 
 
-def backtest(log=print):
-    res, per, strict = {}, {}, {}
+def _sets(rows_breaks):
+    """Summaries per stop rule and subset."""
+    res = {}
+    for sk, name in (("stop_shoulder", "shoulder"), ("stop_neck", "neckline")):
+        tr = [(b, trade(rows, b, sk)) for rows, b in rows_breaks]
+        res[name] = {"all": summarize([x for _, x in tr]),
+                     "top": summarize([x for b, x in tr if b["kind"] == "top"]),
+                     "inverse": summarize([x for b, x in tr if b["kind"] == "inverse"]),
+                     "reversal": summarize([x for b, x in tr if b["context"] == "reversal"]),
+                     "continuation": summarize([x for b, x in tr if b["context"] == "continuation"]),
+                     "early": summarize([x for b, x in tr if b["early"]]),
+                     "confirmed": summarize([x for b, x in tr if not b["early"]])}
+    return res
+
+
+def backtest(log=print, strict=True):
+    global HEAD_MIN, TROUGH_MAX
+    hist, per, per_strict, series = {}, {}, {}, {}
     for code, _ in INSTR:
         src, sym = source_for(code, log)
         if not src:
             continue
         for tf in TFS:
             rows = long_history(src, sym, tf, BT_BARS[tf])
-            if len(rows) < 300:
+            if len(rows) < REPLAY_W + 100:
                 continue
-            sr = _series(rows)
-            tr = backtest_series(*sr)
-            per.setdefault(tf, []).extend(tr)
-            strict.setdefault(tf, []).extend(backtest_series(*sr, head_min=0.2, trough_max=0.5))
-            res[f"{code}:{tf}"] = dict(summarize(tr), first_ms=rows[0][0], last_ms=rows[-1][0], bars=len(rows))
-            log(f"stf backtest {code} {tf}: {len(rows)} candles, {len(tr)} trades")
-    out = {"generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "series": res, "tf": {}}
-    for tf, tr in per.items():
-        out["tf"][tf] = {"all": summarize(tr), "top": summarize([x for x in tr if x["kind"] == "top"]),
-                         "inverse": summarize([x for x in tr if x["kind"] == "inverse"]),
-                         "reversal": summarize([x for x in tr if x["context"] == "reversal"]),
-                         "continuation": summarize([x for x in tr if x["context"] == "continuation"]),
-                         "strict": summarize(strict.get(tf, []))}
-    out["limits"] = {"stf": {"head_min": HEAD_MIN, "trough_max": TROUGH_MAX}, "strict": {"head_min": 0.2, "trough_max": 0.5}}
+            hist[(code, tf)] = rows
+            br = replay_breaks(rows, code, tf)
+            per.setdefault(tf, []).extend((rows, b) for b in br)
+            series[f"{code}:{tf}"] = dict(_sets([(rows, b) for b in br])["shoulder"]["all"], first_ms=rows[0][0], last_ms=rows[-1][0], bars=len(rows))
+            log(f"stf backtest {code} {tf}: {len(rows)} candles, {len(br)} break alerts")
+    if strict:                                                   # the daily page's shape limits, for comparison
+        keep = HEAD_MIN, TROUGH_MAX
+        HEAD_MIN, TROUGH_MAX = 0.2, 0.5
+        try:
+            for (code, tf), rows in hist.items():
+                per_strict.setdefault(tf, []).extend((rows, b) for b in replay_breaks(rows, code, tf))
+        finally:
+            HEAD_MIN, TROUGH_MAX = keep
+    out = {"generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "method": "replay", "series": series, "tf": {},
+           "limits": {"stf": {"head_min": HEAD_MIN, "trough_max": TROUGH_MAX}, "strict": {"head_min": 0.2, "trough_max": 0.5}},
+           "bars": {tf: BT_BARS[tf] for tf in TFS}}
+    for tf in TFS:
+        if tf in per:
+            out["tf"][tf] = _sets(per[tf])
+            if tf in per_strict:
+                out["tf"][tf]["strict"] = {k: v["all"] for k, v in _sets(per_strict[tf]).items()}
     save_json(BTSTATS, out)
+    for tf, T in out["tf"].items():
+        for sk in ("shoulder", "neckline"):
+            a = T[sk]["all"]
+            log(f"stf backtest {tf} stop {sk}: n={a.get('n')} target {a.get('target_pct')}% stopped {a.get('stop_pct')}% avg {a.get('avg_r')}R median {a.get('median_r')}R")
     return out
 
 
@@ -459,7 +477,10 @@ def alert_text(ev):
     st_ = LABEL.get(ev["status"], ev["status"])
     line = f"{name} {TF_NAME[ev['tf']]}: {kind}, {ev['context']}\n{st_} at {fmt(ev['price'])}"
     if ev["status"] in ("forming", "near_neckline", "broken", "retest"):
-        line += f"\nNeckline {fmt(ev['neck'])} · target {fmt(ev['target'])} · stop {fmt(ev['stop'])}"
+        line += f"\nNeckline {fmt(ev['neck'])} · target {fmt(ev['target'])}"
+        line += f"\nStop beyond the right shoulder {fmt(ev.get('stop_shoulder'))} (tight: {fmt(ev['stop'])})"
+        if ev.get("rs_confirmed") is False and ev["status"] == "broken":
+            line += "\nEarly break: the right shoulder is not confirmed yet"
     return line
 
 
@@ -574,9 +595,3 @@ if __name__ == "__main__":
         backtest()
     else:
         run()
-        try:                                       # the historical record: refreshed once a day, after the run
-            stale = time.time() - os.path.getmtime(BTSTATS) > 86400
-        except OSError:
-            stale = True
-        if stale:
-            backtest()

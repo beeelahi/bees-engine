@@ -69,12 +69,15 @@ class LogTest(unittest.TestCase):
 
 
 class BacktestTest(unittest.TestCase):
-    def test_break_then_target(self):
-        tr = S.backtest_series(*series(path(TOP) + [84, 80, 75, 70, 62, 55, 50, 45, 40]))
-        tops = [x for x in tr if x["kind"] == "top"]
-        self.assertEqual(len(tops), 1)
-        self.assertEqual(tops[0]["exit"], "target")
-        self.assertGreater(tops[0]["r"], 0)
+    def test_replay_trades_the_break_alert(self):
+        S.REPLAY_W = 70
+        t, o, h, l, c = series([110.0] * 20 + path(TOP) + [84, 80, 75, 70, 62, 55, 50, 45, 40])
+        rows = list(zip(t, o, h, l, c))
+        br = [b for b in S.replay_breaks(rows, "BTC", "15m") if b["kind"] == "top"]
+        self.assertEqual(len(br), 1)
+        tr = S.trade(rows, br[0], "stop_shoulder")
+        self.assertEqual(tr["exit"], "target")
+        self.assertGreater(tr["r"], 0)
 
 
 class RunTest(unittest.TestCase):
@@ -140,3 +143,10 @@ class GoldCaseTest(unittest.TestCase):
         self.assertIn(("broken", "11-20 15:15"), second)
         self.assertEqual(second[-1][0], "target")
         self.assertLessEqual(second[-1][1], "11-20 18:45")
+        # the backtest replays exactly these alerts: the fake-out is a loss either way; the real break reaches its
+        # target with the stop beyond the right shoulder but is stopped first with the tight neckline stop
+        S.REPLAY_W = 60
+        br = [b for b in S.replay_breaks(rows, "XAU", "15m") if b["kind"] == "top" and f(b["n"]).startswith("11-20 1")]
+        self.assertEqual([f(b["n"]) for b in br], ["11-20 13:15", "11-20 15:15"])
+        self.assertEqual([S.trade(rows, b, "stop_shoulder")["exit"] for b in br], ["stop", "target"])
+        self.assertEqual(S.trade(rows, br[1], "stop_neck")["exit"], "stop")

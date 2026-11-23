@@ -150,6 +150,9 @@ def stf(out_data):
     S.source_for = lambda code, log=print: ("spot", code + "USDT")
     S.klines = lambda *a, **k: rows
     S.send_alerts = lambda evs, log=print: 0
+    S.long_history = lambda src, sym, tf, n: rows
+    S.REPLAY_W = 120
+    S.backtest(log=print)                                      # so the record table has rows to show
     S.run(log=print)
 
 def ma_lab(out_data):

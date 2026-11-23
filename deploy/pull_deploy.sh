@@ -58,7 +58,7 @@ switch_to() {  # $1 = unpacked release dir, $2 = sha
   if [ "$changed" = 1 ]; then sudo -n systemctl daemon-reload || true; fi
   # timers are switched on whenever they are not (a timer added in a release is enabled even if its unit file
   # was installed by the release before)
-  for t in bees-sync.timer bees-deploy.timer bees-ma-lab.timer bees-stf.timer; do
+  for t in bees-sync.timer bees-deploy.timer bees-ma-lab.timer bees-stf.timer bees-stf-bt.timer; do
     [ -f "/etc/systemd/system/$t" ] || continue
     systemctl is-enabled --quiet "$t" && systemctl is-active --quiet "$t" && continue
     sudo -n systemctl enable --now "$t" >/dev/null 2>&1 && echo "$(ts) enabled $t" || echo "$(ts) could not enable $t"
