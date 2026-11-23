@@ -1595,6 +1595,9 @@ a { color: var(--accent); } a:hover { color: var(--accent-2); }
       <h3 class="stf-h3">Backtest: the watcher replayed on past candles</h3>
       <p class="note" id="stfBtLead" style="margin:0 0 10px"></p>
       <div class="tbl-wrap"><table class="wl-tbl"><thead><tr><th>Stop</th><th>Set</th><th class="num">Trades</th><th class="num">Reached target</th><th class="num">Stopped</th><th class="num">Winners</th><th class="num">Average R</th><th class="num">Median R</th></tr></thead><tbody id="stfBt"></tbody></table></div>
+      <h3 class="stf-h3">What separates winners from losers</h3>
+      <p class="note" id="stfFeatLead" style="margin:0 0 10px"></p>
+      <div class="tbl-wrap"><table class="wl-tbl"><thead><tr><th>Quality factor</th><th class="num">Split at</th><th class="num">Lower half</th><th class="num">Upper half</th></tr></thead><tbody id="stfFeat"></tbody></table></div>
       <h3 class="stf-h3">By market</h3>
       <div class="tbl-wrap"><table class="wl-tbl"><thead><tr><th>Market</th><th class="num">Trades</th><th class="num">Reached target</th><th class="num">Winners</th><th class="num">Average R</th><th>History</th></tr></thead><tbody id="stfBtM"></tbody></table></div>
     </div>
@@ -4657,6 +4660,12 @@ function renderSTF() {
     [["all", "All break alerts"], ["top", "Tops"], ["inverse", "Inverse"], ["early", "Early breaks"], ["confirmed", "Confirmed shoulder"]].forEach(([k, lab]) => line("Right shoulder", lab, (T.shoulder || {})[k]));
     line("Tight", "All break alerts", (T.neckline || {}).all);
     if (T.strict) { line("Right shoulder", "Daily rules", T.strict.shoulder); line("Tight", "Daily rules", T.strict.neckline); }
+    const FE = T.features || {}, FL = (B.features || {}).labels || {}, fb = $("#stfFeat"); fb.replaceChildren();
+    const half = x => x && x.n ? `${x.n} trades · ${x.target_pct}% target · ${(x.avg_r > 0 ? "+" : "") + x.avg_r}R` : "—";
+    $("#stfFeatLead").textContent = `Every past ${tfn} break split in two at the middle value of each factor, comparing the halves (stop beyond the right shoulder). This is how the watcher learns which textbook ideas actually hold on these markets. A difference means little until each half has dozens of trades.`;
+    Object.keys(FL).forEach(k => { const x = FE[k]; if (!x) return; const tr = document.createElement("tr"), better = (x.low.avg_r || 0) > (x.high.avg_r || 0) ? 0 : 1;
+      tr.append(td(FL[k]), td(String(x.median), "num"), td(half(x.low), "num" + (better === 0 && x.low.n >= 20 ? " up" : "")), td(half(x.high), "num" + (better === 1 && x.high.n >= 20 ? " up" : ""))); fb.append(tr); });
+    if (!fb.children.length) fb.innerHTML = '<tr><td colspan="4" class="empty">Not enough past breaks on this timeframe yet.</td></tr>';
     D.instruments.forEach(x => { const m = (B.series || {})[x.code + ":" + tf]; if (!m) return; const tr = document.createElement("tr");
       tr.append(td(x.name), td(m.n || 0, "num"), td(m.n ? m.target_pct + "%" : "—", "num"), td(m.n ? m.win_pct + "%" : "—", "num"), td(m.n ? (m.avg_r > 0 ? "+" : "") + m.avg_r : "—", "num " + (m.n ? cls(m.avg_r) : "")),
         td(m.bars ? `${m.bars.toLocaleString()} candles from ${new Date(m.first_ms).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}` : "—")); bm.append(tr); }); }

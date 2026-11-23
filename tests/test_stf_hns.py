@@ -76,9 +76,13 @@ class BacktestTest(unittest.TestCase):
     def test_replay_trades_the_break_alert(self):
         S.REPLAY_W = 100
         t, o, h, l, c = series([110.0] * 20 + path(TOP) + [84, 80, 75, 70, 62, 55, 50, 45, 40])
-        rows = list(zip(t, o, h, l, c))
+        rows = [r + (1000.0 + (500.0 if 46 <= k <= 50 else 0.0),) for k, r in enumerate(zip(t, o, h, l, c))]   # busier around the left shoulder
         br = [b for b in S.replay_breaks(rows, "BTC", "15m") if b["kind"] == "top"]
         self.assertEqual(len(br), 1)
+        f = br[0]["f"]
+        self.assertEqual(set(f), set(S.FEATURES))
+        self.assertLess(f["vol_rs_vs_ls"], 1)                     # quieter right shoulder, as the textbook likes it
+        self.assertAlmostEqual(f["neck_tilt"], 0, places=2)        # flat neckline
         tr = S.trade(rows, br[0], "stop_shoulder")
         self.assertEqual(tr["exit"], "target")
         self.assertGreater(tr["r"], 0)
@@ -108,12 +112,11 @@ if __name__ == "__main__":
 
 
 class GoldCaseTest(unittest.TestCase):
-    """Bilal's trade: XAUUSDT 15m, 20 Nov 2026 (real candles, tests/data_xau_15m_20nov.txt). Left shoulder 3,595.9
-    (08:30 UTC), head 3,600.8 (10:30), right shoulder 3,591.9 (15:00). Its textbook neckline (the lows between the
-    shoulders and the head: 3,572.5 at 09:45 and 3,555.7 at 14:30) slopes DOWN about 37 degrees (pattern drawn as tall
-    as it is wide), far past the 5 degrees Bilal's rule allows for a top, so the watcher does not report it. (On his
-    chart he drew the neckline from the low before the left shoulder instead, which slopes up.)"""
-    def test_excluded_by_the_neckline_rule(self):
+    """Bilal's trade: XAUUSDT 15m, 20 Nov 2026 (real candles, tests/data_xau_15m_20nov.txt), a valid top by his rules:
+    left shoulder 3,571.9 (06:00 UTC), head 3,600.8 (10:30), right shoulder 3,591.9 (15:00), neckline rising from the
+    07:30 low (3,547.2) through the 14:30 low (3,555.7). The 08:30 bump is not the shoulder: with it the textbook
+    neckline would slope down about 37 degrees, which his rule forbids."""
+    def load(self):
         from datetime import datetime, timezone
         rows = []
         with open(os.path.join(os.path.dirname(__file__), "data_xau_15m_20nov.txt")) as f:
@@ -121,23 +124,29 @@ class GoldCaseTest(unittest.TestCase):
                 d, tm, o, h, l, c = ln.split()
                 ms = int(datetime.strptime(f"2026-{d} {tm}", "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc).timestamp() * 1000)
                 rows.append((ms, float(o), float(h), float(l), float(c)))
+        f = lambda ms: datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%m-%d %H:%M")   # noqa: E731
+        return rows, f
+
+    def test_found_with_the_allowed_neckline(self):
+        rows, f = self.load()
         t, o, h, l, c = S._series(rows)
-        f = lambda k: datetime.fromtimestamp(t[k] / 1000, timezone.utc).strftime("%m-%d %H:%M")   # noqa: E731
-        k = {f(x): x for x in range(len(t))}
-        lsh, hd, rsh, t1, t2 = k["11-20 08:30"], k["11-20 10:30"], k["11-20 15:00"], k["11-20 09:45"], k["11-20 14:30"]
-        m = (l[t2] - l[t1]) / (t2 - t1)
-        p = {"kind": "top", "sg": 1, "P": 5, "lsh": lsh, "hd": hd, "rsh": rsh, "t1": t1, "t2": t2, "m": m, "b": l[t1] - m * t1,
-             "height": h[hd] - (l[t1] + m * (hd - t1)), "known": rsh + 5, "context": "reversal"}
-        slope = (S.HS.neck(p, rsh) - S.HS.neck(p, lsh)) / p["height"]
-        import math
-        self.assertLess(math.degrees(math.atan(slope)), -30)              # about -37 degrees
-        self.assertFalse(S.valid(p, h, l, c))
-        self.assertFalse([q for P in S.P_SIZES for q in S.find(h, l, c, P) if q["hd"] == hd])
-        St = {"since": None, "patterns": {}, "events": []}
+        tops = [p for P in S.P_SIZES for p in S.find(h, l, c, P) if p["kind"] == "top" and f(t[p["hd"]]) == "11-20 10:30"]
+        self.assertTrue(tops, "the 20 Nov gold top was not found")
+        p = tops[0]
+        self.assertEqual((f(t[p["lsh"]]), f(t[p["rsh"]]), f(t[p["t1"]]), f(t[p["t2"]])), ("11-20 06:00", "11-20 15:00", "11-20 07:30", "11-20 14:30"))
+        self.assertGreater(S.HS.neck(p, p["rsh"]), S.HS.neck(p, p["lsh"]))     # the neckline rises: allowed for a top
+
+    def test_replay_one_record_forming_broken_target(self):
+        rows, f = self.load()
+        t, o, h, l, c = S._series(rows)
+        St, seen = {"since": None, "patterns": {}, "events": []}, []
         for n in range(60, len(t)):
             tt, oo, hh, ll, cc = t[:n + 1], o[:n + 1], h[:n + 1], l[:n + 1], c[:n + 1]
-            self.assertFalse([e for e in S.update_log(St, "XAU", "15m", tt, oo, hh, ll, cc, S.scan(tt, oo, hh, ll, cc), "x")
-                              if (":" + str(t[hd])) in e["key"]])
+            seen += [(e["status"], f(e["bar_ms"]), e["key"]) for e in S.update_log(St, "XAU", "15m", tt, oo, hh, ll, cc, S.scan(tt, oo, hh, ll, cc), "x")]
+        # forming while the right shoulder built, the break reported once the shoulder was confirmed (16:15; the close
+        # had gone through at 15:15), target reached at 18:45 -- one record, nothing else in these two days
+        self.assertEqual([x[:2] for x in seen], [("forming", "11-20 14:45"), ("broken", "11-20 16:15"), ("target", "11-20 18:45")])
+        self.assertEqual(len({x[2] for x in seen}), 1)
 
 
 class NecklineRuleTest(unittest.TestCase):

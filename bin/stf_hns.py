@@ -71,8 +71,8 @@ TIME_RATIO = (0.5, 2.0)      # and roughly evenly spaced: head-to-right-shoulder
 # height across the pattern against the break direction. With it the other way, up to 45 degrees (one full height).
 NECK_AGAINST = 0.0875
 NECK_WITH = 1.0
-PRIOR_MIN = 1.0              # a real move into the pattern (it is a reversal): within 30 candles before the left shoulder,
-                             # price was at least one height on the other side of the neckline
+PRIOR_MIN = 0.5              # a real move into the pattern (it is a reversal): within 30 candles before the left shoulder,
+                             # price was at least half a height on the other side of the neckline
 ATR_MIN = 2.0                # the pattern stands out from the noise: height at least 2 x the typical candle range, the larger
                              # of the last 14 candles' average and the last 100 candles' median (spikes do not inflate it,
                              # quiet spells do not shrink it)
@@ -81,7 +81,7 @@ HEAD_CLOSE = True            # the head is a real peak, not a one-candle wick: i
                              # the shoulders' closes too
 TURN_MIN = 0.25              # a right shoulder still forming has turned: price came back at least 25% of its depth
 CHART_BARS = 240             # candles per series sent to the page
-BT_BARS = {"15m": 12000, "1h": 9000, "4h": 4000}   # backtest history: about 4 months, 1 year, 22 months
+BT_BARS = {"15m": 35000, "1h": 26000, "4h": 6600}  # backtest history: about 1 year, 3 years, 3 years
 STAGE = {"forming": 0, "near_neckline": 1, "pattern": 1, "broken": 2, "retest": 3, "after_break": 3}
 LABEL = {"forming": "Right shoulder forming", "pattern": "Pattern complete", "near_neckline": "Near the neckline",
          "broken": "Neckline broken", "retest": "Retesting the neckline", "after_break": "Broken, under way",
@@ -102,7 +102,7 @@ def klines(src, sym, tf, limit=LIMIT, end_ms=None, now_ms=None):
         q += f"&endTime={end_ms}"
     rows = _get(q)
     now_ms = now_ms or int(time.time() * 1000)
-    return [(int(r[0]), float(r[1]), float(r[2]), float(r[3]), float(r[4])) for r in rows if int(r[6]) < now_ms]
+    return [(int(r[0]), float(r[1]), float(r[2]), float(r[3]), float(r[4]), float(r[5])) for r in rows if int(r[6]) < now_ms]
 
 
 def long_history(src, sym, tf, n):
@@ -429,8 +429,9 @@ def update_log(S, code, tf, t, o, h, l, c, active, now_s):
             continue
         out = settle(e, t, h, l, c)
         last = e.get("last") or {}
-        if out == "dropped" and last.get("status") == "forming" and (t[-1] - last["bar_ms"]) / step <= 2 * last.get("P", 5):
-            continue        # a right shoulder still forming went higher (lower) without passing the head: keep waiting
+        if out != "failed" and last.get("status") == "forming" and (t[-1] - last["bar_ms"]) / step <= 2 * last.get("P", 5):
+            continue        # a right shoulder still forming moved on (or price broke before it was confirmed): keep the
+                            # record open until the confirmed pattern takes it over, unless the head has been passed
         e["open"] = False
         last = e.get("last") or {}
         e["outcome"], e["end_ms"], e["end_px"] = out, t[-1], c[-1]
@@ -470,7 +471,58 @@ def replay_breaks(rows, code, tf):
                 g = last["geo"]
                 out.append({"n": n, "kind": e["kind"], "context": e["context"], "early": not e["rs_confirmed"],
                             "target": e["target"], "stop_neck": e["stop"], "stop_shoulder": g["rs_px"], "sg": g["sg"],
-                            "pts": last["pts"], "neck": e["neck"], "price": e["price"], "bar_ms": e["bar_ms"]})
+                            "pts": last["pts"], "neck": e["neck"], "price": e["price"], "bar_ms": e["bar_ms"],
+                            "f": features(rows, n, last)})
+    return out
+
+
+FEATURES = {"vol_rs_vs_ls": "Volume at the right shoulder vs the left (classic: lower)",
+            "vol_head_vs_ls": "Volume at the head vs the left shoulder",
+            "vol_break": "Volume on the break candle vs its 20-candle average (classic: higher)",
+            "neck_tilt": "Neckline tilt, heights across the pattern (+ = up for tops, down for inverse)",
+            "symmetry": "Shoulder mismatch, share of the height (0 = identical)",
+            "head_prom": "Head above the higher shoulder, share of the height",
+            "width": "Width, candles from shoulder to shoulder",
+            "size": "Height vs the typical candle range",
+            "height_pct": "Height, % of price"}
+
+
+def features(rows, n, last):
+    """The classic quality factors of a pattern at its break alert, from candles up to the alert only."""
+    idx = {r[0]: k for k, r in enumerate(rows[max(0, n - REPLAY_W):n + 1], max(0, n - REPLAY_W))}
+    g, pts = last["geo"], last["pts"]
+    ls, hd, rs = (idx.get(pts[x][0]) for x in ("ls", "head", "rs"))
+    if None in (ls, hd, rs) or len(rows[0]) < 6:
+        return {}
+    v = lambda k: st.mean(r[5] for r in rows[max(0, k - 2):k + 3]) or 1e-12  # noqa: E731
+    nk = lambda ms: g["y1"] + g["slope_ms"] * (ms - g["t1_ms"])  # noqa: E731
+    H, sg = g["height"], g["sg"]
+    h = [r[2] for r in rows]
+    l_ = [r[3] for r in rows]
+    c = [r[4] for r in rows]
+    X = h if sg == 1 else l_
+    dl, dr = sg * (X[ls] - nk(rows[ls][0])), sg * (X[rs] - nk(rows[rs][0]))
+    avg20 = st.mean(r[5] for r in rows[max(0, n - 20):n]) or 1e-12
+    return {"vol_rs_vs_ls": round(v(rs) / v(ls), 3), "vol_head_vs_ls": round(v(hd) / v(ls), 3),
+            "vol_break": round(rows[n][5] / avg20, 3),
+            "neck_tilt": round(sg * (nk(rows[rs][0]) - nk(rows[ls][0])) / H, 3),
+            "symmetry": round(abs(dl - dr) / H, 3), "head_prom": round((H - max(dl, dr)) / H, 3), "width": rs - ls,
+            "size": round(H / typical_range(h, l_, c, hd), 2), "height_pct": round(100 * H / abs(nk(rows[hd][0])), 3)}
+
+
+def feature_study(rows_breaks):
+    """For each quality factor: split the trades at its median and compare the two halves (stop beyond the right
+    shoulder). What the data says works, rather than what the textbook says."""
+    tr = [(b, trade(rows, b, "stop_shoulder")) for rows, b in rows_breaks]
+    tr = [(b, x) for b, x in tr if x and b.get("f")]
+    out = {}
+    for k in FEATURES:
+        vals = sorted(b["f"][k] for b, _ in tr if k in b["f"])
+        if len(vals) < 6:
+            continue
+        med = st.median(vals)
+        out[k] = {"median": med, "low": summarize([x for b, x in tr if b["f"].get(k, med) <= med]),
+                  "high": summarize([x for b, x in tr if b["f"].get(k, med) > med])}
     return out
 
 
@@ -486,7 +538,7 @@ def trade(rows, b, stop_key):
         return None
     end = min(len(rows) - 1, n + HS.MAX_AGE)
     for k in range(n + 1, end + 1):
-        _, o, h, l, c = rows[k]
+        o, h, l = rows[k][1], rows[k][2], rows[k][3]
         if (sg == 1 and h >= stop) or (sg == -1 and l <= stop):
             fill = max(o, stop) if sg == 1 else min(o, stop)
             return {"exit": "stop", "r": round(max(-1.5, sg * (e - fill) / risk), 3)}
@@ -538,11 +590,11 @@ def example_cards(rows, breaks, code, tf):
         out.append({"inst": code, "tf": tf, "kind": b["kind"], "context": b["context"], "early": b["early"], "pts": b["pts"],
                     "break_ms": b["bar_ms"], "price": b["price"], "neck": b["neck"], "target": b["target"],
                     "stop_shoulder": b["stop_shoulder"], "stop": b["stop_neck"], "outcome": res,
-                    "bars": [[r[0], _r(r[1]), _r(r[2]), _r(r[3]), _r(r[4])] for r in rows[lo:hi]]})
+                    "bars": [[r[0], _r(r[1]), _r(r[2]), _r(r[3]), _r(r[4])] for r in rows[lo:hi]], "f": b.get("f", {})})
     return out
 
 
-def backtest(log=print, strict=True):
+def backtest(log=print, strict=False):
     global HEAD_MIN, TROUGH_MAX
     hist, per, per_strict, series, examples = {}, {}, {}, {}, []
     for code, _ in INSTR:
@@ -573,8 +625,10 @@ def backtest(log=print, strict=True):
     for tf in TFS:
         if tf in per:
             out["tf"][tf] = _sets(per[tf])
+            out["tf"][tf]["features"] = feature_study(per[tf])
             if tf in per_strict:
                 out["tf"][tf]["strict"] = {k: v["all"] for k, v in _sets(per_strict[tf]).items()}
+    out["features"] = {"all": feature_study([x for tf in per for x in per[tf]]), "labels": FEATURES}
     save_json(BTSTATS, out)
     save_json(EXAMPLES, {"generated_utc": out["generated_utc"], "examples": examples})
     for tf, T in out["tf"].items():
