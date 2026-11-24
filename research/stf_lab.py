@@ -266,9 +266,9 @@ def report(out, log=print):
     for mk in out["variants"]["live"]["market"]:
         log(f"{mk:9s} " + " | ".join(f"{out['variants'][v]['market'].get(mk, {}).get('avg_r', 0):+.2f}/{out['variants'][v]['market'].get(mk, {}).get('n', 0)}"
                                      for v in ("live", "spike_head", "shoulder_35")))
-    log("--- reference patterns caught (gold 15m / BTC 1h spike):")
+    log("--- reference patterns caught (each named; dict order is not the REFS order):")
     for key, v in out["variants"].items():
-        log(f"{key:14s} " + "  ".join(("YES" if x else "no ") for x in v["refs"].values()))
+        log(f"{key:14s} " + "  ".join(f"{name}: {'YES' if x else 'no'}" for name, x in sorted(v["refs"].items())))
     log("--- entries and targets on the live rules (avg R / trades): break+full, break+65%, neckline-limit+full, neckline-limit+65%")
     for tf, d in out["exits"].items():
         log(f"{tf:4s} " + "  ".join(f"{k} {x.get('avg_r', 0):+.2f}/{x.get('n', 0)}" for k, x in d.items()))
