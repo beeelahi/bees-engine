@@ -107,10 +107,6 @@ class RunTest(unittest.TestCase):
         self.assertEqual(len(sent), 1)                           # later runs do send (here: an empty batch)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class GoldCaseTest(unittest.TestCase):
     """Bilal's trade: XAUUSDT 15m, 20 Nov 2026 (real candles, tests/data_xau_15m_20nov.txt), a valid top by his rules:
     left shoulder 3,571.9 (06:00 UTC), head 3,600.8 (10:30), right shoulder 3,591.9 (15:00), neckline rising from the
@@ -176,3 +172,50 @@ class NecklineRuleTest(unittest.TestCase):
         self.assertTrue(self.found("inverse", 0.0))
         self.assertTrue(self.found("inverse", 0.3))
         self.assertFalse(self.found("inverse", -0.3))
+
+class StateFileTest(unittest.TestCase):
+    """The forward log is the live record: a damaged file is kept aside (never overwritten) and the run says so."""
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.saved = (S.STATE,)
+        S.STATE = os.path.join(self.d, "stf_hns_state.json")
+
+    def tearDown(self):
+        (S.STATE,) = self.saved
+
+    def test_missing_file_is_a_quiet_fresh_start(self):
+        st, problem = S.load_state(log=lambda *a: None)
+        self.assertIsNone(st["since"])
+        self.assertIsNone(problem)
+
+    def test_damaged_file_is_kept_and_reported(self):
+        with open(S.STATE, "w") as f:
+            f.write('{"since": "2026-11-20T00:00:00Z", "patterns": {"XAU:15m')    # a cut-off write
+        logged = []
+        st, problem = S.load_state(log=logged.append, now_s="2026-11-24T05:00:00Z")
+        self.assertIsNone(st["since"])
+        self.assertIn("unreadable", problem)
+        kept = os.path.join(self.d, "stf_hns_state.json.unreadable-2026-11-24T050000Z")
+        self.assertTrue(os.path.exists(kept))
+        self.assertFalse(os.path.exists(S.STATE))
+        with open(kept) as f:
+            self.assertIn("XAU:15m", f.read())                   # the original bytes, untouched
+        self.assertTrue(logged)
+
+    def test_wrong_shape_is_treated_as_damaged(self):
+        with open(S.STATE, "w") as f:
+            f.write("[]")
+        st, problem = S.load_state(log=lambda *a: None, now_s="2026-11-24T05:00:00Z")
+        self.assertEqual(st["patterns"], {})
+        self.assertIsNotNone(problem)
+
+    def test_good_file_round_trips(self):
+        S.save_json(S.STATE, {"since": "x", "patterns": {"k": {"open": True}}, "events": [1]})
+        st, problem = S.load_state(log=lambda *a: None)
+        self.assertEqual(st["since"], "x")
+        self.assertIsNone(problem)
+        self.assertFalse(os.path.exists(S.STATE + ".tmp"))
+
+
+if __name__ == "__main__":
+    unittest.main()
