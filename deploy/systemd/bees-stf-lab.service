@@ -1,0 +1,18 @@
+[Unit]
+Description=Bee's Dashboard STF HNS lab: which head-and-shoulders shapes pay (rule variants, 5m-4h, on demand)
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=bees
+WorkingDirectory=/home/bees/BinanceData
+ExecStart=/usr/bin/python3 -u /home/bees/BinanceData/research/stf_lab.py
+StandardOutput=truncate:/home/bees/BinanceData/logs/stf_lab.txt
+StandardError=inherit
+Nice=15
+TimeoutStartSec=150min
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/bees/BinanceData
