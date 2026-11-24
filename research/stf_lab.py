@@ -1,4 +1,5 @@
-"""STF HNS lab: which head-and-shoulders shapes actually pay, on XAU, XAG, BTC, ETH and SOL, 5m / 15m / 1h / 4h.
+"""STF HNS lab: which head-and-shoulders shapes actually pay, on XAU, XAG, BTC, ETH and SOL, 15m / 1h / 4h / 1d
+(5m was tested on 24 Nov 2026 and lost on every variant).
 
 Each variant changes one or two of the watcher's shape rules (bin/stf_hns.py constants) and is tested on the same
 history, the same way: every pattern the rules accept, the 'Neckline broken' alert as the watcher would send it (the
@@ -9,8 +10,8 @@ Guarding against fitting the rules to chance:
   * every series is split by time: the first two thirds ("earlier") and the last third ("later"); a variant only
     counts as better if it beats the live rules in BOTH halves, on enough trades;
   * the standard error of the average R is printed next to it.
-Bilal's three reference patterns are checked for each variant (caught or not): gold 15m 20 Nov 2026 (head 10:30 UTC),
-BTC 1h 21-24 Nov (head 23 Nov 14:00), BTC 5m 24 Nov (head 05:30).
+Bilal's reference patterns are checked for each variant (caught or not): gold 15m 20 Nov 2026 (head 10:30 UTC),
+BTC 1h 21-24 Nov (head 23 Nov 14:00). Results are also broken down by market.
 
 The direct scan is checked against the watcher's own candle-by-candle replay (stf_hns.replay_breaks) on the 4-hour
 series, so the shortcut is known to give the same alerts.
@@ -31,8 +32,8 @@ import stf_hns as S  # noqa: E402
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CACHE = os.path.join(ROOT, "data", "stf_cache")
 OUT = os.path.join(ROOT, "data", "stf_lab.json")
-BARS = {"5m": 105_000, "15m": 70_000, "1h": 26_000, "4h": 6_600}     # about 1, 2, 3 and 3 years
-TF_MS = {"5m": 300_000, "15m": 900_000, "1h": 3_600_000, "4h": 14_400_000}
+BARS = {"15m": 70_000, "1h": 26_000, "4h": 6_600, "1d": 3_000}     # about 2, 3, 3 and 8 years (5m was tested and lost)
+TF_MS = {"15m": 900_000, "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000}
 SPLIT = 2 / 3
 
 LIVE = {k: getattr(S, k) for k in ("SHOULDER_MIN", "SYM_MAX", "TIME_RATIO", "NECK_AGAINST", "NECK_WITH", "PRIOR_MIN",
@@ -62,7 +63,7 @@ VARIANTS = [
 ]
 REFS = [("XAU", "15m", "2026-11-20 10:30", "Gold 15m 20 Nov (your trade)"),
         ("BTC", "1h", "2026-11-23 14:00", "BTC 1h 21-24 Nov (spike head)"),
-        ("BTC", "5m", "2026-11-24 05:30", "BTC 5m 24 Nov (small top)")]
+        ]
 
 
 def utc(ms):
@@ -135,15 +136,17 @@ def evaluate(hist, log=print):
         for k, v in over.items():
             setattr(S, k, v)
         t0 = time.time()
-        per_tf, refs = {}, {}
+        per_tf, refs, res_mk = {}, {}, {}
         for (code, tf), rows in hist.items():
             br = direct_breaks(rows)
             cut = rows[0][0] + SPLIT * (rows[-1][0] - rows[0][0])
+            mk = res_mk.setdefault(f"{code} {tf}", [])
             d = per_tf.setdefault(tf, {"shoulder": [], "neck": [], "early": [], "late": [], "target": [], "target_65": []})
             for b in br:
                 x = S.trade(rows, b, "stop_shoulder")
                 y = S.trade(rows, b, "stop_neck")
                 if x:
+                    mk.append(x["r"])
                     d["shoulder"].append(x["r"])
                     d["early" if b["bar_ms"] < cut else "late"].append(x["r"])
                     d["target"].append(x["exit"] == "target")
@@ -160,7 +163,7 @@ def evaluate(hist, log=print):
                                   "target_pct": round(100 * sum(d["target"]) / len(d["target"]), 1) if d["target"] else None}
         allr = [r for d in per_tf.values() for r in d["shoulder"]]
         res[key]["all"] = stats(allr)
-        res[key]["all_no5m"] = stats([r for tf, d in per_tf.items() if tf != "5m" for r in d["shoulder"]])
+        res[key]["market"] = {k: stats(v) for k, v in res_mk.items()}
         log(f"lab {key}: {res[key]['all']} ({time.time() - t0:.0f}s)")
     for k, v in LIVE.items():
         setattr(S, k, v)
@@ -229,7 +232,7 @@ def main(log=print):
             except Exception as e:  # noqa: BLE001 - one market failing must not stop the study
                 log(f"lab {code} {tf}: data failed ({type(e).__name__}: {e})")
                 continue
-            if rows and len(rows) > 700:
+            if rows and len(rows) > (300 if tf == "1d" else 700):
                 hist[(code, tf)] = rows
                 src[f"{code} {tf}"] = {"source": name, "bars": len(rows), "from": utc(rows[0][0]), "to": utc(rows[-1][0])}
                 log(f"lab data {code} {tf}: {len(rows)} candles {utc(rows[0][0])} .. {utc(rows[-1][0])}")
@@ -259,7 +262,11 @@ def report(out, log=print):
             log(f"{key:14s} {a['n']:5d} {T['target_pct']:6.1f} {a['avg_r']:+.2f} (+-{a['se'] or 0:.2f}) "
                 f"{e.get('avg_r', 0):+.2f}/{e.get('n', 0)} {la.get('avg_r', 0):+.2f}/{la.get('n', 0)} {T['neck'].get('avg_r', 0):+.2f}"
                 f"{'  <- better in both halves' if better else ''}")
-    log("--- reference patterns caught (gold 15m / BTC 1h spike / BTC 5m small):")
+    log("--- by market (avg R / trades): live | spike_head | shoulder_35")
+    for mk in out["variants"]["live"]["market"]:
+        log(f"{mk:9s} " + " | ".join(f"{out['variants'][v]['market'].get(mk, {}).get('avg_r', 0):+.2f}/{out['variants'][v]['market'].get(mk, {}).get('n', 0)}"
+                                     for v in ("live", "spike_head", "shoulder_35")))
+    log("--- reference patterns caught (gold 15m / BTC 1h spike):")
     for key, v in out["variants"].items():
         log(f"{key:14s} " + "  ".join(("YES" if x else "no ") for x in v["refs"].values()))
     log("--- entries and targets on the live rules (avg R / trades): break+full, break+65%, neckline-limit+full, neckline-limit+65%")
