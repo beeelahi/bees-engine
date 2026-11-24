@@ -345,12 +345,30 @@ def row(code, tf, t, o, h, l, c, p, s):
 
 
 # ------------------------------------------------------------------ the forward log
-def load_state():
+def load_state(log=print, now_s=None):
+    """The forward log (the live record). Missing: a fresh start. Present but unreadable (a cut-off or damaged write):
+    the file is kept beside it as stf_hns_state.json.unreadable-<time> before a fresh start, so the record can be
+    recovered by hand instead of being overwritten by the next save. Returns (state, problem or None)."""
+    fresh = {"since": None, "patterns": {}, "events": []}
     try:
         with open(STATE) as f:
-            return json.load(f)
-    except (OSError, ValueError):
-        return {"since": None, "patterns": {}, "events": []}
+            d = json.load(f)
+        if not isinstance(d, dict) or not isinstance(d.get("patterns"), dict) or not isinstance(d.get("events"), list):
+            raise ValueError("not a forward log")
+        return d, None
+    except FileNotFoundError:
+        return fresh, None
+    except (OSError, ValueError) as e:
+        stamp = (now_s or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")).replace(":", "")
+        kept = f"{STATE}.unreadable-{stamp}"
+        try:
+            os.replace(STATE, kept)
+        except OSError:
+            kept = None
+        msg = (f"forward log unreadable ({type(e).__name__}); "
+               + (f"kept as {os.path.basename(kept)}, " if kept else "could not move it aside, ") + "started a fresh one")
+        log(f"stf: {msg}")
+        return fresh, msg
 
 
 def save_json(path, d):
@@ -358,6 +376,8 @@ def save_json(path, d):
     tmp = path + ".tmp"
     with open(tmp, "w") as f:
         json.dump(d, f, separators=(",", ":"))
+        f.flush()
+        os.fsync(f.fileno())                # on disk before it replaces the old file (a crash leaves old or new, whole)
     os.replace(tmp, path)
 
 
@@ -692,13 +712,13 @@ def send_alerts(events, log=print):
 def run(log=print, now=None):
     now = now or datetime.now(timezone.utc)
     now_s = now.strftime("%Y-%m-%dT%H:%M:%SZ")
-    S = load_state()
+    S, state_problem = load_state(log, now_s)
     first_run = S["since"] is None
     S["since"] = S["since"] or now_s
     out = {"generated_utc": now_s, "instruments": [], "tfs": list(TFS), "series": {}, "active": [], "labels": LABEL,
            "rules": {"p_sizes": list(P_SIZES), "span": SPAN, "near": HS.NEAR, "fail": HS.FAIL, "max_wait": HS.MAX_WAIT,
                      "max_age": HS.MAX_AGE, "retest": HS.RETEST}}
-    new_events, problems = [], []
+    new_events, problems = [], [state_problem] if state_problem else []
     for code, name in INSTR:
         src, sym = source_for(code, log)
         out["instruments"].append({"code": code, "name": name, "source": SOURCE_NAME.get(src), "symbol": sym, "ok": bool(src)})
