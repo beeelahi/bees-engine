@@ -83,6 +83,7 @@ ATR_MIN = 2.0                # the pattern stands out from the noise: height at 
                              # of the last 14 candles' average and the last 100 candles' median (spikes do not inflate it,
                              # quiet spells do not shrink it)
 WIDTH_MIN, SIDE_MIN = 20, 6  # a pattern, not a wiggle: at least 20 candles shoulder to shoulder, 6 on each side of the head
+SHAPE_ABS = False            # research switch (off): head prominence and shoulder symmetry in plain price, not from the neckline
 HEAD_CLOSE = True            # the head is a real peak, not a one-candle wick: its closes (2 candles either side) go beyond
                              # the shoulders' closes too
 TURN_MIN = 0.25              # a right shoulder still forming has turned: price came back at least 25% of its depth
@@ -178,6 +179,8 @@ def valid(p, h, l, c, atr=None):
     if d < -NECK_AGAINST or d > NECK_WITH:
         return False
     dl, dr = sg * (X[p["lsh"]] - nk(p["lsh"])), sg * (X[rs] - nk(rs))   # each shoulder's height above the neckline
+    if SHAPE_ABS:
+        dl, dr = H - sg * (X[p["hd"]] - X[p["lsh"]]), H - sg * (X[p["hd"]] - X[rs])
     if H - max(dl, dr) < HEAD_MIN * H or abs(dl - dr) > SYM_MAX * H:   # (measured from the neckline, so a sloped
         return False                                                   # neckline does not distort the comparison)
     if not TIME_RATIO[0] <= (rs - p["hd"]) / (p["hd"] - p["lsh"]) <= TIME_RATIO[1]:

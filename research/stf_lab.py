@@ -36,7 +36,7 @@ BARS = {"15m": 70_000, "1h": 26_000, "4h": 6_600, "1d": 3_000}     # about 2, 3,
 TF_MS = {"15m": 900_000, "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000}
 SPLIT = 2 / 3
 
-LIVE = {k: getattr(S, k) for k in ("SHOULDER_MIN", "SYM_MAX", "TIME_RATIO", "NECK_AGAINST", "NECK_WITH", "PRIOR_MIN",
+LIVE = {k: getattr(S, k) for k in ("SHAPE_ABS", "P_SIZES", "SHOULDER_MIN", "SYM_MAX", "TIME_RATIO", "NECK_AGAINST", "NECK_WITH", "PRIOR_MIN",
                                    "ATR_MIN", "WIDTH_MIN", "SIDE_MIN", "HEAD_CLOSE", "HEAD_MIN", "TROUGH_MAX", "SPAN")}
 VARIANTS = [
     ("live", "The live rules", {}),
@@ -60,12 +60,18 @@ VARIANTS = [
     ("neck_15", "Neckline up to ~11 degrees against (0.2)", {"NECK_AGAINST": 0.2}),
     ("no_head_close", "Head may be a wick (no closes rule)", {"HEAD_CLOSE": False}),
     ("span_300", "Up to 300 candles wide (live 200)", {"SPAN": 300}),
+    ("abs_shape", "Head and shoulder symmetry in plain price (not from a sloped neckline)", {"SHAPE_ABS": True}),
+    ("swing_3", "Also 3-candle swings (live 5 and 10)", {"P_SIZES": (3, 5, 10)}),
+    ("abs_swing3", "Both of the above", {"SHAPE_ABS": True, "P_SIZES": (3, 5, 10)}),
     ("spike_10", "Very tall heads: shoulders >= 10% of height, time ratio 0.2-5", {"SHOULDER_MIN": 0.10, "TIME_RATIO": (0.2, 5.0)}),
     ("spike_wide", "Very tall heads, loose: shoulders >= 10%, uneven up to 35%, time 0.2-5, 300 candles", {"SHOULDER_MIN": 0.10, "SYM_MAX": 0.35, "TIME_RATIO": (0.2, 5.0), "SPAN": 300}),
 ]
 REFS = [("XAU", "15m", "2026-11-20 10:30", "Gold 15m 20 Nov (your trade)"),
         ("BTC", "1h", "2026-11-23 14:00", "BTC 1h 21-24 Nov (spike head)"),
         ("SOL", "15m", "2026-11-23 14:15", "SOL 15m 21-25 Nov (spike head)"),
+        ("XAG", "15m", "2026-10-06 19:00", "Silver 15m 6-7 Oct"),
+        ("XAG", "15m", "2026-11-23 14:15", "Silver 15m 22-25 Nov (your trade)"),
+        ("XAU", "15m", "2026-11-09 20:15", "Gold 15m 9-10 Nov"),
         ("SOL", "1h", "2026-11-23 14:00", "SOL 1h 21-25 Nov (spike head)"),
         ]
 
@@ -142,6 +148,8 @@ def evaluate(hist, log=print):
         t0 = time.time()
         per_tf, refs, res_mk = {}, {}, {}
         for (code, tf), rows in hist.items():
+            for k, v in {**LIVE, **S.TF_RULES.get(tf, {}), **over}.items():   # the live rules of this timeframe, then the change
+                setattr(S, k, v)
             br = direct_breaks(rows)
             cut = rows[0][0] + SPLIT * (rows[-1][0] - rows[0][0])
             mk = res_mk.setdefault(f"{code} {tf}", [])
@@ -179,7 +187,9 @@ def exits_study(hist):
     out = {}
     for (code, tf), rows in hist.items():
         d = out.setdefault(tf, {"break_full": [], "break_65": [], "retest_full": [], "retest_65": []})
-        for b in direct_breaks(rows):
+        with S.rules(tf):
+            brs = direct_breaks(rows)
+        for b in brs:
             sg, n = b["sg"], b["n"]
             # the neckline at the break: stop_neck = neck + sg*FAIL*H and target = neck - sg*H
             H = abs(b["stop_neck"] - b["target"]) / (1 + HS.FAIL)
@@ -266,10 +276,10 @@ def report(out, log=print):
             log(f"{key:14s} {a['n']:5d} {T['target_pct']:6.1f} {a['avg_r']:+.2f} (+-{a['se'] or 0:.2f}) "
                 f"{e.get('avg_r', 0):+.2f}/{e.get('n', 0)} {la.get('avg_r', 0):+.2f}/{la.get('n', 0)} {T['neck'].get('avg_r', 0):+.2f}"
                 f"{'  <- better in both halves' if better else ''}")
-    log("--- by market (avg R / trades): live | spike_head | spike_10 | spike_wide")
+    log("--- by market (avg R / trades): live | abs_shape | swing_3 | abs_swing3")
     for mk in out["variants"]["live"]["market"]:
         log(f"{mk:9s} " + " | ".join(f"{out['variants'][v]['market'].get(mk, {}).get('avg_r', 0):+.2f}/{out['variants'][v]['market'].get(mk, {}).get('n', 0)}"
-                                     for v in ("live", "spike_head", "spike_10", "spike_wide")))
+                                     for v in ("live", "abs_shape", "swing_3", "abs_swing3")))
     log("--- reference patterns caught (each named; dict order is not the REFS order):")
     for key, v in out["variants"].items():
         log(f"{key:14s} " + "  ".join(f"{name}: {'YES' if x else 'no'}" for name, x in sorted(v["refs"].items())))
