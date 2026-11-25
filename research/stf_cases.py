@@ -22,6 +22,45 @@ CASES = [
 ]
 
 
+# Bilal's drawn layouts: (market, tf, left-shoulder window, head window, right-shoulder window, label); each point is
+# the extreme candle in its window, the neckline runs through the lowest points between them (as the watcher draws it)
+LAYOUTS = [
+    ("XAG", "15m", ("2026-11-22 08:00", "2026-11-22 20:00"), ("2026-11-23 10:00", "2026-11-23 18:00"), ("2026-11-24 08:00", "2026-11-24 15:00"), "silver 22-25 Nov as drawn"),
+    ("XAG", "15m", ("2026-10-05 05:00", "2026-10-05 09:00"), ("2026-10-05 10:00", "2026-10-05 12:00"), ("2026-10-05 12:15", "2026-10-05 14:00"), "silver 5 Oct"),
+    ("XAG", "15m", ("2026-10-10 12:00", "2026-10-11 12:00"), ("2026-10-11 12:00", "2026-10-12 12:00"), ("2026-10-12 12:00", "2026-10-13 10:00"), "silver 10-13 Oct"),
+    ("XAU", "15m", ("2026-11-08 00:00", "2026-11-08 06:00"), ("2026-11-09 12:00", "2026-11-10 01:00"), ("2026-11-10 03:00", "2026-11-10 08:00"), "gold 8-10 Nov (if November)"),
+    ("XAU", "15m", ("2026-10-08 00:00", "2026-10-08 06:00"), ("2026-10-09 12:00", "2026-10-10 01:00"), ("2026-10-10 03:00", "2026-10-10 08:00"), "gold 8-10 Oct (if October)"),
+]
+
+
+def layout(rows, tf, lw, hw, rw, what, P=5):
+    t, o, h, l, c = S._series(rows)
+    pick = lambda w, f: f([k for k in range(len(t)) if w[0] <= L.utc(t[k]) <= w[1]], key=lambda k: h[k])  # noqa: E731
+    lsh, hd, rsh = pick(lw, max), pick(hw, max), pick(rw, max)
+    t1, t2 = min(range(lsh + 1, hd), key=lambda k: l[k]), min(range(hd + 1, rsh), key=lambda k: l[k])
+    m = (l[t2] - l[t1]) / (t2 - t1)
+    H = h[hd] - (l[t1] + m * (hd - t1))
+    p = {"kind": "top", "sg": 1, "P": P, "lsh": lsh, "hd": hd, "rsh": rsh, "t1": t1, "t2": t2, "m": m, "b": l[t1] - m * t1,
+         "height": H, "known": rsh + P, "context": "reversal"}
+    with S.rules(tf):
+        f = R.fails(p, h, l, c)
+    swing = max(k for k in range(1, 30) if all(h[rsh] >= h[j] for j in range(max(0, rsh - k), min(len(h), rsh + k + 1))))
+    print(f"\n== {what}: LS {L.utc(t[lsh])[5:]} {h[lsh]} | H {L.utc(t[hd])[5:]} {h[hd]} | RS {L.utc(t[rsh])[5:]} {h[rsh]} | neck {l[t1]}@{L.utc(t[t1])[5:]} -> {l[t2]}@{L.utc(t[t2])[5:]} | height {H:.4g}")
+    print(f"   shape: {'; '.join(f) or 'passes'}; the right shoulder is a {swing}-candle swing (the watcher uses 5 and 10)")
+    for i in range(p["known"], min(len(c), rsh + HS.MAX_WAIT + 2)):
+        st = HS.state(p, o, h, l, c, i)
+        if st is None:
+            print(f"   {L.utc(t[i])}: no longer valid (right shoulder taken out, or expired)")
+            break
+        if st["brk"] is not None:
+            b = {"n": i, "kind": "top", "sg": 1, "target": st["target"], "stop_shoulder": h[rsh],
+                 "stop_neck": st["neck"] + HS.FAIL * H}
+            tr = S.trade(rows, b, "stop_shoulder")
+            print(f"   close through the neckline {L.utc(t[st['brk']])}, alert would be {L.utc(t[i])} ({st['status']}), target {st['target']:.4g}"
+                  f" -> {tr and (tr['exit'], tr['r'])}")
+            break
+
+
 def main():
     cache = {}
     for code, tf, a, b, what in CASES:
@@ -76,3 +115,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+    for code, tf, lw, hw, rw, what in LAYOUTS:
+        layout(L.history(code, tf, log=lambda *x: None)[0], tf, lw, hw, rw, what)
