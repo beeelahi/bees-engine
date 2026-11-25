@@ -60,9 +60,13 @@ VARIANTS = [
     ("neck_15", "Neckline up to ~11 degrees against (0.2)", {"NECK_AGAINST": 0.2}),
     ("no_head_close", "Head may be a wick (no closes rule)", {"HEAD_CLOSE": False}),
     ("span_300", "Up to 300 candles wide (live 200)", {"SPAN": 300}),
+    ("spike_10", "Very tall heads: shoulders >= 10% of height, time ratio 0.2-5", {"SHOULDER_MIN": 0.10, "TIME_RATIO": (0.2, 5.0)}),
+    ("spike_wide", "Very tall heads, loose: shoulders >= 10%, uneven up to 35%, time 0.2-5, 300 candles", {"SHOULDER_MIN": 0.10, "SYM_MAX": 0.35, "TIME_RATIO": (0.2, 5.0), "SPAN": 300}),
 ]
 REFS = [("XAU", "15m", "2026-11-20 10:30", "Gold 15m 20 Nov (your trade)"),
         ("BTC", "1h", "2026-11-23 14:00", "BTC 1h 21-24 Nov (spike head)"),
+        ("SOL", "15m", "2026-11-23 14:15", "SOL 15m 21-25 Nov (spike head)"),
+        ("SOL", "1h", "2026-11-23 14:00", "SOL 1h 21-25 Nov (spike head)"),
         ]
 
 
@@ -262,10 +266,10 @@ def report(out, log=print):
             log(f"{key:14s} {a['n']:5d} {T['target_pct']:6.1f} {a['avg_r']:+.2f} (+-{a['se'] or 0:.2f}) "
                 f"{e.get('avg_r', 0):+.2f}/{e.get('n', 0)} {la.get('avg_r', 0):+.2f}/{la.get('n', 0)} {T['neck'].get('avg_r', 0):+.2f}"
                 f"{'  <- better in both halves' if better else ''}")
-    log("--- by market (avg R / trades): live | spike_head | shoulder_35")
+    log("--- by market (avg R / trades): live | spike_head | spike_10 | spike_wide")
     for mk in out["variants"]["live"]["market"]:
         log(f"{mk:9s} " + " | ".join(f"{out['variants'][v]['market'].get(mk, {}).get('avg_r', 0):+.2f}/{out['variants'][v]['market'].get(mk, {}).get('n', 0)}"
-                                     for v in ("live", "spike_head", "shoulder_35")))
+                                     for v in ("live", "spike_head", "spike_10", "spike_wide")))
     log("--- reference patterns caught (each named; dict order is not the REFS order):")
     for key, v in out["variants"].items():
         log(f"{key:14s} " + "  ".join(f"{name}: {'YES' if x else 'no'}" for name, x in sorted(v["refs"].items())))
