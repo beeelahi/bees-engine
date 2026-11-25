@@ -31,6 +31,7 @@ Usage: python3 bin/stf_hns.py            one run (what the timer does)
        python3 bin/stf_hns.py --backtest the watcher replayed candle by candle on long history: every break alert it
                                          would have sent, traded with two stop rules (daily, bees-stf-bt.timer)
 """
+import contextlib
 import json
 import os
 import statistics as st
@@ -65,6 +66,11 @@ HEAD_MIN, TROUGH_MAX = 0.2, 0.6    # head at least 20% of the height beyond the 
 SHOULDER_MIN = 0.5           # each shoulder is a real swing: it reaches at least half the head's distance past the neckline
 SYM_MAX = 0.25               # the shoulders are a matching pair: within 25% of the height of each other
 TIME_RATIO = (0.5, 2.0)      # and roughly evenly spaced: head-to-right-shoulder time 0.5 to 2 x left-shoulder-to-head time
+# Per-timeframe changes to the limits above (Bilal's decision, 25 Nov 2026, from research/stf_lab.py): on 15m a taller
+# head is allowed -- shoulders at least 25% of the height past the neckline, right side 0.3 to 3 x the left. On 2 years of
+# 15m history (5 markets) that gave +0.13R a trade over 462 breaks vs -0.01R over 150 with the limits above, the same in
+# the earlier two thirds and the last third; on 1h and 4h the same change did worse, so they keep the limits above.
+TF_RULES = {"15m": {"SHOULDER_MIN": 0.25, "TIME_RATIO": (0.3, 3.0)}}
 # Neckline direction (Bilal's rule): a top's neckline slopes up, is flat, or slopes down by at most 5 degrees; an inverse
 # pattern's slopes down, is flat, or slopes up by at most 5 degrees. Degrees are measured with the pattern drawn as tall
 # as it is wide (left shoulder to right shoulder = head to neckline), so 5 degrees = a change of tan(5) = 8.75% of the
@@ -142,6 +148,18 @@ def typical_range(h, l, c, k):
     tr = lambda j: max(h[j] - l[j], abs(h[j] - c[j - 1]), abs(l[j] - c[j - 1])) if j > 0 else h[0] - l[0]  # noqa: E731
     a = [tr(j) for j in range(max(0, k - 99), k + 1)]
     return max(st.mean(a[-14:]), st.median(a))
+
+
+@contextlib.contextmanager
+def rules(tf):
+    """Apply the timeframe's limits (TF_RULES) while scanning that timeframe, then restore the defaults."""
+    g = globals()
+    old = {k: g[k] for k in TF_RULES.get(tf, {})}
+    g.update(TF_RULES.get(tf, {}))
+    try:
+        yield
+    finally:
+        g.update(old)
 
 
 def valid(p, h, l, c, atr=None):
@@ -462,6 +480,11 @@ REPLAY_W = 600               # candles the replay sees at each step (patterns ar
 def replay_breaks(rows, code, tf):
     """Run the watcher candle by candle over past candles, exactly as the timer would have (same scan, same log),
     and return every 'Neckline broken' alert it would have sent, with what was known at that moment."""
+    with rules(tf):
+        return _replay_breaks(rows, code, tf)
+
+
+def _replay_breaks(rows, code, tf):
     St, out = {"since": None, "patterns": {}, "events": []}, []
     for n in range(REPLAY_W, len(rows)):
         t, o, h, l, c = _series(rows[n - REPLAY_W:n + 1])
@@ -697,7 +720,9 @@ def run(log=print, now=None):
     S["since"] = S["since"] or now_s
     out = {"generated_utc": now_s, "instruments": [], "tfs": list(TFS), "series": {}, "active": [], "labels": LABEL,
            "rules": {"p_sizes": list(P_SIZES), "span": SPAN, "near": HS.NEAR, "fail": HS.FAIL, "max_wait": HS.MAX_WAIT,
-                     "max_age": HS.MAX_AGE, "retest": HS.RETEST}}
+                     "max_age": HS.MAX_AGE, "retest": HS.RETEST,
+                     "shape": {tf: {"shoulder_min": TF_RULES.get(tf, {}).get("SHOULDER_MIN", SHOULDER_MIN),
+                                    "time_ratio": list(TF_RULES.get(tf, {}).get("TIME_RATIO", TIME_RATIO))} for tf in TFS}}}
     new_events, problems = [], []
     for code, name in INSTR:
         src, sym = source_for(code, log)
@@ -715,8 +740,9 @@ def run(log=print, now=None):
                 problems.append(f"{code} {tf}: only {len(rows)} candles")
                 continue
             t, o, h, l, c = _series(rows)
-            active = scan(t, o, h, l, c)
-            evs = update_log(S, code, tf, t, o, h, l, c, active, now_s)
+            with rules(tf):
+                active = scan(t, o, h, l, c)
+                evs = update_log(S, code, tf, t, o, h, l, c, active, now_s)
             new_events += evs
             out["active"] += [row(code, tf, t, o, h, l, c, p, s_) for p, s_ in active]
             out["series"].setdefault(code, {})[tf] = {"last_ms": t[-1], "close": c[-1],
@@ -752,17 +778,18 @@ def probe(log=print):
         if not src:
             continue
         for tf in TFS:
-            rows = klines(src, sym, tf)
-            t, o, h, l, c = _series(rows)
-            f = lambda ms: datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%m-%d %H:%M")  # noqa: E731
-            log(f"  {tf}: {len(rows)} candles {f(t[0])} .. {f(t[-1])} close {c[-1]}")
-            for P in P_SIZES:
-                for p in find(h, l, c, P):
-                    log(f"    P{P} {p['kind']:7s} {p['context']:12s} LS {f(t[p['lsh']])} {fmt((h if p['sg'] == 1 else l)[p['lsh']])}"
-                        f" H {f(t[p['hd']])} {fmt((h if p['sg'] == 1 else l)[p['hd']])} RS {f(t[p['rsh']])} {fmt((h if p['sg'] == 1 else l)[p['rsh']])}"
-                        f" neck {fmt(HS.neck(p, p['t1']))}->{fmt(HS.neck(p, p['t2']))} exit {exit_reason(p, h, l, c, len(c) - 1)[0]}")
-            for p, s in scan(t, o, h, l, c):
-                log(f"    ACTIVE {p['kind']} {s['status']} neck {fmt(s['neck'])} target {fmt(s['target'])}")
+            with rules(tf):
+                rows = klines(src, sym, tf)
+                t, o, h, l, c = _series(rows)
+                f = lambda ms: datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%m-%d %H:%M")  # noqa: E731
+                log(f"  {tf}: {len(rows)} candles {f(t[0])} .. {f(t[-1])} close {c[-1]}")
+                for P in P_SIZES:
+                    for p in find(h, l, c, P):
+                        log(f"    P{P} {p['kind']:7s} {p['context']:12s} LS {f(t[p['lsh']])} {fmt((h if p['sg'] == 1 else l)[p['lsh']])}"
+                            f" H {f(t[p['hd']])} {fmt((h if p['sg'] == 1 else l)[p['hd']])} RS {f(t[p['rsh']])} {fmt((h if p['sg'] == 1 else l)[p['rsh']])}"
+                            f" neck {fmt(HS.neck(p, p['t1']))}->{fmt(HS.neck(p, p['t2']))} exit {exit_reason(p, h, l, c, len(c) - 1)[0]}")
+                for p, s in scan(t, o, h, l, c):
+                    log(f"    ACTIVE {p['kind']} {s['status']} neck {fmt(s['neck'])} target {fmt(s['target'])}")
 
 
 if __name__ == "__main__":

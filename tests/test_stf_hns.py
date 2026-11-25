@@ -176,3 +176,39 @@ class NecklineRuleTest(unittest.TestCase):
         self.assertTrue(self.found("inverse", 0.0))
         self.assertTrue(self.found("inverse", 0.3))
         self.assertFalse(self.found("inverse", -0.3))
+
+
+class TimeframeRulesTest(unittest.TestCase):
+    """15m allows a taller head (shoulders >= 25% of the height past the neckline, right side 0.3-3 x the left);
+    1h and 4h keep the stricter limits (50%, 0.5-2)."""
+    def shape(self, shoulder):
+        pts = [30, 60, 85 + shoulder, 85, 120, 85, 85 + shoulder, 75]          # head 35 above a flat neckline at 85
+        return ohlc(path(pts, 13))
+
+    def found(self, tf, shoulder):
+        o, h, l, c = self.shape(shoulder)
+        with S.rules(tf):
+            return [p for P in S.P_SIZES for p in S.find(h, l, c, P) if p["kind"] == "top"]
+
+    def test_tall_head_only_on_15m(self):
+        self.assertTrue(self.found("15m", 12))     # shoulders 34% of the height: allowed on 15m
+        self.assertFalse(self.found("1h", 12))     # not on 1h
+        self.assertFalse(self.found("4h", 12))
+        self.assertTrue(self.found("1h", 19))      # 54%: allowed everywhere
+        self.assertFalse(self.found("15m", 6))     # 17%: too small even on 15m
+
+    def test_defaults_restored(self):
+        with S.rules("15m"):
+            self.assertEqual(S.SHOULDER_MIN, 0.25)
+        self.assertEqual((S.SHOULDER_MIN, S.TIME_RATIO), (0.5, (0.5, 2.0)))
+
+    def test_gold_case_unchanged_under_15m_rules(self):
+        g = GoldCaseTest()
+        rows, f = g.load()
+        t, o, h, l, c = S._series(rows)
+        St, seen = {"since": None, "patterns": {}, "events": []}, []
+        with S.rules("15m"):
+            for n in range(60, len(t)):
+                tt, oo, hh, ll, cc = t[:n + 1], o[:n + 1], h[:n + 1], l[:n + 1], c[:n + 1]
+                seen += [(e["status"], f(e["bar_ms"]), e["kind"]) for e in S.update_log(St, "XAU", "15m", tt, oo, hh, ll, cc, S.scan(tt, oo, hh, ll, cc), "x")]
+        self.assertEqual(seen, [("forming", "11-20 14:45", "top"), ("broken", "11-20 16:15", "top"), ("target", "11-20 18:45", "top")])

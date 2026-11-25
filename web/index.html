@@ -4592,6 +4592,14 @@ function renderMARecord(D) {
 // ---------- STF HNS: head and shoulders on 15m / 1h / 4h for gold, silver, BTC, ETH, SOL (bin/stf_hns.py, every 5 minutes)
 let stfLoading = null, stfTimer = null;
 const STF_TF = [["15m", "15 min"], ["1h", "1 hour"], ["4h", "4 hours"]];
+// the shoulder and spacing limits differ by timeframe (bin/stf_hns.py TF_RULES): 15m allows a taller head
+function stfShapeNote(D, tf) {
+  const sh = (((D.rules || {}).shape || {})[tf]) || null;
+  if (!sh) return "";
+  const pct = Math.round(sh.shoulder_min * 100), tr = sh.time_ratio;
+  return `On this ${tf === "15m" ? "15-minute" : tf === "1h" ? "1-hour" : "4-hour"} chart each shoulder reaches at least ${pct}% of the head's distance past the neckline, and the right side takes ${tr[0]} to ${tr[1]} times as long as the left` +
+    (tf === "15m" ? " (a taller head is allowed here: on 2 years of 15-minute history this did better than the stricter 50% rule, which 1h and 4h keep)." : ".");
+}
 const STF_ORDER = { retest: 0, broken: 1, near_neckline: 2, forming: 3, pattern: 4, after_break: 5 };
 const stfLocal = ms => new Date(ms).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 const stfKind = r => r.kind === "top" ? ["▼ Top", "down"] : ["▲ Inverse", "up"];
@@ -4609,7 +4617,7 @@ function renderSTF() {
   const age = (Date.now() - Date.parse(D.generated_utc)) / 60000;
   $("#stfAsOf").textContent = "checked " + mbAgo(D.generated_utc) + (age > 45 ? " · late" : "");
   $("#stfAsOf").className = "note" + (age > 45 ? " down" : "");
-  $("#stfLead").textContent = "Gold, silver, BTC, ETH and SOL, checked every 5 minutes on closed candles for proper head-and-shoulders patterns: tops (bearish) and inverse (bullish). Only textbook patterns count: a real move into the pattern; both shoulders real swings of matching height and spacing; a head that clearly stands out (on closes, not just a wick); at least 20 candles wide and larger than normal candle noise; and the neckline the right way: for a top it slopes up, is flat, or slopes down by at most 5 degrees; for an inverse it slopes down, is flat, or slopes up by at most 5 degrees (measured with the pattern drawn as tall as it is wide). A break is reported once the right shoulder is confirmed. Each pattern is followed from its right shoulder to the target or failure. This page refreshes about every 30 minutes; Telegram alerts go out within 5 minutes. Gold and silver are Binance's XAU and XAG perpetuals (close to, but not exactly, your broker's prices). Times are in your local time.";
+  $("#stfLead").textContent = "Gold, silver, BTC, ETH and SOL, checked every 5 minutes on closed candles for proper head-and-shoulders patterns: tops (bearish) and inverse (bullish). Only textbook patterns count: a real move into the pattern; both shoulders real swings of matching height and spacing; a head that clearly stands out (on closes, not just a wick); at least 20 candles wide and larger than normal candle noise; and the neckline the right way: for a top it slopes up, is flat, or slopes down by at most 5 degrees; for an inverse it slopes down, is flat, or slopes up by at most 5 degrees (measured with the pattern drawn as tall as it is wide). " + stfShapeNote(D, tf) + " A break is reported once the right shoulder is confirmed. Each pattern is followed from its right shoulder to the target or failure. This page refreshes about every 30 minutes; Telegram alerts go out within 5 minutes. Gold and silver are Binance's XAU and XAG perpetuals (close to, but not exactly, your broker's prices). Times are in your local time.";
   STF_TF.forEach(([t]) => { const b = $('.sub-nav[data-for="stf"] button[data-s="' + t + '"] i'); const n = D.active.filter(r => r.tf === t).length; if (b) { b.textContent = n ? " " + n : ""; } });
   const act = D.active.filter(r => r.tf === tf).sort((a, b) => STF_ORDER[a.status] - STF_ORDER[b.status]);
   // markets on this timeframe
