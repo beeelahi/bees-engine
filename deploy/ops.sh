@@ -143,7 +143,7 @@ PY
   stf-run)         sudo -n systemctl start --no-block bees-stf.service && echo "STF HNS run started (also every 5 minutes by timer); read it with stf-log" ;;
   stf-backtest)    sudo -n systemctl start --no-block bees-stf-bt.service && echo "STF HNS backtest started (also daily at 01:37 UTC); read it with stf-log" ;;
   stf-lab)         sudo -n systemctl start --no-block bees-stf-lab.service && echo "STF HNS lab started (rule variants on 5m-4h history, about an hour); read it with stf-lab-log" ;;
-  stf-ref)         timeout 120 python3 "$ROOT/research/stf_ref.py" BTC 1h "2026-11-23 14:00" spike_head 2>&1 | tail -n "$N" ;;
+  stf-ref)         timeout 200 python3 "$ROOT/research/stf_ref.py" 2>&1 | tail -n "$N" ;;
   stf-lab-log)     echo "-- lab: $(systemctl is-active bees-stf-lab.service)"; tail -n "$N" "$ROOT/logs/stf_lab.txt" 2>/dev/null ;;
   stf-log)         echo "-- timer: $(systemctl is-active bees-stf.timer) next: $(systemctl show bees-stf.timer -p NextElapseUSecRealtime --value)"
                    tail -n "$N" "$ROOT/logs/stf.log" 2>/dev/null; echo "-- backtest"; tail -n 20 "$ROOT/logs/stf_bt.txt" 2>/dev/null ;;
