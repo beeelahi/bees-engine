@@ -397,6 +397,7 @@ ol.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--
 .today-list li b { display: block; font-size: 14px; line-height: 1.35; } .today-list li small { display: block; margin-top: 4px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
 .t50 td:nth-child(2), .t50 th:nth-child(2) { text-align: left; } .t50 tbody tr.more { display: none; } .t50.all tbody tr.more { display: table-row; }
 .ov-link { color: var(--accent); text-decoration: none; font-weight: 600; } .ov-link:hover { text-decoration: underline; }
+.ov-link, #discLink { display: inline-block; padding: 5px 8px; margin: -5px -8px; }   /* 24px+ tap targets on phones, same layout */
 #mkCard .mk-mood { font-size: 16px; line-height: 1.55; max-width: 1100px; }
 .today-list .ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-weight: 700; font-size: 13px; }
 .today-list .ic.up { background: var(--up-soft); color: var(--up); } .today-list .ic.down { background: var(--down-soft); color: var(--down); }

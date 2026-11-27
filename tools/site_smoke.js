@@ -39,6 +39,9 @@ const ROUTES = ["overview", "world", "coins", "ma", "stf", "stf/1h", "stf/4h", "
       if (vp.n === "phone" && r.startsWith("pair/")) {   // small links a thumb must hit (e.g. "draw" on the chart's trend boxes)
         const tiny = await p.evaluate(() => [...document.querySelectorAll(".pair-trend .label a")].filter(a => { const b = a.getBoundingClientRect(); return b.width && (b.height < 24 || b.width < 24); }).length);
         if (tiny) bad.push(`${tiny} link(s) smaller than a 24px tap target`); }
+      if (vp.n !== "desktop") {   // standalone links on every view: the disclaimer link and the card-heading links ("All trade ideas ›")
+        const tiny = await p.evaluate(() => [...document.querySelectorAll("#discLink, section.view:not([hidden]) .card-head > a")].filter(a => { const b = a.getBoundingClientRect(); return b.width && (b.height < 24 || b.width < 24); }).map(a => a.textContent.trim()));
+        if (tiny.length) bad.push(`smaller than a 24px tap target: ${tiny.join(", ")}`); }
       if (st.views !== 1) bad.push(`${st.views} views visible`); if (st.text < 40) bad.push("view is empty"); if (st.over > 2) bad.push(`page ${st.over}px wider than the screen`); if (st.cut.length) bad.push(`current tab/pill cut off: ${st.cut.join(", ")}`);
       console.log(`${vp.n.padEnd(8)} #${r.padEnd(24)} ${bad.length ? "FAIL " + bad.join(" | ") : "ok"}`);
       if (bad.length) fails.push(`${vp.n} #${r}: ${bad.join(" | ")}`);
