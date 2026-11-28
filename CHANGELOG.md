@@ -5,6 +5,7 @@ All notable changes. Versions follow [Semantic Versioning](https://semver.org).
 ## [Unreleased]
 
 ### Added
+- Lighter pair pages (daily check, 28 Nov): the pair chart data is split into 96 files instead of 24 (about 6 pairs each), so opening one pair downloads ~0.25 MB gzipped instead of ~1 MB; the Setup Lab on its default 50 coins downloads ~11 MB instead of ~22 MB and now fetches the coins' files together instead of one after another. Same data, same columns.
 - Tests for the bot core (bin/bot_core.py, shared by the backtest and the live paper trader): calendar maths, excluded tokens, series breaks, no look-ahead in the rolling windows and features, agreement with bin/indicators.py, and the Top-50 score parts (tests only).
 - Faster page opens: the service worker now revalidates the page (cache "no-cache") instead of bypassing the browser cache ("no-store"), so an unchanged page comes back as a 304 instead of the whole ~600 KB page on every visit; a changed page is still fetched at once and the offline copy still works.
 - tests/test_indicators.py (daily check, 10 Nov): every function in bin/indicators.py (moving averages, RSI, MACD, stochastics, ATR, Bollinger, realised volatility, ADX, Supertrend, Ichimoku, MFI, CMF, OBV, relative volume, rolling windows, percentile ranks) checked against a slow textbook version written in the test, plus the warm-up promise (starting the history later changes nothing that matters after the *_warm index). The module's docstring said this was tested; until now nothing tested it directly.

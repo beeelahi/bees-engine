@@ -2771,7 +2771,7 @@ function mbSet(id, text, c) { const e = $("#" + id); if (!e) return; e.textConte
 function mbLine(id, parts) { const el = $("#" + id); el.replaceChildren(); parts.forEach(p => { if (Array.isArray(p)) { const b = document.createElement("b"); b.textContent = p[0]; if (p[1]) b.className = p[1]; el.append(b); } else el.append(document.createTextNode(p)); }); }
 function mbHrs(a, b) { return (Date.parse(b) - Date.parse(a)) / 36e5; }
 let mmLoading = null;
-function loadMM() {                   // the MM-Bee data (about half a megabyte) loads only when the tab is opened
+function loadMM() {                   // the MM-Bee data (about 2 MB, ~0.55 MB gzipped) loads only when the tab is opened
   if (S.mm !== undefined || mmLoading) return mmLoading;
   mmLoading = j("data/mmbee.json").then(d => { S.mm = d; }, () => { S.mm = null; }).then(() => { mmLoading = null; if (!$("#v-mmbee").hidden) setSub("mmbee", S.sub.mmbee); });
   return mmLoading;
@@ -4120,6 +4120,7 @@ async function runLab() {
     tMax = Math.max(1, Math.round(+$("#labTime").value || 20)), exitR = $("#labExit").value, N = +$("#labUni").value, cost = 0.002;
   const uni = [...S.scr].filter(r => isNum(r.vol_24h_usdt)).sort((a, b) => b.vol_24h_usdt - a.vol_24h_usdt).slice(0, N).map(r => r.symbol);
   $("#labRun").disabled = true; const trades = [];
+  uni.forEach(sym => { const f = S.index && S.index[sym]; if (f && !S.shards[f]) { S.shards[f] = j("data/pairs/" + f); S.shards[f].catch(() => {}); } });   // fetch the coins' chart files together, not one after another
   try {
     for (let u = 0; u < uni.length; u++) {
       $("#labStatus").textContent = `Testing ${u + 1} of ${uni.length}…`; if (u % 5 === 0) await new Promise(r => setTimeout(r, 0));
