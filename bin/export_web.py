@@ -25,8 +25,13 @@ from datetime import datetime, timedelta, timezone
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DB = os.path.join(ROOT, "data", "binance.db")
 OUT = os.path.join(ROOT, "web_export")
-SHARDS = 24
+SHARDS = 96          # pair chart files: ~6 pairs each (~250 KB gzipped), so opening one pair downloads ~4x less than with 24
 DAILY_DAYS, WEEKS = 730, 156
+
+
+def shard_file(k):
+    """Name of pair chart file k (s00.json ... s95.json)."""
+    return f"s{k:02d}.json"
 
 
 def r(x, sig=7):
@@ -654,7 +659,7 @@ def run(con=None):
     chart_syms = universe + sorted(stock_symbols(con, trading_only=True) - set(universe))
     for i, sym in enumerate(chart_syms):
         k = i % SHARDS
-        index[sym] = f"s{k:02d}.json"
+        index[sym] = shard_file(k)
         entry = {}
         ext = __import__("venues").is_pinned(sym)            # pairs added on purpose: their complete history
         for tf, frm in (("1d", "0000" if ext else d_from), ("1w", "0000" if ext else w_from), ("1M", "0000")):
@@ -672,7 +677,7 @@ def run(con=None):
             entry[tf] = out
         shards[k][sym] = entry
     for k, sh in enumerate(shards):
-        write(os.path.join(OUT, "pairs", f"s{k:02d}.json"), {"columns": cols, "pairs": sh})
+        write(os.path.join(OUT, "pairs", shard_file(k)), {"columns": cols, "pairs": sh})
     write(os.path.join(OUT, "pairs", "index.json"), index)
     try:                                         # 4-hour chart data (once 4h candles are downloaded)
         import h4_export
